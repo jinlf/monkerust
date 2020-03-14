@@ -1,10 +1,18 @@
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Token {
     pub tk_type: TokenType,
     pub literal: String,
 }
+impl Clone for Token {
+    fn clone(&self) -> Self {
+        Token {
+            tk_type: self.tk_type,
+            literal: self.literal.clone(),
+        }
+    }
+}
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum TokenType {
     ILLEGAL,
     EOF,
