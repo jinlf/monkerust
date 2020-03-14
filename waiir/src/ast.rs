@@ -117,6 +117,8 @@ pub trait ExprTrait {
 #[derive(Debug, Clone)]
 pub enum Expr {
     Ident(Ident),
+    IntegerLiteral(IntegerLiteral),
+    PrefixExpr(PrefixExpr),
 }
 impl ExprTrait for Expr {
     fn expr_node(&self) {}
@@ -125,11 +127,15 @@ impl Expr {
     pub fn token_literal(&self) -> String {
         match self {
             Expr::Ident(ident) => ident.token_literal(),
+            Expr::IntegerLiteral(integer_literal) => integer_literal.token_literal(),
+            Expr::PrefixExpr(prefix_expr) => prefix_expr.token_literal(),
         }
     }
     pub fn string(&self) -> String {
         match self {
             Expr::Ident(ident) => ident.string(),
+            Expr::IntegerLiteral(integer_literal) => integer_literal.string(),
+            Expr::PrefixExpr(prefix_expr) => prefix_expr.string(),
         }
     }
 }
@@ -145,6 +151,40 @@ impl Ident {
     }
     pub fn string(&self) -> String {
         self.value.clone()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct IntegerLiteral {
+    pub token: Token,
+    pub value: i64,
+}
+impl IntegerLiteral {
+    pub fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+    pub fn string(&self) -> String {
+        format!("{}", self.value)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PrefixExpr {
+    pub token: Token,
+    pub operator: String,
+    pub right: Box<Expr>,
+}
+impl PrefixExpr {
+    pub fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+    pub fn string(&self) -> String {
+        let mut out = String::new();
+        out.push_str("(");
+        out.push_str(&self.operator);
+        out.push_str(&self.right.string());
+        out.push_str(")");
+        out
     }
 }
 

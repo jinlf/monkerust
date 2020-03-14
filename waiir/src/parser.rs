@@ -138,7 +138,12 @@ impl Parser {
     fn parse_expr(&mut self, prec: Precedence) -> Option<Expr> {
         match self.cur_token.tk_type {
             TokenType::IDENT => self.parse_ident(),
-            _ => None,
+            TokenType::INT => self.parse_integer_literal(),
+            TokenType::BANG | TokenType::MINUS => self.parse_prefix_expr(),
+            _ => {
+                self.no_prefix_parse_fn_error(self.cur_token.tk_type);
+                None
+            }
         }
     }
 
@@ -146,6 +151,42 @@ impl Parser {
         Some(Expr::Ident(Ident {
             token: self.cur_token.clone(),
             value: self.cur_token.literal.clone(),
+        }))
+    }
+
+    fn parse_integer_literal(&mut self) -> Option<Expr> {
+        let token = self.cur_token.clone();
+
+        match self.cur_token.literal.parse::<i64>() {
+            Ok(value) => Some(Expr::IntegerLiteral(IntegerLiteral {
+                token: token,
+                value: value,
+            })),
+            _ => {
+                let msg = format!("could not parse {} as integer", self.cur_token.literal);
+                self.errors.push(msg);
+                None
+            }
+        }
+    }
+
+    fn no_prefix_parse_fn_error(&mut self, t: TokenType) {
+        let msg = format!("no prefix parse function for {:?} found", t);
+        self.errors.push(msg);
+    }
+
+    fn parse_prefix_expr(&mut self) -> Option<Expr> {
+        let token = self.cur_token.clone();
+        let operator = self.cur_token.literal.clone();
+
+        self.next_token();
+
+        let right = self.parse_expr(Precedence::PREFIX);
+
+        Some(Expr::PrefixExpr(PrefixExpr {
+            token: token,
+            operator: operator,
+            right: Box::new(right.unwrap()), //TODO
         }))
     }
 }
@@ -316,6 +357,146 @@ return 993322;
             }
             _ => {
                 assert!(false, "parse_program returned None");
+            }
+        }
+    }
+
+    #[test]
+    fn test_integer_literal_expr() {
+        let input = "5;";
+
+        let l = Lexer::new(String::from(input));
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&mut p);
+
+        match program {
+            Some(Node::Program { stmts }) => {
+                assert!(
+                    stmts.len() == 1,
+                    "program has not enough statements. got={}",
+                    stmts.len()
+                );
+
+                match &stmts[0] {
+                    Stmt::ExprStmt { token, expr } => match expr {
+                        Some(Expr::IntegerLiteral(literal)) => {
+                            assert!(
+                                literal.value == 5,
+                                "literal.value not {}, got={}",
+                                5,
+                                literal.value
+                            );
+                            assert!(
+                                literal.token_literal() == "5",
+                                "literal.token_literal not {}. got={}",
+                                "5",
+                                literal.token_literal()
+                            );
+                        }
+                        _ => {
+                            assert!(false, "exp not IntegerLiteral. got={:?}", expr);
+                        }
+                    },
+                    _ => {
+                        assert!(
+                            false,
+                            "program.stmts[0] is not ExprStmt. got={:?}",
+                            stmts[0]
+                        );
+                    }
+                }
+            }
+            _ => {
+                assert!(false, "program parse error");
+            }
+        }
+    }
+
+    #[test]
+    fn test_parsing_prefix_expr() {
+        let tests = [("!5;", "!", 5), ("-15;", "-", 15)];
+
+        for tt in tests.iter() {
+            let l = Lexer::new(String::from(tt.0));
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parser_errors(&mut p);
+
+            match program {
+                Some(Node::Program { stmts }) => {
+                    assert!(
+                        stmts.len() == 1,
+                        "program.statements does not contain {} statements. got={}",
+                        1,
+                        stmts.len()
+                    );
+
+                    match &stmts[0] {
+                        Stmt::ExprStmt { token, expr } => match expr {
+                            Some(Expr::PrefixExpr(prefix_expr)) => match prefix_expr {
+                                PrefixExpr {
+                                    token,
+                                    operator,
+                                    right,
+                                } => {
+                                    assert!(
+                                        operator == tt.1,
+                                        "exp.operator is not '{}'. got={}",
+                                        tt.1,
+                                        operator
+                                    );
+                                    test_integer_literal(right, tt.2);
+                                }
+                                _ => {
+                                    assert!(
+                                        false,
+                                        "stmt is not PrefixExpress. got={:?}",
+                                        prefix_expr
+                                    );
+                                }
+                            },
+                            _ => {
+                                assert!(false, "stmt is not PrefixExpr. got={:?}", expr);
+                            }
+                        },
+                        _ => assert!(
+                            false,
+                            "program.stmts[0] is not ExprStmt. got={:?}",
+                            stmts[0]
+                        ),
+                    }
+                }
+                _ => {
+                    assert!(false, "program parse error");
+                }
+            }
+
+            fn test_integer_literal(il: &Expr, expected_value: i64) {
+                match il {
+                    Expr::IntegerLiteral(integer_literal) => match integer_literal {
+                        IntegerLiteral { token, value } => {
+                            assert!(
+                                *value == expected_value,
+                                "value not {}. get={}",
+                                expected_value,
+                                value
+                            );
+                            assert!(
+                                token.literal == expected_value.to_string(),
+                                "token.literal not {}, got={}",
+                                expected_value,
+                                token.literal
+                            );
+                        }
+                        _ => {
+                            assert!(false, "il not IntegerLiteral. got={:?}", il);
+                        }
+                    },
+                    _ => {
+                        assert!(false, "error");
+                    }
+                }
             }
         }
     }
