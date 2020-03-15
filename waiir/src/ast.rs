@@ -48,16 +48,17 @@ pub enum Stmt {
     LetStmt {
         token: Token,
         name: Ident,
-        value: Option<Expr>,
+        value: Expr,
     },
     ReturnStmt {
         token: Token,
-        return_value: Option<Expr>,
+        return_value: Expr,
     },
     ExprStmt {
         token: Token,
-        expr: Option<Expr>,
+        expr: Expr,
     },
+    BlockStmt(BlockStmt),
 }
 impl StmtTrait for Stmt {
     fn stmt_node(&self) {}
@@ -71,6 +72,7 @@ impl Stmt {
                 return_value,
             } => token.literal.clone(),
             Stmt::ExprStmt { token, expr } => token.literal.clone(),
+            Stmt::BlockStmt(block_stmt) => block_stmt.token_literal(),
         }
     }
     pub fn string(&self) -> String {
@@ -82,9 +84,7 @@ impl Stmt {
                 out.push_str(" ");
                 out.push_str(&name.string());
                 out.push_str(" = ");
-                if value.is_some() {
-                    out.push_str(&value.as_ref().unwrap().string());
-                }
+                out.push_str(&value.string());
                 out.push_str(";");
                 out
             }
@@ -96,16 +96,12 @@ impl Stmt {
 
                 out.push_str(&token.literal);
                 out.push_str(" ");
-                if return_value.is_some() {
-                    out.push_str(&return_value.as_ref().unwrap().string());
-                }
+                out.push_str(&return_value.string());
                 out.push_str(";");
                 out
             }
-            Stmt::ExprStmt { token, expr } => match expr {
-                Some(e) => e.string(),
-                _ => String::new(),
-            },
+            Stmt::ExprStmt { token, expr } => expr.string(),
+            Stmt::BlockStmt(block_stmt) => block_stmt.string(),
         }
     }
 }
@@ -116,10 +112,23 @@ pub trait ExprTrait {
 
 #[derive(Debug, Clone)]
 pub enum Expr {
+    MockExpr {},
     Ident(Ident),
     IntegerLiteral(IntegerLiteral),
     PrefixExpr(PrefixExpr),
     InfixExpr(InfixExpr),
+    Boolean(Boolean),
+    IfExpr {
+        token: Token,
+        condition: Box<Expr>,
+        consequence: BlockStmt,
+        alternative: Option<BlockStmt>,
+    },
+    FuncLite {
+        token: Token,
+        parameters: Vec<Ident>,
+        body: BlockStmt,
+    },
 }
 impl ExprTrait for Expr {
     fn expr_node(&self) {}
@@ -127,18 +136,70 @@ impl ExprTrait for Expr {
 impl Expr {
     pub fn token_literal(&self) -> String {
         match self {
+            Expr::MockExpr {} => String::new(),
             Expr::Ident(ident) => ident.token_literal(),
             Expr::IntegerLiteral(integer_literal) => integer_literal.token_literal(),
             Expr::PrefixExpr(prefix_expr) => prefix_expr.token_literal(),
             Expr::InfixExpr(infix_expr) => infix_expr.token_literal(),
+            Expr::Boolean(boolean) => boolean.token_literal(),
+            Expr::IfExpr {
+                token,
+                condition,
+                consequence,
+                alternative,
+            } => token.literal.clone(),
+            Expr::FuncLite {
+                token,
+                parameters,
+                body,
+            } => token.literal.clone(),
         }
     }
     pub fn string(&self) -> String {
         match self {
+            Expr::MockExpr {} => String::new(),
             Expr::Ident(ident) => ident.string(),
             Expr::IntegerLiteral(integer_literal) => integer_literal.string(),
             Expr::PrefixExpr(prefix_expr) => prefix_expr.string(),
             Expr::InfixExpr(infix_expr) => infix_expr.string(),
+            Expr::Boolean(boolean) => boolean.string(),
+            Expr::IfExpr {
+                token,
+                condition,
+                consequence,
+                alternative,
+            } => {
+                let mut out = String::new();
+                out.push_str("if");
+                out.push_str(&condition.string());
+                out.push_str(" ");
+                out.push_str(&consequence.string());
+                if let Some(a) = alternative {
+                    out.push_str(&a.string());
+                }
+
+                out
+            }
+            Expr::FuncLite {
+                token,
+                parameters,
+                body,
+            } => {
+                let mut out = String::new();
+                let mut params: Vec<String> = Vec::new();
+
+                for p in parameters.iter() {
+                    params.push(p.string());
+                }
+
+                out.push_str(&token.literal);
+                out.push_str("(");
+                out.push_str(&params.join(", "));
+                out.push_str(") ");
+                out.push_str(&body.string());
+
+                out
+            }
         }
     }
 }
@@ -217,6 +278,39 @@ impl InfixExpr {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Boolean {
+    pub token: Token,
+    pub value: bool,
+}
+impl Boolean {
+    pub fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+    pub fn string(&self) -> String {
+        self.token.literal.clone()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct BlockStmt {
+    pub token: Token,
+    pub stmts: Vec<Stmt>,
+}
+impl BlockStmt {
+    pub fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+    pub fn string(&self) -> String {
+        let mut out = String::new();
+
+        for s in self.stmts.iter() {
+            out.push_str(&s.string());
+        }
+        out
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -236,13 +330,13 @@ mod tests {
                     },
                     value: String::from("myVar"),
                 },
-                value: Some(Expr::Ident(Ident {
+                value: Expr::Ident(Ident {
                     token: Token {
                         tk_type: TokenType::IDENT,
                         literal: String::from("anotherVar"),
                     },
                     value: String::from("anotherVar"),
-                })),
+                }),
             }],
         };
 

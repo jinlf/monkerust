@@ -1,6 +1,8 @@
 use super::ast::*;
 use super::lexer::*;
 use super::token::*;
+use std::any::*;
+use std::ops::*;
 
 #[derive(PartialOrd, PartialEq)]
 pub enum Precedence {
@@ -78,7 +80,7 @@ impl Parser {
         Some(Stmt::LetStmt {
             token: token,
             name: name,
-            value: None,
+            value: Expr::MockExpr {}, // TODO
         })
     }
 
@@ -120,7 +122,7 @@ impl Parser {
         }
         Some(Stmt::ReturnStmt {
             token: token,
-            return_value: None,
+            return_value: Expr::MockExpr {},
         })
     }
 
@@ -130,9 +132,12 @@ impl Parser {
         if self.peek_token_is(TokenType::SEMICOLON) {
             self.next_token();
         }
+        if expr.is_none() {
+            return None;
+        }
         Some(Stmt::ExprStmt {
             token: token,
-            expr: expr,
+            expr: expr.unwrap(),
         })
     }
 
@@ -142,6 +147,9 @@ impl Parser {
             TokenType::IDENT => left_exp = self.parse_ident(),
             TokenType::INT => left_exp = self.parse_integer_literal(),
             TokenType::BANG | TokenType::MINUS => left_exp = self.parse_prefix_expr(),
+            TokenType::TRUE | TokenType::FALSE => left_exp = self.parse_boolean(),
+            TokenType::IF => left_exp = self.parse_if_expr(),
+            TokenType::LPAREN => left_exp = self.parse_grouped_expr(),
             _ => {
                 self.no_prefix_parse_fn_error(self.cur_token.tk_type);
                 return None;
@@ -235,12 +243,81 @@ impl Parser {
         let precedence = self.cur_precedence();
         self.next_token();
         let right = self.parse_expr(precedence);
+
+        if right.is_none() {
+            return None;
+        }
+
         Some(Expr::InfixExpr(InfixExpr {
             token: token,
             operator: operator,
             left: Box::new(left),
             right: Box::new(right.unwrap()), //TODO
         }))
+    }
+
+    fn parse_boolean(&mut self) -> Option<Expr> {
+        Some(Expr::Boolean(Boolean {
+            token: self.cur_token.clone(),
+            value: self.cur_token_is(TokenType::TRUE),
+        }))
+    }
+
+    fn parse_grouped_expr(&mut self) -> Option<Expr> {
+        self.next_token();
+        let exp = self.parse_expr(Precedence::LOWEST);
+        if !self.expect_peek(TokenType::RPAREN) {
+            return None;
+        }
+        exp
+    }
+
+    fn parse_if_expr(&mut self) -> Option<Expr> {
+        let token = self.cur_token.clone();
+
+        if !self.expect_peek(TokenType::LPAREN) {
+            return None;
+        }
+
+        self.next_token();
+        let condition = self.parse_expr(Precedence::LOWEST);
+
+        if !self.expect_peek(TokenType::LBRACE) {
+            return None;
+        }
+
+        if !self.expect_peek(TokenType::LBRACE) {
+            return None;
+        }
+
+        let consequence = self.parse_block_stmt();
+
+        let alternative = None; //TODO
+
+        Some(Expr::IfExpr {
+            token: token,
+            condition: Box::new(condition.unwrap()), //TODO
+            consequence: consequence,
+            alternative: alternative,
+        })
+    }
+
+    fn parse_block_stmt(&mut self) -> BlockStmt {
+        let token = self.cur_token.clone();
+        let mut stmts: Vec<Stmt> = Vec::new();
+
+        self.next_token();
+
+        while !self.cur_token_is(TokenType::RBRACE) {
+            if let Some(stmt) = self.parse_stmt() {
+                stmts.push(stmt);
+            }
+            self.next_token();
+        }
+        BlockStmt {
+            token: token,
+            stmts: stmts,
+        }
     }
 }
 
@@ -383,7 +460,7 @@ return 993322;
 
                 match &stmts[0] {
                     Stmt::ExprStmt { token, expr } => match expr {
-                        Some(Expr::Ident(ident)) => {
+                        Expr::Ident(ident) => {
                             assert!(
                                 ident.value == "foobar",
                                 "ident.value not {}. got={}",
@@ -433,7 +510,7 @@ return 993322;
 
                 match &stmts[0] {
                     Stmt::ExprStmt { token, expr } => match expr {
-                        Some(Expr::IntegerLiteral(literal)) => {
+                        Expr::IntegerLiteral(literal) => {
                             assert!(
                                 literal.value == 5,
                                 "literal.value not {}, got={}",
@@ -487,7 +564,7 @@ return 993322;
 
                     match &stmts[0] {
                         Stmt::ExprStmt { token, expr } => match expr {
-                            Some(Expr::PrefixExpr(prefix_expr)) => match prefix_expr {
+                            Expr::PrefixExpr(prefix_expr) => match prefix_expr {
                                 PrefixExpr {
                                     token,
                                     operator,
@@ -556,15 +633,18 @@ return 993322;
 
     #[test]
     fn test_parsing_infix_expr() {
-        let tests = [
-            ("5 + 5;", 5, "+", 5),
-            ("5 - 5;", 5, "-", 5),
-            ("5 * 5;", 5, "*", 5),
-            ("5 / 5;", 5, "/", 5),
-            ("5 > 5;", 5, ">", 5),
-            ("5 < 5;", 5, "<", 5),
-            ("5 == 5;", 5, "==", 5),
-            ("5 != 5;", 5, "!=", 5),
+        let tests: [(&str, Box<dyn Any>, &str, Box<dyn Any>); 11] = [
+            ("5 + 5;", Box::new(5 as i64), "+", Box::new(5 as i64)),
+            ("5 - 5;", Box::new(5 as i64), "-", Box::new(5 as i64)),
+            ("5 * 5;", Box::new(5 as i64), "*", Box::new(5 as i64)),
+            ("5 / 5;", Box::new(5 as i64), "/", Box::new(5 as i64)),
+            ("5 > 5;", Box::new(5 as i64), ">", Box::new(5 as i64)),
+            ("5 < 5;", Box::new(5 as i64), "<", Box::new(5 as i64)),
+            ("5 == 5;", Box::new(5 as i64), "==", Box::new(5 as i64)),
+            ("5 != 5;", Box::new(5 as i64), "!=", Box::new(5 as i64)),
+            ("true == true", Box::new(true), "==", Box::new(true)),
+            ("true != false", Box::new(true), "!=", Box::new(false)),
+            ("false == false", Box::new(false), "==", Box::new(false)),
         ];
 
         for tt in tests.iter() {
@@ -583,15 +663,15 @@ return 993322;
                     );
                     match &stmts[0] {
                         Stmt::ExprStmt { token, expr } => match expr {
-                            Some(Expr::InfixExpr(infix_expr)) => {
-                                test_integer_literal(&infix_expr.left, tt.1);
+                            Expr::InfixExpr(infix_expr) => {
+                                test_literal_expr(&infix_expr.left, &*tt.1);
                                 assert!(
                                     infix_expr.operator == tt.2,
                                     "exp.operator is not '{}', got={}",
                                     tt.2,
                                     infix_expr.operator
                                 );
-                                test_integer_literal(&infix_expr.right, tt.3);
+                                test_literal_expr(&infix_expr.right, &*tt.3);
                             }
                             _ => {
                                 assert!(false, "exp is not InfixExpr. got={:?}", expr);
@@ -630,6 +710,15 @@ return 993322;
                 "3 + 4 * 5 == 3 * 1 + 4 * 5",
                 "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
             ),
+            ("true", "true"),
+            ("false", "false"),
+            ("3 > 5 == false", "((3 > 5) == false)"),
+            ("3 < 5 == true", "((3 < 5) == true)"),
+            ("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)"),
+            ("(5 + 5) * 2", "((5 + 5) * 2)"),
+            ("2 / (5 + 5)", "(2 / (5 + 5))"),
+            ("-(5 + 5)", "(-(5 + 5))"),
+            ("!(true == true)", "(!(true == true))"),
         ];
         for tt in tests.iter() {
             let l = Lexer::new(String::from(tt.0));
@@ -639,6 +728,349 @@ return 993322;
 
             let actual = program.unwrap().string();
             assert!(actual == tt.1, "expected={}, got={}", tt.1, actual);
+        }
+    }
+
+    fn test_literal_expr(exp: &Expr, expected: &dyn Any) {
+        if let Some(v) = expected.downcast_ref::<i64>() {
+            test_integer_literal(&exp, *v);
+        } else if let Some(v) = expected.downcast_ref::<String>() {
+            test_ident(exp, &v);
+        } else if let Some(v) = expected.downcast_ref::<bool>() {
+            test_boolean_literal(exp, *v);
+        } else {
+            assert!(false, "type of exp not handled. got={:?}", exp);
+        }
+    }
+
+    fn test_ident(exp: &Expr, value: &str) {
+        match exp {
+            Expr::Ident(ident) => {
+                assert!(
+                    ident.value == value,
+                    "ident.value not {}. got={}",
+                    value,
+                    ident.value
+                );
+
+                assert!(
+                    ident.token_literal() == value,
+                    "ident.token_literal not {}. got={}",
+                    value,
+                    ident.token_literal()
+                );
+            }
+            _ => {
+                assert!(false, "exp not Ident. got={:?}", exp);
+            }
+        }
+    }
+
+    fn test_boolean_literal(exp: &Expr, value: bool) {
+        match exp {
+            Expr::Boolean(bo) => {
+                assert!(
+                    bo.value == value,
+                    "bo.value not {}. got={}",
+                    value,
+                    bo.value
+                );
+                assert!(
+                    bo.token_literal() == format!("{}", value),
+                    "bo.token_literal not {}, got={}",
+                    value,
+                    bo.token_literal()
+                );
+            }
+            _ => {
+                assert!(false, "exp not Boolean. got={:?}", exp);
+            }
+        }
+    }
+
+    #[test]
+    fn test_if_expr() {
+        let input = "if (x < y) { x }";
+
+        let l = Lexer::new(String::from(input));
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&mut p);
+
+        match program.unwrap() {
+            Node::Program { stmts } => {
+                assert!(
+                    stmts.len() == 1,
+                    "program.body does not contain {} statments. got={}",
+                    1,
+                    stmts.len()
+                );
+
+                match &stmts[0] {
+                    Stmt::ExprStmt { token, expr } => match expr {
+                        Expr::IfExpr {
+                            token,
+                            condition,
+                            consequence,
+                            alternative,
+                        } => {
+                            test_infix_expr(condition, &*Box::new("x"), "<", &*Box::new("y"));
+
+                            assert!(
+                                consequence.stmts.len() == 1,
+                                "consequence is not 1 statements. got={}",
+                                consequence.stmts.len(),
+                            );
+
+                            match &consequence.stmts[0] {
+                                Stmt::ExprStmt { token, expr } => {
+                                    test_ident(expr, "x");
+                                }
+                                _ => {
+                                    assert!(
+                                        false,
+                                        "consequence.stmts[0] is not ExprStmt. got={:?}",
+                                        &consequence.stmts[0]
+                                    );
+                                }
+                            }
+
+                            assert!(
+                                alternative.is_none(),
+                                "alterntive was not None. got={:?}",
+                                alternative.as_ref().unwrap(),
+                            );
+                        }
+                        _ => {
+                            assert!(false, "stmt.expr is not IfExpr. got={:?}", expr);
+                        }
+                    },
+                    _ => {
+                        assert!(
+                            false,
+                            "program.stmts[0] is not ExprStmt. got={:?}",
+                            &stmts[0]
+                        );
+                    }
+                }
+            }
+            _ => {
+                assert!(false, "parse error");
+            }
+        }
+    }
+
+    #[test]
+    fn test_if_else_expr() {
+        let input = "if (x < y) { x } else { y }";
+
+        let l = Lexer::new(String::from(input));
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&mut p);
+
+        match program.unwrap() {
+            Node::Program { stmts } => {
+                assert!(
+                    stmts.len() == 1,
+                    "program.body does not contain {} statments. got={}",
+                    1,
+                    stmts.len()
+                );
+
+                match &stmts[0] {
+                    Stmt::ExprStmt { token, expr } => match expr {
+                        Expr::IfExpr {
+                            token,
+                            condition,
+                            consequence,
+                            alternative,
+                        } => {
+                            test_infix_expr(condition, &*Box::new("x"), "<", &*Box::new("y"));
+
+                            assert!(
+                                consequence.stmts.len() == 1,
+                                "consequence is not 1 statements. got={}",
+                                consequence.stmts.len(),
+                            );
+
+                            match &consequence.stmts[0] {
+                                Stmt::ExprStmt { token, expr } => {
+                                    test_ident(expr, "x");
+                                }
+                                _ => {
+                                    assert!(
+                                        false,
+                                        "consequence.stmts[0] is not ExprStmt. got={:?}",
+                                        &consequence.stmts[0]
+                                    );
+                                }
+                            }
+                            match alternative {
+                                Some(a) => {
+                                    assert!(
+                                        a.stmts.len() == 1,
+                                        "alternative is not 1 statements. got={}",
+                                        a.stmts.len()
+                                    );
+
+                                    match &a.stmts[0] {
+                                        Stmt::ExprStmt { token, expr } => {
+                                            test_ident(expr, "y");
+                                        }
+                                        _ => {
+                                            assert!(
+                                                false,
+                                                "alternative.stmts[0] is not ExprStmt. got={:?}",
+                                                &a.stmts[0]
+                                            );
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    assert!(false, "alterntive was None");
+                                }
+                            }
+                        }
+                        _ => {
+                            assert!(false, "stmt.expr is not IfExpr. got={:?}", expr);
+                        }
+                    },
+                    _ => {
+                        assert!(
+                            false,
+                            "program.stmts[0] is not ExprStmt. got={:?}",
+                            &stmts[0]
+                        );
+                    }
+                }
+            }
+            _ => {
+                assert!(false, "parse error");
+            }
+        }
+    }
+
+    fn test_infix_expr(
+        exp: &Expr,
+        expected_left: &dyn Any,
+        expected_operator: &str,
+        expected_right: &dyn Any,
+    ) {
+        match exp {
+            Expr::InfixExpr(infix_expr) => match infix_expr {
+                InfixExpr {
+                    token,
+                    left,
+                    operator,
+                    right,
+                } => {
+                    test_literal_expr(left, expected_left);
+
+                    assert!(
+                        operator == expected_operator,
+                        "operator is not '{}', got={}",
+                        expected_operator,
+                        operator
+                    );
+
+                    test_literal_expr(right, expected_right);
+                }
+                _ => {
+                    assert!(false, "error");
+                }
+            },
+            _ => {
+                assert!(false, "exp is not InfixExpr. got={:?}", exp);
+            }
+        }
+    }
+
+    #[test]
+    fn test_func_lite_parsing() {
+        let input = "fn(x, y) { x + y; }";
+        let l = Lexer::new(String::from(input));
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&mut p);
+
+        match program.unwrap() {
+            Node::Program { stmts } => {
+                assert!(
+                    stmts.len() == 1,
+                    "program.body does not contain {} statements. got={}",
+                    1,
+                    stmts.len()
+                );
+
+                match &stmts[0] {
+                    Stmt::ExprStmt { token, expr } => match expr {
+                        Expr::FuncLite {
+                            token,
+                            parameters,
+                            body,
+                        } => {
+                            assert!(
+                                parameters.len() == 2,
+                                "func lite parameters wrong. want 2, got={}",
+                                parameters.len()
+                            );
+
+                            test_literal_expr(
+                                &Expr::Ident(Ident {
+                                    token: Token {
+                                        tk_type: TokenType::IDENT,
+                                        literal: parameters[0].value,
+                                    },
+                                    value: parameters[0].value,
+                                }),
+                                &*Box::new("x"),
+                            );
+                            test_literal_expr(
+                                &Expr::Ident(Ident {
+                                    token: Token {
+                                        tk_type: TokenType::IDENT,
+                                        literal: parameters[1].value,
+                                    },
+                                    value: parameters[1].value,
+                                }),
+                                &*Box::new("y"));
+                            };
+
+                            assert!(
+                                body.stmts.len() == 1,
+                                "function.body.stmts has not 1 statements. got={}",
+                                body.stmts.len()
+                            );
+                            match &body.stmts[0] {
+                                Stmt::ExprStmt { token, expr } => {
+                                    test_infix_expr(expr, &*Box::new("x"), "+", &*Box::new("y"));
+                                }
+                                _ => {
+                                    assert!(
+                                        false,
+                                        "body stmt is not ExprStmt, got={:?}",
+                                        &body.stmts[0]
+                                    );
+                                }
+                            }
+                        }
+                        _ => {
+                            assert!(false, "stmt.expr is not FuncLite. got={:?}", &expr);
+                        }
+                    },
+                    _ => {
+                        assert!(
+                            false,
+                            "program.stmts[0] is not ExprStmt. got={:?}",
+                            &stmts[0]
+                        );
+                    }
+                }
+            }
+            _ => {
+                assert!(false, "parse error");
+            }
         }
     }
 }
