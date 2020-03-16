@@ -1,10 +1,11 @@
-use super::lexer::*;
 use super::token::*;
 
 pub trait NodeTrait {
     fn token_literal(&self) -> String;
     fn string(&self) -> String;
 }
+
+#[derive(Debug, Clone)]
 pub enum Node {
     Program { stmts: Vec<Stmt> },
     Stmt(Stmt),
@@ -52,7 +53,7 @@ pub enum Stmt {
     },
     ReturnStmt {
         token: Token,
-        return_value: Expr,
+        value: Expr,
     },
     ExprStmt {
         token: Token,
@@ -66,12 +67,13 @@ impl StmtTrait for Stmt {
 impl Stmt {
     pub fn token_literal(&self) -> String {
         match self {
-            Stmt::LetStmt { token, name, value } => token.literal.clone(),
-            Stmt::ReturnStmt {
+            Stmt::LetStmt {
                 token,
-                return_value,
+                name: _,
+                value: _,
             } => token.literal.clone(),
-            Stmt::ExprStmt { token, expr } => token.literal.clone(),
+            Stmt::ReturnStmt { token, value: _ } => token.literal.clone(),
+            Stmt::ExprStmt { token, expr: _ } => token.literal.clone(),
             Stmt::BlockStmt(block_stmt) => block_stmt.token_literal(),
         }
     }
@@ -88,19 +90,16 @@ impl Stmt {
                 out.push_str(";");
                 out
             }
-            Stmt::ReturnStmt {
-                token,
-                return_value,
-            } => {
+            Stmt::ReturnStmt { token, value } => {
                 let mut out = String::new();
 
                 out.push_str(&token.literal);
                 out.push_str(" ");
-                out.push_str(&return_value.string());
+                out.push_str(&value.string());
                 out.push_str(";");
                 out
             }
-            Stmt::ExprStmt { token, expr } => expr.string(),
+            Stmt::ExprStmt { token: _, expr } => expr.string(),
             Stmt::BlockStmt(block_stmt) => block_stmt.string(),
         }
     }
@@ -112,12 +111,17 @@ pub trait ExprTrait {
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    MockExpr {},
+    MockExpr {
+        v: i64,
+    },
     Ident(Ident),
     IntegerLiteral(IntegerLiteral),
     PrefixExpr(PrefixExpr),
     InfixExpr(InfixExpr),
-    Boolean(Boolean),
+    Boolean {
+        token: Token,
+        value: bool,
+    },
     IfExpr {
         token: Token,
         condition: Box<Expr>,
@@ -136,35 +140,35 @@ impl ExprTrait for Expr {
 impl Expr {
     pub fn token_literal(&self) -> String {
         match self {
-            Expr::MockExpr {} => String::new(),
+            Expr::MockExpr { v: _ } => String::new(),
             Expr::Ident(ident) => ident.token_literal(),
             Expr::IntegerLiteral(integer_literal) => integer_literal.token_literal(),
             Expr::PrefixExpr(prefix_expr) => prefix_expr.token_literal(),
             Expr::InfixExpr(infix_expr) => infix_expr.token_literal(),
-            Expr::Boolean(boolean) => boolean.token_literal(),
+            Expr::Boolean { token, value: _ } => token.literal.clone(),
             Expr::IfExpr {
                 token,
-                condition,
-                consequence,
-                alternative,
+                condition: _,
+                consequence: _,
+                alternative: _,
             } => token.literal.clone(),
             Expr::FuncLite {
                 token,
-                parameters,
-                body,
+                parameters: _,
+                body: _,
             } => token.literal.clone(),
         }
     }
     pub fn string(&self) -> String {
         match self {
-            Expr::MockExpr {} => String::new(),
+            Expr::MockExpr { v: _ } => String::new(),
             Expr::Ident(ident) => ident.string(),
             Expr::IntegerLiteral(integer_literal) => integer_literal.string(),
             Expr::PrefixExpr(prefix_expr) => prefix_expr.string(),
             Expr::InfixExpr(infix_expr) => infix_expr.string(),
-            Expr::Boolean(boolean) => boolean.string(),
+            Expr::Boolean { token, value: _ } => token.literal.clone(),
             Expr::IfExpr {
-                token,
+                token: _,
                 condition,
                 consequence,
                 alternative,
@@ -275,20 +279,6 @@ impl InfixExpr {
         out.push_str(")");
 
         out
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Boolean {
-    pub token: Token,
-    pub value: bool,
-}
-impl Boolean {
-    pub fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
-    pub fn string(&self) -> String {
-        self.token.literal.clone()
     }
 }
 

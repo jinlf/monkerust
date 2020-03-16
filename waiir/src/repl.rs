@@ -1,5 +1,5 @@
 use super::lexer::*;
-use super::token::*;
+use super::parser::*;
 use std::io::*;
 
 const PROMPT: &str = ">> ";
@@ -14,12 +14,13 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
         if scanner.read_line(&mut line).is_err() {
             return;
         }
-        let mut l = Lexer::new(line);
-
-        let mut tok = l.next_token();
-        while tok.tk_type != TokenType::EOF {
-            fmt.write_fmt(format_args!("{:?}\n", tok)).unwrap();
-            tok = l.next_token();
+        let l = Lexer::new(line);
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        if let Some(p) = program {
+            fmt.write_fmt(format_args!("{:?}\n", p)).unwrap();
+        } else {
+            fmt.write_fmt(format_args!("parse error\n")).unwrap();
         }
     }
 }
