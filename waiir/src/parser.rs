@@ -46,7 +46,7 @@ impl Parser {
             }
             self.next_token();
         }
-        Some(Node::Program { stmts: stmts })
+        Some(Node::Program(Program { stmts: stmts }))
     }
 
     fn parse_stmt(&mut self) -> Option<Stmt> {
@@ -460,7 +460,7 @@ mod tests {
             let program = p.parse_program();
             check_parser_errors(&mut p);
 
-            if let Some(Node::Program { stmts }) = program {
+            if let Some(Node::Program(Program { stmts })) = program {
                 assert!(
                     stmts.len() == 1,
                     "program.stmts does not contain 1 stmts. got={}",
@@ -542,7 +542,7 @@ mod tests {
         let program = p.parse_program();
         check_parser_errors(&mut p);
 
-        if let Some(Node::Program { stmts }) = program {
+        if let Some(Node::Program(Program { stmts })) = program {
             assert!(
                 stmts.len() == 3,
                 "program.stmts does not contain 3 stmts. got={}",
@@ -573,7 +573,7 @@ mod tests {
         let program = p.parse_program();
         check_parser_errors(&mut p);
 
-        if let Some(Node::Program { stmts }) = program {
+        if let Some(Node::Program(Program { stmts })) = program {
             assert!(
                 stmts.len() == 1,
                 "program has not enough stmts. got={}",
@@ -622,7 +622,7 @@ mod tests {
         let program = p.parse_program();
         check_parser_errors(&mut p);
 
-        if let Some(Node::Program { stmts }) = program {
+        if let Some(Node::Program(Program { stmts })) = program {
             assert!(
                 stmts.len() == 1,
                 "program has not enough statements. got={}",
@@ -668,7 +668,7 @@ mod tests {
             let program = p.parse_program();
             check_parser_errors(&mut p);
 
-            if let Some(Node::Program { stmts }) = program {
+            if let Some(Node::Program(Program { stmts })) = program {
                 assert!(
                     stmts.len() == 1,
                     "program.statements does not contain {} statements. got={}",
@@ -748,7 +748,7 @@ mod tests {
             let program = p.parse_program();
             check_parser_errors(&mut p);
 
-            if let Some(Node::Program { stmts }) = program {
+            if let Some(Node::Program(Program { stmts })) = program {
                 assert!(
                     stmts.len() == 1,
                     "program.stmts does not contain {} statements. got={}",
@@ -888,7 +888,7 @@ mod tests {
         let program = p.parse_program();
         check_parser_errors(&mut p);
 
-        if let Some(Node::Program { stmts }) = program {
+        if let Some(Node::Program(Program { stmts })) = program {
             assert!(
                 stmts.len() == 1,
                 "program.body does not contain {} statments. got={}",
@@ -950,7 +950,7 @@ mod tests {
         let program = p.parse_program();
         check_parser_errors(&mut p);
 
-        if let Some(Node::Program { stmts }) = program {
+        if let Some(Node::Program(Program { stmts })) = program {
             assert!(
                 stmts.len() == 1,
                 "program.body does not contain {} statments. got={}",
@@ -1054,7 +1054,7 @@ mod tests {
         let program = p.parse_program();
         check_parser_errors(&mut p);
 
-        if let Some(Node::Program { stmts }) = program {
+        if let Some(Node::Program(Program { stmts })) = program {
             assert!(
                 stmts.len() == 1,
                 "program.body does not contain {} statements. got={}",
@@ -1129,7 +1129,7 @@ mod tests {
         let program = p.parse_program();
         check_parser_errors(&mut p);
 
-        if let Some(Node::Program { stmts }) = program {
+        if let Some(Node::Program(Program { stmts })) = program {
             assert!(
                 stmts.len() == 1,
                 "program.stmts does not contain {} statements. got={}",

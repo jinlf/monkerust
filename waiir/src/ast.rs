@@ -7,40 +7,49 @@ pub trait NodeTrait {
 
 #[derive(Debug, Clone)]
 pub enum Node {
-    Program { stmts: Vec<Stmt> },
+    Program(Program),
     Stmt(Stmt),
     Expr(Expr),
 }
 impl NodeTrait for Node {
     fn token_literal(&self) -> String {
         match self {
-            Node::Program { stmts } => {
-                if stmts.len() > 0 {
-                    stmts[0].token_literal()
-                } else {
-                    String::new()
-                }
-            }
+            Node::Program(program) => program.token_literal(),
             Node::Stmt(stmt) => stmt.token_literal(),
             Node::Expr(expr) => expr.token_literal(),
         }
     }
     fn string(&self) -> String {
         match self {
-            Node::Program { stmts } => {
-                let mut out = String::new();
-                for s in stmts.iter() {
-                    out.push_str(&s.string());
-                }
-                out
-            }
+            Node::Program(program) => program.string(),
             Node::Stmt(stmt) => stmt.string(),
             Node::Expr(expr) => expr.string(),
         }
     }
 }
 
-pub trait StmtTrait {
+#[derive(Debug, Clone)]
+pub struct Program {
+    pub stmts: Vec<Stmt>,
+}
+impl NodeTrait for Program {
+    fn token_literal(&self) -> String {
+        if self.stmts.len() > 0 {
+            self.stmts[0].token_literal()
+        } else {
+            String::new()
+        }
+    }
+    fn string(&self) -> String {
+        let mut out = String::new();
+        for s in self.stmts.iter() {
+            out.push_str(&s.string());
+        }
+        out
+    }
+}
+
+pub trait StmtTrait: NodeTrait {
     fn stmt_node(&self);
 }
 
@@ -64,8 +73,8 @@ pub enum Stmt {
 impl StmtTrait for Stmt {
     fn stmt_node(&self) {}
 }
-impl Stmt {
-    pub fn token_literal(&self) -> String {
+impl NodeTrait for Stmt {
+    fn token_literal(&self) -> String {
         match self {
             Stmt::LetStmt {
                 token,
@@ -77,7 +86,7 @@ impl Stmt {
             Stmt::BlockStmt(block_stmt) => block_stmt.token_literal(),
         }
     }
-    pub fn string(&self) -> String {
+    fn string(&self) -> String {
         match self {
             Stmt::LetStmt { token, name, value } => {
                 let mut out = String::new();
@@ -105,15 +114,12 @@ impl Stmt {
     }
 }
 
-pub trait ExprTrait {
+pub trait ExprTrait: NodeTrait {
     fn expr_node(&self);
 }
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    MockExpr {
-        v: i64,
-    },
     Ident(Ident),
     IntegerLiteral(IntegerLiteral),
     PrefixExpr(PrefixExpr),
@@ -142,10 +148,9 @@ pub enum Expr {
 impl ExprTrait for Expr {
     fn expr_node(&self) {}
 }
-impl Expr {
-    pub fn token_literal(&self) -> String {
+impl NodeTrait for Expr {
+    fn token_literal(&self) -> String {
         match self {
-            Expr::MockExpr { v: _ } => String::new(),
             Expr::Ident(ident) => ident.token_literal(),
             Expr::IntegerLiteral(integer_literal) => integer_literal.token_literal(),
             Expr::PrefixExpr(prefix_expr) => prefix_expr.token_literal(),
@@ -169,9 +174,8 @@ impl Expr {
             } => token.literal.clone(),
         }
     }
-    pub fn string(&self) -> String {
+    fn string(&self) -> String {
         match self {
-            Expr::MockExpr { v: _ } => String::new(),
             Expr::Ident(ident) => ident.string(),
             Expr::IntegerLiteral(integer_literal) => integer_literal.string(),
             Expr::PrefixExpr(prefix_expr) => prefix_expr.string(),
@@ -239,11 +243,11 @@ pub struct Ident {
     pub token: Token,
     pub value: String,
 }
-impl Ident {
-    pub fn token_literal(&self) -> String {
+impl NodeTrait for Ident {
+    fn token_literal(&self) -> String {
         self.token.literal.clone()
     }
-    pub fn string(&self) -> String {
+    fn string(&self) -> String {
         self.value.clone()
     }
 }
@@ -253,11 +257,11 @@ pub struct IntegerLiteral {
     pub token: Token,
     pub value: i64,
 }
-impl IntegerLiteral {
-    pub fn token_literal(&self) -> String {
+impl NodeTrait for IntegerLiteral {
+    fn token_literal(&self) -> String {
         self.token.literal.clone()
     }
-    pub fn string(&self) -> String {
+    fn string(&self) -> String {
         format!("{}", self.value)
     }
 }
@@ -268,11 +272,11 @@ pub struct PrefixExpr {
     pub operator: String,
     pub right: Box<Expr>,
 }
-impl PrefixExpr {
-    pub fn token_literal(&self) -> String {
+impl NodeTrait for PrefixExpr {
+    fn token_literal(&self) -> String {
         self.token.literal.clone()
     }
-    pub fn string(&self) -> String {
+    fn string(&self) -> String {
         let mut out = String::new();
         out.push_str("(");
         out.push_str(&self.operator);
@@ -289,11 +293,11 @@ pub struct InfixExpr {
     pub operator: String,
     pub right: Box<Expr>,
 }
-impl InfixExpr {
-    pub fn token_literal(&self) -> String {
+impl NodeTrait for InfixExpr {
+    fn token_literal(&self) -> String {
         self.token.literal.clone()
     }
-    pub fn string(&self) -> String {
+    fn string(&self) -> String {
         let mut out = String::new();
 
         out.push_str("(");
@@ -313,11 +317,11 @@ pub struct BlockStmt {
     pub token: Token,
     pub stmts: Vec<Stmt>,
 }
-impl BlockStmt {
-    pub fn token_literal(&self) -> String {
+impl NodeTrait for BlockStmt {
+    fn token_literal(&self) -> String {
         self.token.literal.clone()
     }
-    pub fn string(&self) -> String {
+    fn string(&self) -> String {
         let mut out = String::new();
 
         for s in self.stmts.iter() {
@@ -333,7 +337,7 @@ mod tests {
 
     #[test]
     fn test_string() {
-        let program = Node::Program {
+        let program = Program {
             stmts: vec![Stmt::LetStmt {
                 token: Token {
                     tk_type: TokenType::LET,
