@@ -133,6 +133,11 @@ pub enum Expr {
         parameters: Vec<Ident>,
         body: BlockStmt,
     },
+    CallExpr {
+        token: Token,
+        func: Box<Expr>,
+        arguments: Vec<Expr>,
+    },
 }
 impl ExprTrait for Expr {
     fn expr_node(&self) {}
@@ -156,6 +161,11 @@ impl Expr {
                 token,
                 parameters: _,
                 body: _,
+            } => token.literal.clone(),
+            Expr::CallExpr {
+                token,
+                func: _,
+                arguments: _,
             } => token.literal.clone(),
         }
     }
@@ -202,6 +212,22 @@ impl Expr {
                 out.push_str(") ");
                 out.push_str(&body.string());
 
+                out
+            }
+            Expr::CallExpr {
+                token: _,
+                func,
+                arguments,
+            } => {
+                let mut out = String::new();
+                let mut args: Vec<String> = Vec::new();
+                for a in arguments.iter() {
+                    args.push(a.string());
+                }
+                out.push_str(&func.string());
+                out.push_str("(");
+                out.push_str(&args.join(", "));
+                out.push_str(")");
                 out
             }
         }

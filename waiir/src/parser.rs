@@ -74,6 +74,10 @@ impl Parser {
             return None;
         }
 
+        self.next_token();
+
+        let value = self.parse_expr(Precedence::LOWEST);
+
         while !self.cur_token_is(TokenType::SEMICOLON) {
             self.next_token();
         }
@@ -81,7 +85,7 @@ impl Parser {
         Some(Stmt::LetStmt {
             token: token,
             name: name,
-            value: Expr::MockExpr { v: 0 }, // TODO
+            value: value.unwrap(), //TODO
         })
     }
 
@@ -119,12 +123,14 @@ impl Parser {
         println!("parse_return_stmt: {:?}", self.cur_token);
         let token = self.cur_token.clone();
         self.next_token();
+        let value = self.parse_expr(Precedence::LOWEST);
         while !self.cur_token_is(TokenType::SEMICOLON) {
             self.next_token();
         }
+
         Some(Stmt::ReturnStmt {
             token: token,
-            value: Expr::MockExpr { v: 0 },
+            value: value.unwrap(), //TODO
         })
     }
 
@@ -173,6 +179,10 @@ impl Parser {
                 | TokenType::GT => {
                     self.next_token();
                     left_exp = self.parse_infix_expr(left_exp.unwrap()); //TODO
+                }
+                TokenType::LPAREN => {
+                    self.next_token();
+                    left_exp = self.parse_call_expr(&left_exp.unwrap());
                 }
                 _ => {
                     return left_exp;
@@ -234,6 +244,7 @@ impl Parser {
             TokenType::LT | TokenType::GT => Precedence::LESSGREATER,
             TokenType::PLUS | TokenType::MINUS => Precedence::SUM,
             TokenType::SLASH | TokenType::ASTERISK => Precedence::PRODUCT,
+            TokenType::LPAREN => Precedence::CALL,
             _ => Precedence::LOWEST,
         }
     }
@@ -390,6 +401,45 @@ impl Parser {
 
         idents
     }
+
+    fn parse_call_expr(&mut self, func: &Expr) -> Option<Expr> {
+        let arguments = self.parse_call_arguments();
+
+        Some(Expr::CallExpr {
+            token: self.cur_token.clone(),
+            func: Box::new(func.clone()),
+            arguments: arguments.unwrap(), //TODO
+        })
+    }
+
+    fn parse_call_arguments(&mut self) -> Option<Vec<Expr>> {
+        let mut args: Vec<Expr> = Vec::new();
+
+        if self.peek_token_is(TokenType::RPAREN) {
+            self.next_token();
+            return Some(args);
+        }
+
+        self.next_token();
+        let arg = self.parse_expr(Precedence::LOWEST);
+
+        args.push(arg.unwrap()); //TODO
+
+        while self.peek_token_is(TokenType::COMMA) {
+            self.next_token();
+            self.next_token();
+
+            let arg = self.parse_expr(Precedence::LOWEST);
+
+            args.push(arg.unwrap()); //TODO
+        }
+
+        if !self.expect_peek(TokenType::RPAREN) {
+            return None;
+        }
+
+        Some(args)
+    }
 }
 
 #[cfg(test)]
@@ -399,31 +449,39 @@ mod tests {
 
     #[test]
     fn test_let_stmts() {
-        let input = r"
-let x = 5;
-let y = 10;
-let foobar = 838383;
-";
-        let l = Lexer::new(String::from(input));
-        let mut p = Parser::new(l);
-        let program = p.parse_program();
-        check_parser_errors(&mut p);
+        let tests: [(&str, &str, Box<dyn Any>); 3] = [
+            ("let x = 5;", "x", Box::new(5 as i64)),
+            ("let y = true;", "y", Box::new(true)),
+            ("let foobar = y;", "foobar", Box::new("y")),
+        ];
+        for tt in tests.iter() {
+            let l = Lexer::new(String::from(tt.0));
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parser_errors(&mut p);
 
-        if let Some(Node::Program { stmts }) = program {
-            assert!(
-                stmts.len() == 3,
-                "program.stmts does not contain 3 stmts. got={}",
-                stmts.len(),
-            );
+            if let Some(Node::Program { stmts }) = program {
+                assert!(
+                    stmts.len() == 1,
+                    "program.stmts does not contain 1 stmts. got={}",
+                    stmts.len(),
+                );
 
-            let tests = ["x", "y", "foobar"];
+                test_let_statement(&stmts[0], &*tt.1);
 
-            for (i, tt) in tests.iter().enumerate() {
-                let stmt = &stmts[i];
-                test_let_statement(stmt, tt)
+                if let Stmt::LetStmt {
+                    token: _,
+                    name: _,
+                    value,
+                } = &stmts[0]
+                {
+                    test_literal_expr(&value, &*tt.2);
+                } else {
+                    assert!(false, "stmt[0] is not LetStmt. got={:?}", &stmts[0]);
+                }
+            } else {
+                assert!(false, "parse_program returned None");
             }
-        } else {
-            assert!(false, "parse_program returned None");
         }
     }
 
@@ -749,6 +807,15 @@ let foobar = 838383;
             ("2 / (5 + 5)", "(2 / (5 + 5))"),
             ("-(5 + 5)", "(-(5 + 5))"),
             ("!(true == true)", "(!(true == true))"),
+            ("a + add(b * c) + d", "((a + add((b * c))) + d)"),
+            (
+                "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+                "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
+            ),
+            (
+                "add(a + b + c * d / f  + g)",
+                "add((((a + b) + ((c * d) / f)) + g))",
+            ),
         ];
         for tt in tests.iter() {
             let l = Lexer::new(String::from(tt.0));
@@ -1051,6 +1118,61 @@ let foobar = 838383;
             }
         } else {
             assert!(false, "parse error");
+        }
+    }
+
+    #[test]
+    fn test_call_expr_parsing() {
+        let input = "add(1, 2 * 3, 4 + 5);";
+        let l = Lexer::new(String::from(input));
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&mut p);
+
+        if let Some(Node::Program { stmts }) = program {
+            assert!(
+                stmts.len() == 1,
+                "program.stmts does not contain {} statements. got={}",
+                1,
+                stmts.len()
+            );
+
+            if let Stmt::ExprStmt { token: _, expr } = &stmts[0] {
+                if let Expr::CallExpr {
+                    token: _,
+                    func,
+                    arguments,
+                } = expr
+                {
+                    test_ident(&func, "add");
+
+                    assert!(
+                        arguments.len() == 3,
+                        "wrong length of arguments. got={}",
+                        arguments.len()
+                    );
+
+                    test_literal_expr(&arguments[0], &*Box::new(1 as i64));
+                    test_infix_expr(
+                        &arguments[1],
+                        &*Box::new(2 as i64),
+                        "*",
+                        &*Box::new(3 as i64),
+                    );
+                    test_infix_expr(
+                        &arguments[2],
+                        &*Box::new(4 as i64),
+                        "+",
+                        &*Box::new(5 as i64),
+                    );
+                } else {
+                    assert!(false, "stmt.expr is not CallExpr. got={:?}", expr);
+                }
+            } else {
+                assert!(false, "stmt is not ExprStmt. got={:?}", stmts[0])
+            }
+        } else {
+            assert!(false, "parse error",);
         }
     }
 }
