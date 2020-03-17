@@ -205,7 +205,7 @@ impl Parser {
         let token = self.cur_token.clone();
 
         match self.cur_token.literal.parse::<i64>() {
-            Ok(value) => Some(Expr::IntegerLiteral(IntegerLiteral {
+            Ok(value) => Some(Expr::IntLiteral(IntLiteral {
                 token: token,
                 value: value,
             })),
@@ -278,7 +278,7 @@ impl Parser {
 
     fn parse_boolean(&mut self) -> Option<Expr> {
         println!("parse_boolean: {:?}", self.cur_token);
-        Some(Expr::Boolean {
+        Some(Expr::Bool {
             token: self.cur_token.clone(),
             value: self.cur_token_is(TokenType::TRUE),
         })
@@ -512,7 +512,7 @@ mod tests {
                 name
             );
         } else {
-            assert!(false, "s not LetStatement. got={:?}", s);
+            assert!(false, "s not LetStmt. got={:?}", s);
         }
     }
 
@@ -630,7 +630,7 @@ mod tests {
             );
 
             if let Stmt::ExprStmt { token: _, expr } = &stmts[0] {
-                if let Expr::IntegerLiteral(literal) = expr {
+                if let Expr::IntLiteral(literal) = expr {
                     assert!(
                         literal.value == 5,
                         "literal.value not {}, got={}",
@@ -644,7 +644,7 @@ mod tests {
                         literal.token_literal()
                     );
                 } else {
-                    assert!(false, "exp not IntegerLiteral. got={:?}", expr);
+                    assert!(false, "exp not IntLiteral. got={:?}", expr);
                 }
             } else {
                 assert!(
@@ -708,7 +708,7 @@ mod tests {
     }
 
     fn test_integer_literal(il: &Expr, expected_value: i64) {
-        if let Expr::IntegerLiteral(IntegerLiteral { token, value }) = il {
+        if let Expr::IntLiteral(IntLiteral { token, value }) = il {
             assert!(
                 *value == expected_value,
                 "value not {}. get={}",
@@ -722,7 +722,7 @@ mod tests {
                 token.literal
             );
         } else {
-            assert!(false, "il not IntegerLiteral. got={:?}", il);
+            assert!(false, "il not IntLiteral. got={:?}", il);
         }
     }
 
@@ -861,7 +861,7 @@ mod tests {
     }
 
     fn test_boolean_literal(exp: &Expr, expected_value: bool) {
-        if let Expr::Boolean { token, value } = exp {
+        if let Expr::Bool { token, value } = exp {
             assert!(
                 *value == expected_value,
                 "bo.value not {}. got={}",
@@ -875,7 +875,7 @@ mod tests {
                 token.literal
             );
         } else {
-            assert!(false, "exp not Boolean. got={:?}", exp);
+            assert!(false, "exp not Bool. got={:?}", exp);
         }
     }
 

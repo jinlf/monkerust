@@ -3,6 +3,7 @@ use super::lexer::*;
 use super::parser::*;
 use std::fmt::*;
 
+#[derive(Debug, PartialEq)]
 pub enum ObjectType {
     IntObj,
     BoolObj,
@@ -14,24 +15,24 @@ pub trait ObjectTrait: Debug + Copy + Clone {
     fn inspect(&self) -> String;
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Object {
-    Integer { value: i64 },
-    Boolean { value: bool },
+    Int { value: i64 },
+    Bool { value: bool },
     Null {},
 }
 impl ObjectTrait for Object {
     fn get_type(&self) -> ObjectType {
         match self {
-            Object::Integer { value: _ } => ObjectType::IntObj,
-            Object::Boolean { value: _ } => ObjectType::BoolObj,
+            Object::Int { value: _ } => ObjectType::IntObj,
+            Object::Bool { value: _ } => ObjectType::BoolObj,
             Object::Null {} => ObjectType::NullObj,
         }
     }
     fn inspect(&self) -> String {
         match self {
-            Object::Integer { value } => String::from(format!("{}", value)),
-            Object::Boolean { value } => String::from(format!("{}", value)),
+            Object::Int { value } => String::from(format!("{}", value)),
+            Object::Bool { value } => String::from(format!("{}", value)),
             Object::Null {} => String::from("null"),
         }
     }

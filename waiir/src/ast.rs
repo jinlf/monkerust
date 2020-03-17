@@ -121,10 +121,10 @@ pub trait ExprTrait: NodeTrait {
 #[derive(Debug, Clone)]
 pub enum Expr {
     Ident(Ident),
-    IntegerLiteral(IntegerLiteral),
+    IntLiteral(IntLiteral),
     PrefixExpr(PrefixExpr),
     InfixExpr(InfixExpr),
-    Boolean {
+    Bool {
         token: Token,
         value: bool,
     },
@@ -152,10 +152,10 @@ impl NodeTrait for Expr {
     fn token_literal(&self) -> String {
         match self {
             Expr::Ident(ident) => ident.token_literal(),
-            Expr::IntegerLiteral(integer_literal) => integer_literal.token_literal(),
+            Expr::IntLiteral(integer_literal) => integer_literal.token_literal(),
             Expr::PrefixExpr(prefix_expr) => prefix_expr.token_literal(),
             Expr::InfixExpr(infix_expr) => infix_expr.token_literal(),
-            Expr::Boolean { token, value: _ } => token.literal.clone(),
+            Expr::Bool { token, value: _ } => token.literal.clone(),
             Expr::IfExpr {
                 token,
                 condition: _,
@@ -177,10 +177,10 @@ impl NodeTrait for Expr {
     fn string(&self) -> String {
         match self {
             Expr::Ident(ident) => ident.string(),
-            Expr::IntegerLiteral(integer_literal) => integer_literal.string(),
+            Expr::IntLiteral(integer_literal) => integer_literal.string(),
             Expr::PrefixExpr(prefix_expr) => prefix_expr.string(),
             Expr::InfixExpr(infix_expr) => infix_expr.string(),
-            Expr::Boolean { token, value: _ } => token.literal.clone(),
+            Expr::Bool { token, value: _ } => token.literal.clone(),
             Expr::IfExpr {
                 token: _,
                 condition,
@@ -253,11 +253,11 @@ impl NodeTrait for Ident {
 }
 
 #[derive(Debug, Clone)]
-pub struct IntegerLiteral {
+pub struct IntLiteral {
     pub token: Token,
     pub value: i64,
 }
-impl NodeTrait for IntegerLiteral {
+impl NodeTrait for IntLiteral {
     fn token_literal(&self) -> String {
         self.token.literal.clone()
     }
