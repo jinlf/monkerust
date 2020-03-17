@@ -1,8 +1,5 @@
 use super::ast::*;
-use super::lexer::*;
 use super::object::*;
-use super::parser::*;
-use super::token::*;
 
 const TRUE: Object = Object::Bool { value: true };
 const FALSE: Object = Object::Bool { value: false };
@@ -11,10 +8,19 @@ const NULL: Object = Object::Null {};
 pub fn eval(node: Node) -> Option<Object> {
     println!("eval: {:?}", node);
     match node {
-        Node::Program(program) => eval_stmts(program.stmts),
+        Node::Program(program) => eval_program(program),
         Node::Stmt(stmt) => match stmt {
             Stmt::ExprStmt { token: _, expr } => eval(Node::Expr(expr)),
-            Stmt::BlockStmt(BlockStmt { token: _, stmts }) => eval_stmts(stmts),
+            Stmt::BlockStmt(block_stmt) => eval_block_stmt(block_stmt),
+            Stmt::ReturnStmt { token: _, value } => {
+                let val = eval(Node::Expr(value));
+                if is_error(&val) {
+                    return val;
+                }
+                Some(Object::ReturnValue {
+                    value: Box::new(val.unwrap()),
+                })
+            }
             _ => None,
         },
         Node::Expr(expr) => match expr {
@@ -28,6 +34,9 @@ pub fn eval(node: Node) -> Option<Object> {
                 right,
             }) => {
                 let right_obj = eval(Node::Expr(*right));
+                if is_error(&right_obj) {
+                    return right_obj;
+                }
                 eval_prefix_expr(&operator, right_obj.unwrap())
             }
             Expr::InfixExpr(InfixExpr {
@@ -37,7 +46,13 @@ pub fn eval(node: Node) -> Option<Object> {
                 right,
             }) => {
                 let left_obj = eval(Node::Expr(*left));
+                if is_error(&left_obj) {
+                    return left_obj;
+                }
                 let right_obj = eval(Node::Expr(*right));
+                if is_error(&right_obj) {
+                    return right_obj;
+                }
                 eval_infix_expr(&operator, left_obj.unwrap(), right_obj.unwrap())
             }
             Expr::IfExpr {
@@ -51,11 +66,18 @@ pub fn eval(node: Node) -> Option<Object> {
     }
 }
 
-fn eval_stmts(stmts: Vec<Stmt>) -> Option<Object> {
-    println!("eval: {:?}", stmts);
+fn eval_program(program: Program) -> Option<Object> {
+    println!("eval_program: {:?}", program);
     let mut result: Option<Object> = None;
-    for stmt in stmts.iter() {
+    for stmt in program.stmts.iter() {
         result = eval(Node::Stmt(stmt.clone()));
+
+        if let Some(Object::ReturnValue { value }) = result {
+            return Some(*value);
+        }
+        if let Some(Object::Error { message }) = result {
+            return Some(Object::Error { message: message });
+        }
     }
     result
 }
@@ -72,7 +94,11 @@ fn eval_prefix_expr(operator: &str, right: Object) -> Option<Object> {
     match operator {
         "!" => eval_bang_operator_expr(right),
         "-" => eval_minus_operator_expr(right),
-        _ => None,
+        _ => new_error(format!(
+            "unknown operator: {}{}",
+            operator,
+            right.get_type()
+        )),
     }
 }
 
@@ -93,8 +119,8 @@ fn eval_bang_operator_expr(right: Object) -> Option<Object> {
 
 fn eval_minus_operator_expr(right: Object) -> Option<Object> {
     println!("eval_minus_operator_expr: {:?}", right);
-    if right.get_type() != ObjectType::IntObj {
-        return None;
+    if right.get_type() != "INTEGER" {
+        return new_error(format!("unknown operator: -{}", right.get_type()));
     }
 
     if let Object::Int { value } = right {
@@ -105,13 +131,29 @@ fn eval_minus_operator_expr(right: Object) -> Option<Object> {
 
 fn eval_infix_expr(operator: &str, left: Object, right: Object) -> Option<Object> {
     println!("eval_infix_expr: {} {:?} {:?}", operator, left, right);
-    if left.get_type() == ObjectType::IntObj && right.get_type() == ObjectType::IntObj {
+    if left.get_type() == "INTEGER" && right.get_type() == "INTEGER" {
         return eval_int_infix_expr(&operator, left, right);
     }
     return match operator {
         "==" => Some(native_bool_to_boolean_obj(left == right)),
         "!=" => Some(native_bool_to_boolean_obj(left != right)),
-        _ => None,
+        _ => {
+            if left.get_type() != right.get_type() {
+                new_error(format!(
+                    "type mismatch: {} {} {}",
+                    left.get_type(),
+                    operator,
+                    right.get_type()
+                ))
+            } else {
+                new_error(format!(
+                    "unknown operator: {} {} {}",
+                    left.get_type(),
+                    operator,
+                    right.get_type()
+                ))
+            }
+        }
     };
 }
 
@@ -138,7 +180,12 @@ fn eval_int_infix_expr(operator: &str, left: Object, right: Object) -> Option<Ob
                 ">" => Some(native_bool_to_boolean_obj(left_val > right_val)),
                 "==" => Some(native_bool_to_boolean_obj(left_val == right_val)),
                 "!=" => Some(native_bool_to_boolean_obj(left_val != right_val)),
-                _ => None,
+                _ => new_error(format!(
+                    "unknown operator: {} {} {}",
+                    left.get_type(),
+                    operator,
+                    right.get_type()
+                )),
             };
         }
     }
@@ -155,6 +202,9 @@ fn eval_if_expr(expr: Expr) -> Option<Object> {
     } = expr
     {
         let condition_obj = eval(Node::Expr(*condition));
+        if is_error(&condition_obj) {
+            return condition_obj;
+        }
 
         if is_truthy(condition_obj.unwrap()) {
             return eval(Node::Stmt(Stmt::BlockStmt(consequence)));
@@ -175,8 +225,36 @@ fn is_truthy(obj: Object) -> bool {
     }
 }
 
+fn eval_block_stmt(block: BlockStmt) -> Option<Object> {
+    let mut result: Option<Object> = None;
+    for stmt in block.stmts {
+        result = eval(Node::Stmt(stmt));
+
+        if let Some(Object::ReturnValue { value }) = result {
+            return Some(Object::ReturnValue { value });
+        }
+        if let Some(Object::Error { message }) = result {
+            return Some(Object::Error { message: message });
+        }
+    }
+    result
+}
+
+fn new_error(message: String) -> Option<Object> {
+    Some(Object::Error { message: message })
+}
+
+fn is_error(obj: &Option<Object>) -> bool {
+    if let Some(Object::Error { message }) = &obj {
+        return true;
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
+    use super::super::lexer::*;
+    use super::super::parser::*;
     use super::*;
 
     #[test]
@@ -309,6 +387,70 @@ mod tests {
         if let Object::Null {} = obj {
         } else {
             assert!(false, "object is not NULL. got={:?}", obj);
+        }
+    }
+
+    #[test]
+    fn test_return_stmts() {
+        let tests = [
+            ("return 10;", 10),
+            ("return 10; 9;", 10),
+            ("return 2 * 5; 9;", 10),
+            (
+                "
+if (10 > 1) {
+    if (10 > 1) {
+        return 10;
+    }
+    
+    return 1;
+}",
+                10,
+            ),
+        ];
+
+        for tt in tests.iter() {
+            let evaluated = test_eval(tt.0);
+            test_int_obj(evaluated.unwrap(), tt.1);
+        }
+    }
+
+    #[test]
+    fn test_error_handling() {
+        let tests = [
+            ("5 + true;", "type mismatch: INTEGER + BOOLEAN"),
+            ("5 + true; 5;", "type mismatch: INTEGER + BOOLEAN"),
+            ("-true", "unknown operator: -BOOLEAN"),
+            ("true + false;", "unknown operator: BOOLEAN + BOOLEAN"),
+            ("5; true + false; 5", "unknown operator: BOOLEAN + BOOLEAN"),
+            (
+                "if (10 > 1) { true + false; }",
+                "unknown operator: BOOLEAN + BOOLEAN",
+            ),
+            (
+                "
+if (10 > 1) { 
+    if (10 > 1) {
+        return true + false;
+    }
+    return 1;
+}",
+                "unknown operator: BOOLEAN + BOOLEAN",
+            ),
+        ];
+
+        for tt in tests.iter() {
+            let evaluated = test_eval(tt.0);
+            if let Some(Object::Error { message }) = evaluated {
+                assert!(
+                    message == tt.1,
+                    "wrong error message. expected={}, got={}",
+                    tt.1,
+                    message
+                );
+            } else {
+                assert!(false, "no error object returned. got={:?}", evaluated);
+            }
         }
     }
 }
