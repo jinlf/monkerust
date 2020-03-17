@@ -1,8 +1,11 @@
+use super::env::*;
 use super::evaluator::*;
 use super::lexer::*;
 use super::object::*;
 use super::parser::*;
+use std::cell::*;
 use std::io::*;
+use std::rc::*;
 
 const PROMPT: &str = ">> ";
 
@@ -30,6 +33,7 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
         if scanner.read_line(&mut line).is_err() {
             return;
         }
+        let env = Rc::new(RefCell::new(new_env()));
         let l = Lexer::new(line);
         let mut p = Parser::new(l);
         let program = p.parse_program();
@@ -39,7 +43,7 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
                 continue;
             }
 
-            let evaluated = eval(prog);
+            let evaluated = eval(prog, env);
             if evaluated.is_some() {
                 fmt.write_fmt(format_args!("{}\n", evaluated.unwrap().inspect()))
                     .unwrap();

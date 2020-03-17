@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod env;
 pub mod evaluator;
 pub mod lexer;
 pub mod object;
