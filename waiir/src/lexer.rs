@@ -76,6 +76,14 @@ impl Lexer {
                     literal: String::new(),
                 }
             }
+            b'"' => {
+                tok = Token {
+                    tk_type: TokenType::STR,
+                    literal: self.read_str(),
+                }
+            }
+            b'[' => tok = new_token(TokenType::LBRACKET, self.ch),
+            b']' => tok = new_token(TokenType::RBRACKET, self.ch),
             _ => {
                 if (self.ch as char).is_ascii_alphabetic() {
                     let literal = self.read_identifier();
@@ -128,6 +136,17 @@ impl Lexer {
             return self.input.bytes().nth(self.read_position).unwrap();
         }
     }
+
+    fn read_str(&mut self) -> String {
+        let position = self.position + 1;
+        loop {
+            self.read_char();
+            if self.ch == b'"' {
+                break;
+            }
+        }
+        String::from(&self.input[position..self.position])
+    }
 }
 
 pub fn new_token(token_type: TokenType, ch: u8) -> Token {
@@ -179,7 +198,7 @@ mod tests {
 
     #[test]
     fn test_next_token2() {
-        let input = r"
+        let input = r#"
         let five = 5;
         let ten = 10;
         let add = fn(x, y) { 
@@ -197,8 +216,11 @@ mod tests {
 
         10 == 10;
         10 != 9;
-        ";
-        let tests: [(TokenType, &str); 74] = [
+        "foobar"
+        "foo bar"
+        [1,2];
+        "#;
+        let tests: [(TokenType, &str); 82] = [
             (TokenType::LET, "let"),
             (TokenType::IDENT, "five"),
             (TokenType::ASSIGN, "="),
@@ -271,6 +293,14 @@ mod tests {
             (TokenType::INT, "10"),
             (TokenType::NOTEQ, "!="),
             (TokenType::INT, "9"),
+            (TokenType::SEMICOLON, ";"),
+            (TokenType::STR, "foobar"),
+            (TokenType::STR, "foo bar"),
+            (TokenType::LBRACKET, "["),
+            (TokenType::INT, "1"),
+            (TokenType::COMMA, ","),
+            (TokenType::INT, "2"),
+            (TokenType::RBRACKET, "]"),
             (TokenType::SEMICOLON, ";"),
             (TokenType::EOF, ""),
         ];

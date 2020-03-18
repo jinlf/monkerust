@@ -44,6 +44,10 @@ pub enum TokenType {
 
     EQ,
     NOTEQ,
+
+    STR,
+    LBRACKET,
+    RBRACKET,
 }
 
 pub fn lookup_ident(ident: &str) -> TokenType {

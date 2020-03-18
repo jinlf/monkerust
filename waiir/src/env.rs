@@ -24,18 +24,18 @@ pub struct Env {
 }
 impl Env {
     pub fn get(&self, name: String) -> (Option<Object>, bool) {
+        println!("***** env::get: {} {}", name, self.outer.is_some());
         if let Some(obj) = self.store.get(&name) {
             (obj.clone(), true)
+        } else if let Some(o) = &self.outer {
+            return o.borrow().get(name);
         } else {
-            if let Some(o) = self.outer.as_ref() {
-                return o.borrow().get(name);
-            } else {
-                (None, false)
-            }
+            (None, false)
         }
     }
 
     pub fn set(&mut self, name: String, val: Option<Object>) -> Option<Object> {
+        println!("******* env::set: {} => {:?}", name, val);
         self.store.insert(name, val.clone());
         val
     }

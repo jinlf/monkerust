@@ -11,6 +11,7 @@ pub enum Precedence {
     PRODUCT,
     PREFIX,
     CALL,
+    INDEX,
 }
 
 pub struct Parser {
@@ -161,6 +162,8 @@ impl Parser {
             TokenType::LPAREN => left_exp = self.parse_grouped_expr(),
             TokenType::IF => left_exp = self.parse_if_expr(),
             TokenType::FUNCTION => left_exp = self.parse_func_lite(),
+            TokenType::STR => left_exp = self.parse_str_lite(),
+            TokenType::LBRACKET => left_exp = self.parse_array_lite(),
             _ => {
                 self.no_prefix_parse_fn_error(self.cur_token.tk_type);
                 return None;
@@ -183,6 +186,10 @@ impl Parser {
                 TokenType::LPAREN => {
                     self.next_token();
                     left_exp = self.parse_call_expr(&left_exp.unwrap());
+                }
+                TokenType::LBRACKET => {
+                    self.next_token();
+                    left_exp = self.parse_index_expr(left_exp.unwrap());
                 }
                 _ => {
                     return left_exp;
@@ -245,6 +252,7 @@ impl Parser {
             TokenType::PLUS | TokenType::MINUS => Precedence::SUM,
             TokenType::SLASH | TokenType::ASTERISK => Precedence::PRODUCT,
             TokenType::LPAREN => Precedence::CALL,
+            TokenType::LBRACKET => Precedence::INDEX,
             _ => Precedence::LOWEST,
         }
     }
@@ -403,42 +411,95 @@ impl Parser {
     }
 
     fn parse_call_expr(&mut self, func: &Expr) -> Option<Expr> {
-        let arguments = self.parse_call_arguments();
-
         Some(Expr::CallExpr {
             token: self.cur_token.clone(),
             func: Box::new(func.clone()),
-            arguments: arguments.unwrap(), //TODO
+            arguments: self.parse_expr_list(TokenType::RPAREN).unwrap(), //TODO
         })
     }
 
-    fn parse_call_arguments(&mut self) -> Option<Vec<Expr>> {
-        let mut args: Vec<Expr> = Vec::new();
+    // fn parse_call_arguments(&mut self) -> Option<Vec<Expr>> {
+    //     let mut args: Vec<Expr> = Vec::new();
 
-        if self.peek_token_is(TokenType::RPAREN) {
+    //     if self.peek_token_is(TokenType::RPAREN) {
+    //         self.next_token();
+    //         return Some(args);
+    //     }
+
+    //     self.next_token();
+    //     let arg = self.parse_expr(Precedence::LOWEST);
+
+    //     args.push(arg.unwrap()); //TODO
+
+    //     while self.peek_token_is(TokenType::COMMA) {
+    //         self.next_token();
+    //         self.next_token();
+
+    //         let arg = self.parse_expr(Precedence::LOWEST);
+
+    //         args.push(arg.unwrap()); //TODO
+    //     }
+
+    //     if !self.expect_peek(TokenType::RPAREN) {
+    //         return None;
+    //     }
+
+    //     Some(args)
+    // }
+
+    fn parse_str_lite(&mut self) -> Option<Expr> {
+        Some(Expr::StrLite {
+            token: self.cur_token.clone(),
+            value: self.cur_token.literal.clone(),
+        })
+    }
+
+    fn parse_array_lite(&mut self) -> Option<Expr> {
+        let token = self.cur_token.clone();
+        let elements = self.parse_expr_list(TokenType::RBRACKET);
+        Some(Expr::ArrayLite {
+            token: token,
+            elements: elements.unwrap(), //TODO
+        })
+    }
+
+    fn parse_expr_list(&mut self, end: TokenType) -> Option<Vec<Option<Expr>>> {
+        let mut list: Vec<Option<Expr>> = Vec::new();
+
+        if self.peek_token_is(end) {
             self.next_token();
-            return Some(args);
+            return Some(list);
         }
 
         self.next_token();
-        let arg = self.parse_expr(Precedence::LOWEST);
-
-        args.push(arg.unwrap()); //TODO
+        list.push(self.parse_expr(Precedence::LOWEST));
 
         while self.peek_token_is(TokenType::COMMA) {
             self.next_token();
             self.next_token();
-
-            let arg = self.parse_expr(Precedence::LOWEST);
-
-            args.push(arg.unwrap()); //TODO
+            list.push(self.parse_expr(Precedence::LOWEST));
         }
 
-        if !self.expect_peek(TokenType::RPAREN) {
+        if !self.expect_peek(end) {
             return None;
         }
 
-        Some(args)
+        Some(list)
+    }
+    fn parse_index_expr(&mut self, left: Expr) -> Option<Expr> {
+        let token = self.cur_token.clone();
+        self.next_token();
+        let index = self.parse_expr(Precedence::LOWEST);
+
+        if !self.expect_peek(TokenType::RBRACKET) {
+            return None;
+        }
+
+        Some(Expr::IndexExpr {
+            token: token,
+            left: Box::new(left),
+            index: Box::new(index.unwrap()),
+        })
     }
 }
 
@@ -816,6 +877,14 @@ mod tests {
                 "add(a + b + c * d / f  + g)",
                 "add((((a + b) + ((c * d) / f)) + g))",
             ),
+            (
+                "a * [1, 2, 3, 4][b * c] * d",
+                "((a * ([1, 2, 3, 4][(b * c)])) * d)",
+            ),
+            (
+                "add(a * b[2], b[1], 2 * [1, 2][1])",
+                "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))",
+            ),
         ];
         for tt in tests.iter() {
             let l = Lexer::new(String::from(tt.0));
@@ -1152,15 +1221,15 @@ mod tests {
                         arguments.len()
                     );
 
-                    test_literal_expr(&arguments[0], &*Box::new(1 as i64));
+                    test_literal_expr(&arguments[0].as_ref().unwrap(), &*Box::new(1 as i64));
                     test_infix_expr(
-                        &arguments[1],
+                        &arguments[1].as_ref().unwrap(),
                         &*Box::new(2 as i64),
                         "*",
                         &*Box::new(3 as i64),
                     );
                     test_infix_expr(
-                        &arguments[2],
+                        &arguments[2].as_ref().unwrap(),
                         &*Box::new(4 as i64),
                         "+",
                         &*Box::new(5 as i64),
@@ -1173,6 +1242,103 @@ mod tests {
             }
         } else {
             assert!(false, "parse error",);
+        }
+    }
+
+    #[test]
+    fn test_str_lite_expr() {
+        let input = r#""hello world";"#;
+        let l = Lexer::new(String::from(input));
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&mut p);
+
+        if let Some(Node::Program(Program { stmts })) = program {
+            if let Stmt::ExprStmt { token: _, expr } = &stmts[0] {
+                if let Expr::StrLite { token: _, value } = expr {
+                    assert!(
+                        value == "hello world",
+                        "literal.value not {}. got={}",
+                        "hello world",
+                        value,
+                    );
+                } else {
+                    assert!(false, "exp not StrLite. got={:?}", expr);
+                }
+            } else {
+                assert!(false, "parse error: {:?}", &stmts[0]);
+            }
+        } else {
+            assert!(false, "parse error: {:?}", program);
+        }
+    }
+
+    #[test]
+    fn test_parse_array_lite() {
+        let input = "[1, 2 * 2, 3 + 3]";
+        let l = Lexer::new(String::from(input));
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&mut p);
+
+        if let Some(Node::Program(Program { stmts })) = program {
+            if let Stmt::ExprStmt { token: _, expr } = &stmts[0] {
+                if let Expr::ArrayLite { token: _, elements } = expr {
+                    assert!(
+                        elements.len() == 3,
+                        "len(array.elements not 3. got={}",
+                        elements.len()
+                    );
+
+                    test_integer_literal(elements[0].as_ref().unwrap(), 1);
+                    test_infix_expr(
+                        elements[1].as_ref().unwrap(),
+                        &*Box::new(2 as i64),
+                        "*",
+                        &*Box::new(2 as i64),
+                    );
+                    test_infix_expr(
+                        elements[2].as_ref().unwrap(),
+                        &*Box::new(3 as i64),
+                        "+",
+                        &*Box::new(3 as i64),
+                    );
+                } else {
+                    assert!(false, "exp not ArrayLite. got={:?}", expr);
+                }
+            } else {
+                assert!(false, "parse error");
+            }
+        } else {
+            assert!(false, "parser error");
+        }
+    }
+
+    #[test]
+    fn test_parsing_index_expr() {
+        let input = "myArray[1 + 1]";
+        let l = Lexer::new(String::from(input));
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&mut p);
+
+        if let Some(Node::Program(Program { stmts })) = program {
+            if let Stmt::ExprStmt { token: _, expr } = &stmts[0] {
+                if let Expr::IndexExpr {
+                    token: _,
+                    left,
+                    index,
+                } = expr
+                {
+                    test_ident(left, "myArray");
+
+                    test_infix_expr(index, &*Box::new(1 as i64), "+", &*Box::new(1 as i64));
+                }
+            } else {
+                assert!(false, "parse error");
+            }
+        } else {
+            assert!(false, "parse error");
         }
     }
 }

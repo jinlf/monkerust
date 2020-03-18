@@ -26,6 +26,8 @@ const MONKEY_FACE: &str = r#"
 pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
     let mut scanner = BufReader::new(input);
     let mut fmt = LineWriter::new(output);
+    let env = Rc::new(RefCell::new(new_env()));
+
     loop {
         fmt.write_fmt(format_args!("{}", PROMPT)).unwrap();
         fmt.flush().unwrap();
@@ -33,7 +35,6 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
         if scanner.read_line(&mut line).is_err() {
             return;
         }
-        let env = Rc::new(RefCell::new(new_env()));
         let l = Lexer::new(line);
         let mut p = Parser::new(l);
         let program = p.parse_program();
@@ -43,7 +44,7 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
                 continue;
             }
 
-            let evaluated = eval(prog, env);
+            let evaluated = eval(prog, Rc::clone(&env));
             if evaluated.is_some() {
                 fmt.write_fmt(format_args!("{}\n", evaluated.unwrap().inspect()))
                     .unwrap();

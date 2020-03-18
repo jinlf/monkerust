@@ -142,7 +142,20 @@ pub enum Expr {
     CallExpr {
         token: Token,
         func: Box<Expr>,
-        arguments: Vec<Expr>,
+        arguments: Vec<Option<Expr>>,
+    },
+    StrLite {
+        token: Token,
+        value: String,
+    },
+    ArrayLite {
+        token: Token,
+        elements: Vec<Option<Expr>>,
+    },
+    IndexExpr {
+        token: Token,
+        left: Box<Expr>,
+        index: Box<Expr>,
     },
 }
 impl ExprTrait for Expr {
@@ -171,6 +184,13 @@ impl NodeTrait for Expr {
                 token,
                 func: _,
                 arguments: _,
+            } => token.literal.clone(),
+            Expr::StrLite { token, value: _ } => token.literal.clone(),
+            Expr::ArrayLite { token, elements: _ } => token.literal.clone(),
+            Expr::IndexExpr {
+                token,
+                left: _,
+                index: _,
             } => token.literal.clone(),
         }
     }
@@ -226,12 +246,37 @@ impl NodeTrait for Expr {
                 let mut out = String::new();
                 let mut args: Vec<String> = Vec::new();
                 for a in arguments.iter() {
-                    args.push(a.string());
+                    args.push(a.as_ref().unwrap().string());
                 }
                 out.push_str(&func.string());
                 out.push_str("(");
                 out.push_str(&args.join(", "));
                 out.push_str(")");
+                out
+            }
+            Expr::StrLite { token, value: _ } => token.literal.clone(),
+            Expr::ArrayLite { token: _, elements } => {
+                let mut out = String::new();
+                let mut elems: Vec<String> = Vec::new();
+                for el in elements.iter() {
+                    elems.push(el.as_ref().unwrap().string()); //TODO
+                }
+                out.push_str("[");
+                out.push_str(&elems.join(", "));
+                out.push_str("]");
+                out
+            }
+            Expr::IndexExpr {
+                token: _,
+                left,
+                index,
+            } => {
+                let mut out = String::new();
+                out.push_str("(");
+                out.push_str(&left.string());
+                out.push_str("[");
+                out.push_str(&index.string());
+                out.push_str("])");
                 out
             }
         }

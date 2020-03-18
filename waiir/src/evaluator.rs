@@ -100,6 +100,29 @@ pub fn eval(node: Node, env: Rc<RefCell<Env>>) -> Option<Object> {
                 }
                 apply_func(func, &args)
             }
+            Expr::StrLite { token: _, value } => Some(Object::Str { value: value }),
+            Expr::ArrayLite { token: _, elements } => {
+                let elemts = eval_exprs(elements, env);
+                if elemts.len() == 1 && is_error(&elemts[0]) {
+                    return elemts[0].clone();
+                }
+                Some(Object::Array { elements: elemts })
+            }
+            Expr::IndexExpr {
+                token: _,
+                left,
+                index,
+            } => {
+                let left_obj = eval(Node::Expr(*left), Rc::clone(&env));
+                if is_error(&left_obj) {
+                    return left_obj;
+                }
+                let index_obj = eval(Node::Expr(*index), Rc::clone(&env));
+                if is_error(&index_obj) {
+                    return index_obj;
+                }
+                eval_index_expr(left_obj, index_obj)
+            }
         },
     }
 }
@@ -169,6 +192,12 @@ fn eval_infix_expr(operator: &str, left: Option<Object>, right: Option<Object>) 
     if let Some(Object::Int { value: _ }) = left {
         if let Some(Object::Int { value: _ }) = right {
             return eval_int_infix_expr(&operator, left, right);
+        }
+    }
+
+    if let Some(Object::Str { value: _ }) = left {
+        if let Some(Object::Str { value: _ }) = right {
+            return eval_str_infix_expr(&operator, left, right);
         }
     }
 
@@ -299,18 +328,21 @@ fn is_error(obj: &Option<Object>) -> bool {
 fn eval_ident(ident: Ident, env: Rc<RefCell<Env>>) -> Option<Object> {
     println!("eval_ident: {:?}", ident);
     let (val, ok) = env.borrow().get(ident.value.clone());
-    if !ok {
-        new_error(format!("identifier not found: {}", ident.value))
+    if ok {
+        return val;
     } else {
-        val
+        if let Some(builtin) = get_builtin(&ident.value) {
+            return Some(builtin);
+        }
     }
+    new_error(format!("identifier not found: {}", ident.value))
 }
 
-fn eval_exprs(exps: Vec<Expr>, env: Rc<RefCell<Env>>) -> Vec<Option<Object>> {
+fn eval_exprs(exps: Vec<Option<Expr>>, env: Rc<RefCell<Env>>) -> Vec<Option<Object>> {
     println!("eval_exprs: {:?}", exps);
     let mut result: Vec<Option<Object>> = Vec::new();
     for e in exps.iter() {
-        let evaluated = eval(Node::Expr(e.clone()), Rc::clone(&env));
+        let evaluated = eval(Node::Expr(e.as_ref().unwrap().clone()), Rc::clone(&env));
         if is_error(&evaluated) {
             return vec![evaluated];
         }
@@ -325,6 +357,8 @@ fn apply_func(func: Option<Object>, args: &Vec<Option<Object>>) -> Option<Object
         let extended_env = extend_func_env(function.clone(), args);
         let evaluated = eval(Node::Stmt(Stmt::BlockStmt(function.body)), extended_env);
         unwrap_return_value(evaluated)
+    } else if let Some(Object::Builtin(Builtin { func })) = func {
+        func(args)
     } else {
         new_error(format!("not a function: {:?}", func))
     }
@@ -344,6 +378,180 @@ fn unwrap_return_value(obj: Option<Object>) -> Option<Object> {
         return *value;
     }
     obj
+}
+
+fn eval_str_infix_expr(
+    operator: &str,
+    left: Option<Object>,
+    right: Option<Object>,
+) -> Option<Object> {
+    if operator != "+" {
+        return new_error(format!(
+            "unknown operator: {:?} {} {:?}",
+            left, operator, right
+        ));
+    }
+
+    if let Some(Object::Str { value }) = left {
+        let left_val = value;
+        if let Some(Object::Str { value }) = right {
+            let right_val = value;
+            return Some(Object::Str {
+                value: format!("{}{}", left_val, right_val),
+            });
+        }
+    }
+
+    new_error(format!("unknown error"))
+}
+
+fn get_builtin(val: &str) -> Option<Object> {
+    match val {
+        "len" => {
+            let func: fn(&Vec<Option<Object>>) -> Option<Object> = |args| {
+                if args.len() != 1 {
+                    return new_error(format!(
+                        "wrong number of arguments. got={}, want=1",
+                        args.len()
+                    ));
+                }
+
+                if let Some(Object::Array { elements }) = &args[0] {
+                    Some(Object::Int {
+                        value: elements.len() as i64,
+                    })
+                } else if let Some(Object::Str { value }) = &args[0] {
+                    Some(Object::Int {
+                        value: value.len() as i64,
+                    })
+                } else {
+                    new_error(format!(
+                        "argument to `len` not supported. got {}",
+                        args[0].as_ref().unwrap().get_type()
+                    ))
+                }
+            };
+            Some(Object::Builtin(Builtin { func: func }))
+        }
+        "first" => {
+            let func: fn(&Vec<Option<Object>>) -> Option<Object> = |args| {
+                if args.len() != 1 {
+                    return new_error(format!(
+                        "wrong number of arguments. got={}, want=1",
+                        args.len()
+                    ));
+                }
+
+                if let Some(Object::Array { elements }) = &args[0] {
+                    if elements.len() > 0 {
+                        return elements[0].clone();
+                    }
+                    return Some(NULL);
+                } else {
+                    return new_error(format!(
+                        "argument to `first` must be ARRAY, got {}",
+                        args[0].as_ref().unwrap().get_type()
+                    ));
+                }
+            };
+            Some(Object::Builtin(Builtin { func: func }))
+        }
+        "last" => {
+            let func: fn(&Vec<Option<Object>>) -> Option<Object> = |args| {
+                if args.len() != 1 {
+                    return new_error(format!(
+                        "wrong number of arguments. got={}, want=1",
+                        args.len()
+                    ));
+                }
+
+                if let Some(Object::Array { elements }) = &args[0] {
+                    if elements.len() > 0 {
+                        return elements[elements.len() - 1].clone();
+                    }
+                    return Some(NULL);
+                } else {
+                    return new_error(format!(
+                        "argument to `last` must be ARRAY, got {}",
+                        args[0].as_ref().unwrap().get_type()
+                    ));
+                }
+            };
+            Some(Object::Builtin(Builtin { func: func }))
+        }
+        "rest" => {
+            let func: fn(&Vec<Option<Object>>) -> Option<Object> = |args| {
+                if args.len() != 1 {
+                    return new_error(format!(
+                        "wrong number of arguments. got={}, want=1",
+                        args.len()
+                    ));
+                }
+
+                if let Some(Object::Array { elements }) = &args[0] {
+                    let length = elements.len();
+                    if length > 0 {
+                        let mut new_elemts = Vec::new();
+                        new_elemts.clone_from_slice(&elements[1..length]);
+                        return Some(Object::Array {
+                            elements: new_elemts,
+                        });
+                    }
+                    return Some(NULL);
+                } else {
+                    return new_error(format!(
+                        "argument to `rest` must be ARRAY, got {}",
+                        args[0].as_ref().unwrap().get_type()
+                    ));
+                }
+            };
+            Some(Object::Builtin(Builtin { func: func }))
+        }
+        "push" => {
+            let func: fn(&Vec<Option<Object>>) -> Option<Object> = |args| {
+                if args.len() != 2 {
+                    return new_error(format!(
+                        "wrong number of arguments. got={}, want=2",
+                        args.len()
+                    ));
+                }
+
+                if let Some(Object::Array { elements }) = &args[0] {
+                    let mut new_elements: Vec<Option<Object>> = Vec::new();
+                    new_elements.clone_from(elements);
+                    new_elements.push(args[1].clone());
+
+                    return Some(Object::Array {
+                        elements: new_elements,
+                    });
+                } else {
+                    return new_error(format!(
+                        "argument to `push` must be ARRAY, got {}",
+                        args[0].as_ref().unwrap().get_type()
+                    ));
+                }
+            };
+            Some(Object::Builtin(Builtin { func: func }))
+        }
+        _ => None,
+    }
+}
+
+fn eval_index_expr(left: Option<Object>, index: Option<Object>) -> Option<Object> {
+    if let Some(Object::Array { elements }) = left.clone() {
+        if let Some(Object::Int { value }) = index {
+            return eval_array_index_expr(elements, value);
+        }
+    }
+    new_error(format!("index operator not supported: {:?}", left))
+}
+
+fn eval_array_index_expr(elements: Vec<Option<Object>>, idx: i64) -> Option<Object> {
+    let max = (elements.len() as i64) - 1;
+    if idx < 0 || idx > max {
+        return Some(NULL);
+    }
+    elements[idx as usize].clone()
 }
 
 #[cfg(test)]
@@ -621,5 +829,127 @@ let addTwo = newAdder(2);
 addTwo(2);
 ";
         test_int_obj(test_eval(input), 4);
+    }
+
+    #[test]
+    fn test_str_lite() {
+        let input = r#""Hello World!""#;
+        let evaluated = test_eval(input);
+        if let Some(Object::Str { value }) = evaluated {
+            assert!(
+                value == "Hello World!",
+                "String has wrong value. got={}",
+                value
+            );
+        } else {
+            assert!(false, "object id not String. got={:?}", evaluated);
+        }
+    }
+
+    #[test]
+    fn test_str_concat() {
+        let input = r#""Hello" + " " + "World!""#;
+        let evaluated = test_eval(input);
+        if let Some(Object::Str { value }) = evaluated {
+            assert!(
+                value == "Hello World!",
+                "String has wrong value. got={}",
+                value
+            );
+        } else {
+            assert!(false, "object is not String. got={:?}", evaluated);
+        }
+    }
+
+    #[test]
+    fn test_builtin_funcs() {
+        let tests: [(&str, Object); 5] = [
+            (r#"len("")"#, Object::Int { value: 0 }),
+            (r#"len("four")"#, Object::Int { value: 4 }),
+            (r#"len("hello world")"#, Object::Int { value: 11 }),
+            (
+                r#"len(1)"#,
+                Object::Str {
+                    value: String::from("argument to `len` not supported. got INTEGER"),
+                },
+            ),
+            (
+                r#"len("one", "two")"#,
+                Object::Str {
+                    value: String::from("wrong number of arguments. got=2, want=1"),
+                },
+            ),
+        ];
+
+        for tt in tests.iter() {
+            let evaluated = test_eval(tt.0);
+            if let Object::Int { value } = tt.1.clone() {
+                test_int_obj(evaluated, value);
+            } else if let Object::Str { value } = tt.1.clone() {
+                if let Some(Object::Error { message }) = evaluated {
+                    assert!(
+                        message == value,
+                        "wrong error message. expected={}, got={}",
+                        value,
+                        message
+                    );
+                } else {
+                    assert!(false, "object is not Error. got={:?}", evaluated);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_array_lites() {
+        let input = "[1, 2 * 2, 3 + 3]";
+        let evaluated = test_eval(input);
+        if let Some(Object::Array { elements }) = evaluated {
+            assert!(
+                elements.len() == 3,
+                "array has wrong num of elements. got={}",
+                elements.len()
+            );
+
+            test_int_obj(elements[0].clone(), 1);
+            test_int_obj(elements[1].clone(), 4);
+            test_int_obj(elements[2].clone(), 6);
+        } else {
+            assert!(false, "object is not Array. got={:?}", evaluated);
+        }
+    }
+
+    #[test]
+    fn test_array_index_expr() {
+        let tests: [(&str, Object); 10] = [
+            ("[1, 2, 3][0]", Object::Int { value: 1 }),
+            ("[1, 2, 3][1]", Object::Int { value: 2 }),
+            ("[1, 2, 3][2]", Object::Int { value: 3 }),
+            ("let i = 0; [1][i];", Object::Int { value: 1 }),
+            ("[1, 2, 3][1 + 1]", Object::Int { value: 3 }),
+            (
+                "let myArray = [1, 2, 3]; myArray[2];",
+                Object::Int { value: 3 },
+            ),
+            (
+                "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];",
+                Object::Int { value: 6 },
+            ),
+            (
+                "let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]",
+                Object::Int { value: 2 },
+            ),
+            ("[1, 2, 3][3]", NULL),
+            ("[1, 2, 3][-1]", NULL),
+        ];
+
+        for tt in tests.iter() {
+            let evaluated = test_eval(tt.0);
+            if let Some(Object::Int { value }) = evaluated {
+                test_int_obj(evaluated, value);
+            } else {
+                test_null_obj(evaluated);
+            }
+        }
     }
 }

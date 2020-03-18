@@ -17,6 +17,9 @@ pub enum Object {
     ReturnValue { value: Box<Option<Object>> },
     Error { message: String },
     Func(Func),
+    Str { value: String },
+    Builtin(Builtin),
+    Array { elements: Vec<Option<Object>> },
 }
 impl ObjectTrait for Object {
     fn get_type(&self) -> String {
@@ -27,6 +30,9 @@ impl ObjectTrait for Object {
             Object::ReturnValue { value: _ } => String::from("RETURN_VALUE"),
             Object::Error { message: _ } => String::from("ERROR"),
             Object::Func(_) => String::from("FUNCTION"),
+            Object::Str { value: _ } => String::from("STRING"),
+            Object::Builtin(_) => String::from("BUILTIN"),
+            Object::Array { elements: _ } => String::from("ARRAY"),
         }
     }
     fn inspect(&self) -> String {
@@ -50,6 +56,21 @@ impl ObjectTrait for Object {
                 out.push_str("\n}");
                 out
             }
+            Object::Str { value } => value.clone(),
+            Object::Builtin(_) => String::from("builtin function"),
+            Object::Array { elements } => {
+                let mut out = String::new();
+                let mut elems: Vec<String> = Vec::new();
+                for e in elements.iter() {
+                    elems.push(e.as_ref().unwrap().inspect());
+                }
+
+                out.push_str("[");
+                out.push_str(&elems.join(", "));
+                out.push_str("]");
+
+                out
+            }
         }
     }
 }
@@ -71,3 +92,23 @@ impl PartialEq for Func {
     }
 }
 impl Eq for Func {}
+
+pub struct Builtin {
+    pub func: fn(args: &Vec<Option<Object>>) -> Option<Object>,
+}
+impl Debug for Builtin {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "Builtin")
+    }
+}
+impl Clone for Builtin {
+    fn clone(&self) -> Self {
+        Builtin { func: self.func }
+    }
+}
+impl PartialEq for Builtin {
+    fn eq(&self, _: &Self) -> bool {
+        false
+    }
+}
+impl Eq for Builtin {}
