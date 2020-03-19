@@ -1,6 +1,7 @@
 use super::ast::*;
 use super::lexer::*;
 use super::token::*;
+use std::collections::*;
 
 #[derive(PartialOrd, PartialEq)]
 pub enum Precedence {
@@ -164,6 +165,7 @@ impl Parser {
             TokenType::FUNCTION => left_exp = self.parse_func_lite(),
             TokenType::STR => left_exp = self.parse_str_lite(),
             TokenType::LBRACKET => left_exp = self.parse_array_lite(),
+            TokenType::LBRACE => left_exp = self.parse_hash_lite(),
             _ => {
                 self.no_prefix_parse_fn_error(self.cur_token.tk_type);
                 return None;
@@ -500,6 +502,33 @@ impl Parser {
             left: Box::new(left),
             index: Box::new(index.unwrap()),
         })
+    }
+
+    fn parse_hash_lite(&mut self) -> Option<Expr> {
+        let token = self.cur_token.clone();
+        let mut pairs: HashMap<Expr, Expr> = HashMap::new();
+        while !self.peek_token_is(TokenType::RBRACE) {
+            self.next_token();
+            let key = self.parse_expr(Precedence::LOWEST);
+            if !self.expect_peek(TokenType::COLON) {
+                return None;
+            }
+            self.next_token();
+            let value = self.parse_expr(Precedence::LOWEST);
+            pairs.insert(key.unwrap(), value.unwrap());
+
+            if !self.peek_token_is(TokenType::RBRACE) && !self.expect_peek(TokenType::COMMA) {
+                return None;
+            }
+        }
+        if !self.expect_peek(TokenType::RBRACE) {
+            return None;
+        }
+
+        Some(Expr::HashLite(HashLite {
+            token: token,
+            pairs: pairs,
+        }))
     }
 }
 
@@ -1333,6 +1362,123 @@ mod tests {
                     test_ident(left, "myArray");
 
                     test_infix_expr(index, &*Box::new(1 as i64), "+", &*Box::new(1 as i64));
+                }
+            } else {
+                assert!(false, "parse error");
+            }
+        } else {
+            assert!(false, "parse error");
+        }
+    }
+
+    #[test]
+    fn test_parsing_hash_lites_string_keys() {
+        let input = r#"{"one":1, "two":2, "three":3}"#;
+
+        let l = Lexer::new(String::from(input));
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&mut p);
+
+        if let Some(Node::Program(Program { stmts })) = program {
+            if let Stmt::ExprStmt { token: _, expr } = &stmts[0] {
+                if let Expr::HashLite(HashLite { token: _, pairs }) = expr {
+                    assert!(
+                        pairs.len() == 3,
+                        "hash.pairs has wrong length. got={}",
+                        pairs.len()
+                    );
+                    let mut expected: HashMap<String, i64> = HashMap::new();
+                    expected.insert(String::from("one"), 1);
+                    expected.insert(String::from("two"), 2);
+                    expected.insert(String::from("three"), 3);
+                    for (key, value) in pairs.iter() {
+                        let pair_value = value;
+                        if let Expr::StrLite { token: _, value } = key {
+                            let expected_value = expected.get(value);
+                            test_integer_literal(pair_value, *expected_value.unwrap());
+                        } else {
+                            assert!(false, "key is not StrLite. got={:?}", key);
+                        }
+                    }
+                } else {
+                    assert!(false, "exp is not HashLite. got={:?}", expr);
+                }
+            } else {
+                assert!(false, "parse error");
+            }
+        } else {
+            assert!(false, "parse error");
+        }
+    }
+
+    #[test]
+    fn test_parsing_empty_hash_lite() {
+        let input = "{}";
+        let l = Lexer::new(String::from(input));
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&mut p);
+
+        if let Some(Node::Program(Program { stmts })) = program {
+            if let Stmt::ExprStmt { token: _, expr } = &stmts[0] {
+                if let Expr::HashLite(HashLite { token: _, pairs }) = expr {
+                    assert!(
+                        pairs.len() == 0,
+                        "hash.pairs has wrong length. got={}",
+                        pairs.len()
+                    );
+                } else {
+                    assert!(false, "exp is not HashLite. got={:?}", expr);
+                }
+            } else {
+                assert!(false, "parse error");
+            }
+        } else {
+            assert!(false, "parse error");
+        }
+    }
+
+    #[test]
+    fn test_parsing_hash_lites_with_expr() {
+        let input = r#"{"one": 0 + 1, "two": 10 - 8, "three": 15 / 5}"#;
+        let l = Lexer::new(String::from(input));
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errors(&mut p);
+
+        if let Some(Node::Program(Program { stmts })) = program {
+            if let Stmt::ExprStmt { token: _, expr } = &stmts[0] {
+                if let Expr::HashLite(HashLite { token: _, pairs }) = expr {
+                    assert!(
+                        pairs.len() == 3,
+                        "hash.pairs has wrong length. got={}",
+                        pairs.len()
+                    );
+                    let mut tests: HashMap<String, fn(Expr)> = HashMap::new();
+                    tests.insert(String::from("one"), |e: Expr| {
+                        test_infix_expr(&e, &*Box::new(0 as i64), "+", &*Box::new(1 as i64));
+                    });
+                    tests.insert(String::from("two"), |e: Expr| {
+                        test_infix_expr(&e, &*Box::new(10 as i64), "-", &*Box::new(8 as i64));
+                    });
+                    tests.insert(String::from("three"), |e: Expr| {
+                        test_infix_expr(&e, &*Box::new(15 as i64), "/", &*Box::new(5 as i64));
+                    });
+
+                    for (key, pair_value) in pairs.iter() {
+                        if let Expr::StrLite { token: _, value: _ } = key {
+                            if let Some(test_func) = tests.get(&key.string()) {
+                                test_func(pair_value.clone());
+                            } else {
+                                assert!(false, "No test function for key {} found", key.string());
+                            }
+                        } else {
+                            assert!(false, "key is not StrLite. got={:?}", key);
+                        }
+                    }
+                } else {
+                    assert!(false, "exp is not HashLite. got={:?}", expr);
                 }
             } else {
                 assert!(false, "parse error");

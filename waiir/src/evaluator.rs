@@ -2,10 +2,11 @@ use super::ast::*;
 use super::env::*;
 use super::object::*;
 use std::cell::*;
+use std::collections::*;
 use std::rc::*;
 
-pub const TRUE: Object = Object::Bool { value: true };
-pub const FALSE: Object = Object::Bool { value: false };
+pub const TRUE: Object = Object::Bool(Bool { value: true });
+pub const FALSE: Object = Object::Bool(Bool { value: false });
 pub const NULL: Object = Object::Null {};
 
 pub fn eval(node: Node, env: Rc<RefCell<Env>>) -> Option<Object> {
@@ -37,9 +38,9 @@ pub fn eval(node: Node, env: Rc<RefCell<Env>>) -> Option<Object> {
             }
         },
         Node::Expr(expr) => match expr {
-            Expr::IntLiteral(int_lite) => Some(Object::Int {
+            Expr::IntLiteral(int_lite) => Some(Object::Int(Int {
                 value: int_lite.value,
-            }),
+            })),
             Expr::Bool { token: _, value } => Some(native_bool_to_boolean_obj(value)),
             Expr::PrefixExpr(PrefixExpr {
                 token: _,
@@ -100,7 +101,7 @@ pub fn eval(node: Node, env: Rc<RefCell<Env>>) -> Option<Object> {
                 }
                 apply_func(func, &args)
             }
-            Expr::StrLite { token: _, value } => Some(Object::Str { value: value }),
+            Expr::StrLite { token: _, value } => Some(Object::Str(Str { value: value })),
             Expr::ArrayLite { token: _, elements } => {
                 let elemts = eval_exprs(elements, env);
                 if elemts.len() == 1 && is_error(&elemts[0]) {
@@ -123,6 +124,7 @@ pub fn eval(node: Node, env: Rc<RefCell<Env>>) -> Option<Object> {
                 }
                 eval_index_expr(left_obj, index_obj)
             }
+            Expr::HashLite(hash_lite) => eval_hash_lite(&hash_lite, Rc::clone(&env)),
         },
     }
 }
@@ -166,7 +168,7 @@ fn eval_prefix_expr(operator: &str, right: Option<Object>) -> Option<Object> {
 fn eval_bang_operator_expr(right: Option<Object>) -> Option<Object> {
     println!("eval_bang_operator_expr: {:?}", right);
     match right {
-        Some(Object::Bool { value }) => {
+        Some(Object::Bool(Bool { value })) => {
             if value {
                 Some(FALSE)
             } else {
@@ -180,8 +182,8 @@ fn eval_bang_operator_expr(right: Option<Object>) -> Option<Object> {
 
 fn eval_minus_operator_expr(right: Option<Object>) -> Option<Object> {
     println!("eval_minus_operator_expr: {:?}", right);
-    if let Some(Object::Int { value }) = right {
-        return Some(Object::Int { value: -value });
+    if let Some(Object::Int(Int { value })) = right {
+        return Some(Object::Int(Int { value: -value }));
     } else {
         return new_error(format!("unknown operator: -{}", right.unwrap().get_type()));
     }
@@ -189,14 +191,14 @@ fn eval_minus_operator_expr(right: Option<Object>) -> Option<Object> {
 
 fn eval_infix_expr(operator: &str, left: Option<Object>, right: Option<Object>) -> Option<Object> {
     println!("eval_infix_expr: {} {:?} {:?}", operator, left, right);
-    if let Some(Object::Int { value: _ }) = left {
-        if let Some(Object::Int { value: _ }) = right {
+    if let Some(Object::Int(Int { value: _ })) = left {
+        if let Some(Object::Int(Int { value: _ })) = right {
             return eval_int_infix_expr(&operator, left, right);
         }
     }
 
-    if let Some(Object::Str { value: _ }) = left {
-        if let Some(Object::Str { value: _ }) = right {
+    if let Some(Object::Str(Str { value: _ })) = left {
+        if let Some(Object::Str(Str { value: _ })) = right {
             return eval_str_infix_expr(&operator, left, right);
         }
     }
@@ -230,23 +232,23 @@ fn eval_int_infix_expr(
     right: Option<Object>,
 ) -> Option<Object> {
     println!("eval_int_infix_expr: {} {:?} {:?}", operator, left, right);
-    if let Some(Object::Int { value }) = left {
+    if let Some(Object::Int(Int { value })) = left {
         let left_val = value;
-        if let Some(Object::Int { value }) = right {
+        if let Some(Object::Int(Int { value })) = right {
             let right_val = value;
             return match operator {
-                "+" => Some(Object::Int {
+                "+" => Some(Object::Int(Int {
                     value: left_val + right_val,
-                }),
-                "-" => Some(Object::Int {
+                })),
+                "-" => Some(Object::Int(Int {
                     value: left_val - right_val,
-                }),
-                "*" => Some(Object::Int {
+                })),
+                "*" => Some(Object::Int(Int {
                     value: left_val * right_val,
-                }),
-                "/" => Some(Object::Int {
+                })),
+                "/" => Some(Object::Int(Int {
                     value: left_val / right_val,
-                }),
+                })),
                 "<" => Some(native_bool_to_boolean_obj(left_val < right_val)),
                 ">" => Some(native_bool_to_boolean_obj(left_val > right_val)),
                 "==" => Some(native_bool_to_boolean_obj(left_val == right_val)),
@@ -392,13 +394,13 @@ fn eval_str_infix_expr(
         ));
     }
 
-    if let Some(Object::Str { value }) = left {
+    if let Some(Object::Str(Str { value })) = left {
         let left_val = value;
-        if let Some(Object::Str { value }) = right {
+        if let Some(Object::Str(Str { value })) = right {
             let right_val = value;
-            return Some(Object::Str {
+            return Some(Object::Str(Str {
                 value: format!("{}{}", left_val, right_val),
-            });
+            }));
         }
     }
 
@@ -417,13 +419,13 @@ fn get_builtin(val: &str) -> Option<Object> {
                 }
 
                 if let Some(Object::Array { elements }) = &args[0] {
-                    Some(Object::Int {
+                    Some(Object::Int(Int {
                         value: elements.len() as i64,
-                    })
-                } else if let Some(Object::Str { value }) = &args[0] {
-                    Some(Object::Int {
+                    }))
+                } else if let Some(Object::Str(Str { value })) = &args[0] {
+                    Some(Object::Int(Int {
                         value: value.len() as i64,
-                    })
+                    }))
                 } else {
                     new_error(format!(
                         "argument to `len` not supported. got {}",
@@ -533,15 +535,29 @@ fn get_builtin(val: &str) -> Option<Object> {
             };
             Some(Object::Builtin(Builtin { func: func }))
         }
+        "puts" => {
+            let func: fn(&Vec<Option<Object>>) -> Option<Object> = |args| {
+                for arg in args.iter() {
+                    if let Some(a) = arg {
+                        println!("{}", a.inspect());
+                    }
+                }
+                Some(NULL)
+            };
+            Some(Object::Builtin(Builtin { func: func }))
+        }
         _ => None,
     }
 }
 
 fn eval_index_expr(left: Option<Object>, index: Option<Object>) -> Option<Object> {
     if let Some(Object::Array { elements }) = left.clone() {
-        if let Some(Object::Int { value }) = index {
+        if let Some(Object::Int(Int { value })) = index {
             return eval_array_index_expr(elements, value);
         }
+    }
+    if let Some(Object::Hash(_)) = left {
+        return eval_hash_index_expr(left, index);
     }
     new_error(format!("index operator not supported: {:?}", left))
 }
@@ -552,6 +568,58 @@ fn eval_array_index_expr(elements: Vec<Option<Object>>, idx: i64) -> Option<Obje
         return Some(NULL);
     }
     elements[idx as usize].clone()
+}
+
+fn eval_hash_lite(node: &HashLite, env: Rc<RefCell<Env>>) -> Option<Object> {
+    let mut pairs: HashMap<HashKey, HashPair> = HashMap::new();
+
+    for (key_node, value_node) in node.pairs.clone() {
+        let key = eval(Node::Expr(key_node), Rc::clone(&env));
+        if is_error(&key) {
+            return key;
+        }
+
+        if let Some(hash_key) = &key {
+            let value = eval(Node::Expr(value_node), Rc::clone(&env));
+            if is_error(&value) {
+                return value;
+            }
+            if let Some(hashed) = hash_key.hash_key() {
+                pairs.insert(
+                    hashed,
+                    HashPair {
+                        key: key.unwrap(),
+                        value: value.unwrap(),
+                    },
+                );
+            } else {
+                return new_error(format!("error"));
+            }
+        } else {
+            return new_error(format!("unusable as hash key: {:?}", key));
+        }
+    }
+    Some(Object::Hash(Hash { pairs: pairs }))
+}
+
+fn eval_hash_index_expr(hash: Option<Object>, index: Option<Object>) -> Option<Object> {
+    if let Some(Object::Hash(hash_obj)) = hash {
+        if let Some(index_obj) = index {
+            if let Some(key) = index_obj.hash_key() {
+                if let Some(pair) = hash_obj.pairs.get(&key) {
+                    return Some(pair.value.clone());
+                } else {
+                    return Some(NULL);
+                }
+            } else {
+                return new_error(format!("unusable as hash key: {}", index_obj.get_type()));
+            }
+        } else {
+            return new_error(format!("error"));
+        }
+    } else {
+        return new_error(format!("unusable as hash object: {:?}", hash));
+    }
 }
 
 #[cfg(test)]
@@ -595,7 +663,7 @@ mod tests {
     }
 
     fn test_int_obj(obj: Option<Object>, expected: i64) {
-        if let Some(Object::Int { value }) = obj {
+        if let Some(Object::Int(Int { value })) = obj {
             assert!(
                 value == expected,
                 "object has wrong value. got={}, want={}",
@@ -638,7 +706,7 @@ mod tests {
     }
 
     fn test_boolean_obj(obj: Option<Object>, expected: bool) {
-        if let Some(Object::Bool { value }) = obj {
+        if let Some(Object::Bool(Bool { value })) = obj {
             assert!(
                 value == expected,
                 "object has wrong value. got={}, want={}",
@@ -669,19 +737,25 @@ mod tests {
     #[test]
     fn test_if_else_expr() {
         let tests: [(&str, Object); 7] = [
-            ("if (true) { 10 }", Object::Int { value: 10 }),
+            ("if (true) { 10 }", Object::Int(Int { value: 10 })),
             ("if (false) { 10 }", NULL),
-            ("if (1) { 10 }", Object::Int { value: 10 }),
-            ("if (1 < 2) { 10 }", Object::Int { value: 10 }),
+            ("if (1) { 10 }", Object::Int(Int { value: 10 })),
+            ("if (1 < 2) { 10 }", Object::Int(Int { value: 10 })),
             ("if (1 > 2) { 10 }", NULL),
-            ("if (1 > 2) { 10 } else { 20 }", Object::Int { value: 20 }),
-            ("if (1 < 2) { 10 } else { 20 }", Object::Int { value: 10 }),
+            (
+                "if (1 > 2) { 10 } else { 20 }",
+                Object::Int(Int { value: 20 }),
+            ),
+            (
+                "if (1 < 2) { 10 } else { 20 }",
+                Object::Int(Int { value: 10 }),
+            ),
         ];
 
         for tt in tests.iter() {
             let evaluated = test_eval(tt.0);
             match tt.1 {
-                Object::Int { value } => test_int_obj(evaluated, value),
+                Object::Int(Int { value }) => test_int_obj(evaluated, value),
                 _ => test_null_obj(evaluated),
             }
         }
@@ -742,6 +816,10 @@ if (10 > 1) {
                 "unknown operator: BOOLEAN + BOOLEAN",
             ),
             ("foobar", "identifier not found: foobar"),
+            (
+                r#"{"name": "Monkey"}[fn(x){x}];"#,
+                "unusable as hash key: FUNCTION",
+            ),
         ];
 
         for tt in tests.iter() {
@@ -835,7 +913,7 @@ addTwo(2);
     fn test_str_lite() {
         let input = r#""Hello World!""#;
         let evaluated = test_eval(input);
-        if let Some(Object::Str { value }) = evaluated {
+        if let Some(Object::Str(Str { value })) = evaluated {
             assert!(
                 value == "Hello World!",
                 "String has wrong value. got={}",
@@ -850,7 +928,7 @@ addTwo(2);
     fn test_str_concat() {
         let input = r#""Hello" + " " + "World!""#;
         let evaluated = test_eval(input);
-        if let Some(Object::Str { value }) = evaluated {
+        if let Some(Object::Str(Str { value })) = evaluated {
             assert!(
                 value == "Hello World!",
                 "String has wrong value. got={}",
@@ -864,28 +942,28 @@ addTwo(2);
     #[test]
     fn test_builtin_funcs() {
         let tests: [(&str, Object); 5] = [
-            (r#"len("")"#, Object::Int { value: 0 }),
-            (r#"len("four")"#, Object::Int { value: 4 }),
-            (r#"len("hello world")"#, Object::Int { value: 11 }),
+            (r#"len("")"#, Object::Int(Int { value: 0 })),
+            (r#"len("four")"#, Object::Int(Int { value: 4 })),
+            (r#"len("hello world")"#, Object::Int(Int { value: 11 })),
             (
                 r#"len(1)"#,
-                Object::Str {
+                Object::Str(Str {
                     value: String::from("argument to `len` not supported. got INTEGER"),
-                },
+                }),
             ),
             (
                 r#"len("one", "two")"#,
-                Object::Str {
+                Object::Str(Str {
                     value: String::from("wrong number of arguments. got=2, want=1"),
-                },
+                }),
             ),
         ];
 
         for tt in tests.iter() {
             let evaluated = test_eval(tt.0);
-            if let Object::Int { value } = tt.1.clone() {
+            if let Object::Int(Int { value }) = tt.1.clone() {
                 test_int_obj(evaluated, value);
-            } else if let Object::Str { value } = tt.1.clone() {
+            } else if let Object::Str(Str { value }) = tt.1.clone() {
                 if let Some(Object::Error { message }) = evaluated {
                     assert!(
                         message == value,
@@ -922,22 +1000,22 @@ addTwo(2);
     #[test]
     fn test_array_index_expr() {
         let tests: [(&str, Object); 10] = [
-            ("[1, 2, 3][0]", Object::Int { value: 1 }),
-            ("[1, 2, 3][1]", Object::Int { value: 2 }),
-            ("[1, 2, 3][2]", Object::Int { value: 3 }),
-            ("let i = 0; [1][i];", Object::Int { value: 1 }),
-            ("[1, 2, 3][1 + 1]", Object::Int { value: 3 }),
+            ("[1, 2, 3][0]", Object::Int(Int { value: 1 })),
+            ("[1, 2, 3][1]", Object::Int(Int { value: 2 })),
+            ("[1, 2, 3][2]", Object::Int(Int { value: 3 })),
+            ("let i = 0; [1][i];", Object::Int(Int { value: 1 })),
+            ("[1, 2, 3][1 + 1]", Object::Int(Int { value: 3 })),
             (
                 "let myArray = [1, 2, 3]; myArray[2];",
-                Object::Int { value: 3 },
+                Object::Int(Int { value: 3 }),
             ),
             (
                 "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];",
-                Object::Int { value: 6 },
+                Object::Int(Int { value: 6 }),
             ),
             (
                 "let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]",
-                Object::Int { value: 2 },
+                Object::Int(Int { value: 2 }),
             ),
             ("[1, 2, 3][3]", NULL),
             ("[1, 2, 3][-1]", NULL),
@@ -945,7 +1023,90 @@ addTwo(2);
 
         for tt in tests.iter() {
             let evaluated = test_eval(tt.0);
-            if let Some(Object::Int { value }) = evaluated {
+            if let Some(Object::Int(Int { value })) = evaluated {
+                test_int_obj(evaluated, value);
+            } else {
+                test_null_obj(evaluated);
+            }
+        }
+    }
+
+    #[test]
+    fn test_hash_lites() {
+        let input = r#"let two = "two";
+        {
+            "one": 10 - 9,
+            two: 1 + 1,
+            "thr" + "ee": 6 / 2,
+            4: 4,
+            true: 5,
+            false:6
+        }"#;
+
+        let evaluated = test_eval(input);
+        if let Some(Object::Hash(result)) = evaluated {
+            let mut expected: HashMap<HashKey, i64> = HashMap::new();
+            expected.insert(
+                Hashtable::Str(Str {
+                    value: String::from("one"),
+                })
+                .hash_key(),
+                1,
+            );
+            expected.insert(
+                Hashtable::Str(Str {
+                    value: String::from("two"),
+                })
+                .hash_key(),
+                2,
+            );
+            expected.insert(
+                Hashtable::Str(Str {
+                    value: String::from("three"),
+                })
+                .hash_key(),
+                3,
+            );
+            expected.insert(Hashtable::Int(Int { value: 4 }).hash_key(), 4);
+            expected.insert(TRUE.hash_key().unwrap(), 5);
+            expected.insert(FALSE.hash_key().unwrap(), 6);
+
+            assert!(
+                result.pairs.len() == expected.len(),
+                "Hash has wrong num of pairs. got={}",
+                result.pairs.len()
+            );
+
+            for (expected_key, expected_value) in expected.iter() {
+                if let Some(pair) = result.pairs.get(expected_key) {
+                    test_int_obj(Some(pair.value.clone()), *expected_value);
+                } else {
+                    assert!(false, "no pair for given key in pairs");
+                }
+            }
+        } else {
+            assert!(false, "Eval didn't return Hash. got={:?}", evaluated);
+        }
+    }
+
+    #[test]
+    fn test_hash_index_expr() {
+        let tests: [(&str, Object); 7] = [
+            (r#"{"foo":5}["foo"]"#, Object::Int(Int { value: 5 })),
+            (r#"{"foo":5}["bar"]"#, NULL),
+            (
+                r#"let key="foo"; {"foo":5}[key]"#,
+                Object::Int(Int { value: 5 }),
+            ),
+            (r#"{}["foo"]"#, NULL),
+            ("{5:5}[5]", Object::Int(Int { value: 5 })),
+            ("{true:5}[true]", Object::Int(Int { value: 5 })),
+            ("{false:5}[false]", Object::Int(Int { value: 5 })),
+        ];
+
+        for tt in tests.iter() {
+            let evaluated = test_eval(tt.0);
+            if let Object::Int(Int { value }) = tt.1 {
                 test_int_obj(evaluated, value);
             } else {
                 test_null_obj(evaluated);

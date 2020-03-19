@@ -12,7 +12,7 @@ impl Clone for Token {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TokenType {
     ILLEGAL,
     EOF,
@@ -48,6 +48,7 @@ pub enum TokenType {
     STR,
     LBRACKET,
     RBRACKET,
+    COLON,
 }
 
 pub fn lookup_ident(ident: &str) -> TokenType {

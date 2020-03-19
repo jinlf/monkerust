@@ -84,6 +84,7 @@ impl Lexer {
             }
             b'[' => tok = new_token(TokenType::LBRACKET, self.ch),
             b']' => tok = new_token(TokenType::RBRACKET, self.ch),
+            b':' => tok = new_token(TokenType::COLON, self.ch),
             _ => {
                 if (self.ch as char).is_ascii_alphabetic() {
                     let literal = self.read_identifier();
@@ -219,8 +220,9 @@ mod tests {
         "foobar"
         "foo bar"
         [1,2];
+        {"foo": "bar"}
         "#;
-        let tests: [(TokenType, &str); 82] = [
+        let tests: [(TokenType, &str); 87] = [
             (TokenType::LET, "let"),
             (TokenType::IDENT, "five"),
             (TokenType::ASSIGN, "="),
@@ -302,6 +304,11 @@ mod tests {
             (TokenType::INT, "2"),
             (TokenType::RBRACKET, "]"),
             (TokenType::SEMICOLON, ";"),
+            (TokenType::LBRACE, "{"),
+            (TokenType::STR, "foo"),
+            (TokenType::COLON, ":"),
+            (TokenType::STR, "bar"),
+            (TokenType::RBRACE, "}"),
             (TokenType::EOF, ""),
         ];
 

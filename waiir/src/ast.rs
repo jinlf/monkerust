@@ -1,4 +1,7 @@
 use super::token::*;
+use std::collections::*;
+use std::fmt::*;
+use std::hash::*;
 
 pub trait NodeTrait {
     fn token_literal(&self) -> String;
@@ -157,6 +160,22 @@ pub enum Expr {
         left: Box<Expr>,
         index: Box<Expr>,
     },
+    HashLite(HashLite),
+}
+impl Eq for Expr {}
+impl PartialEq for Expr {
+    fn eq(&self, other: &Self) -> bool {
+        let addr1 = self as *const Expr as usize;
+        let addr2 = other as *const Expr as usize;
+        return addr1 == addr2;
+    }
+}
+impl Hash for Expr {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let addr = self as *const Expr as usize;
+        state.write_usize(addr);
+        state.finish();
+    }
 }
 impl ExprTrait for Expr {
     fn expr_node(&self) {}
@@ -192,6 +211,7 @@ impl NodeTrait for Expr {
                 left: _,
                 index: _,
             } => token.literal.clone(),
+            Expr::HashLite(HashLite { token, pairs: _ }) => token.literal.clone(),
         }
     }
     fn string(&self) -> String {
@@ -277,6 +297,17 @@ impl NodeTrait for Expr {
                 out.push_str("[");
                 out.push_str(&index.string());
                 out.push_str("])");
+                out
+            }
+            Expr::HashLite(HashLite { token: _, pairs }) => {
+                let mut out = String::new();
+                let mut pairs1: Vec<String> = Vec::new();
+                for (key, value) in pairs.iter() {
+                    pairs1.push(format!("{}:{}", key.string(), value.string()));
+                }
+                out.push_str("{");
+                out.push_str(&pairs1.join(", "));
+                out.push_str("}");
                 out
             }
         }
@@ -373,6 +404,17 @@ impl NodeTrait for BlockStmt {
             out.push_str(&s.string());
         }
         out
+    }
+}
+
+#[derive(Clone)]
+pub struct HashLite {
+    pub token: Token,
+    pub pairs: HashMap<Expr, Expr>,
+}
+impl Debug for HashLite {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "HashLite")
     }
 }
 
