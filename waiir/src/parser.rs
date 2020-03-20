@@ -15,14 +15,14 @@ pub enum Precedence {
     INDEX,
 }
 
-pub struct Parser {
-    l: Lexer,
+pub struct Parser<'a> {
+    l: Lexer<'a>,
     cur_token: Token,
     peek_token: Token,
     errors: Vec<String>,
 }
-impl Parser {
-    pub fn new(l: Lexer) -> Parser {
+impl<'a> Parser<'a> {
+    pub fn new(l: Lexer<'a>) -> Parser<'a> {
         let mut p = Parser {
             l: l,
             cur_token: new_token(TokenType::ILLEGAL, 0),
@@ -40,7 +40,6 @@ impl Parser {
     }
 
     pub fn parse_program(&mut self) -> Option<Node> {
-        println!("parse_program: {:?}", self.cur_token);
         let mut stmts: Vec<Stmt> = Vec::new();
         while self.cur_token.tk_type != TokenType::EOF {
             if let Some(stmt) = self.parse_stmt() {
@@ -52,7 +51,6 @@ impl Parser {
     }
 
     fn parse_stmt(&mut self) -> Option<Stmt> {
-        println!("parse_stmt: {:?}", self.cur_token);
         match self.cur_token.tk_type {
             TokenType::LET => self.parse_let_stmt(),
             TokenType::RETURN => self.parse_return_stmt(),
@@ -61,7 +59,6 @@ impl Parser {
     }
 
     fn parse_let_stmt(&mut self) -> Option<Stmt> {
-        println!("parse_let_stmt: {:?}", self.cur_token);
         let token = self.cur_token.clone();
         if !self.expect_peek(TokenType::IDENT) {
             return None;
@@ -122,7 +119,6 @@ impl Parser {
     }
 
     fn parse_return_stmt(&mut self) -> Option<Stmt> {
-        println!("parse_return_stmt: {:?}", self.cur_token);
         let token = self.cur_token.clone();
         self.next_token();
         let value = self.parse_expr(Precedence::LOWEST);
@@ -137,7 +133,6 @@ impl Parser {
     }
 
     fn parse_expr_stmt(&mut self) -> Option<Stmt> {
-        println!("parse_expr_stmt: {:?}", self.cur_token);
         let token = self.cur_token.clone();
         let expr = self.parse_expr(Precedence::LOWEST);
         if self.peek_token_is(TokenType::SEMICOLON) {
@@ -153,7 +148,6 @@ impl Parser {
     }
 
     fn parse_expr(&mut self, precedence: Precedence) -> Option<Expr> {
-        println!("parse_expr: {:?}", self.cur_token);
         let mut left_exp: Option<Expr>;
         match self.cur_token.tk_type {
             TokenType::IDENT => left_exp = self.parse_ident(),
@@ -202,7 +196,6 @@ impl Parser {
     }
 
     fn parse_ident(&mut self) -> Option<Expr> {
-        println!("parse_ident: {:?}", self.cur_token);
         Some(Expr::Ident(Ident {
             token: self.cur_token.clone(),
             value: self.cur_token.literal.clone(),
@@ -210,7 +203,6 @@ impl Parser {
     }
 
     fn parse_integer_literal(&mut self) -> Option<Expr> {
-        println!("parse_integer_literal: {:?}", self.cur_token);
         let token = self.cur_token.clone();
 
         match self.cur_token.literal.parse::<i64>() {
@@ -232,7 +224,6 @@ impl Parser {
     }
 
     fn parse_prefix_expr(&mut self) -> Option<Expr> {
-        println!("parse_prefix_expr: {:?}", self.cur_token);
         let token = self.cur_token.clone();
         let operator = self.cur_token.literal.clone();
 
@@ -267,7 +258,6 @@ impl Parser {
     }
 
     fn parse_infix_expr(&mut self, left: Expr) -> Option<Expr> {
-        println!("parse_infix_expr: {:?}", self.cur_token);
         let token = self.cur_token.clone();
         let operator = self.cur_token.literal.clone();
         let precedence = self.cur_precedence();
@@ -287,7 +277,6 @@ impl Parser {
     }
 
     fn parse_boolean(&mut self) -> Option<Expr> {
-        println!("parse_boolean: {:?}", self.cur_token);
         Some(Expr::Bool {
             token: self.cur_token.clone(),
             value: self.cur_token_is(TokenType::TRUE),
@@ -295,7 +284,6 @@ impl Parser {
     }
 
     fn parse_grouped_expr(&mut self) -> Option<Expr> {
-        println!("parse_grouped_expr: {:?}", self.cur_token);
         self.next_token();
         let exp = self.parse_expr(Precedence::LOWEST);
         if !self.expect_peek(TokenType::RPAREN) {
@@ -305,7 +293,6 @@ impl Parser {
     }
 
     fn parse_if_expr(&mut self) -> Option<Expr> {
-        println!("parse_if_expr: {:?}", self.cur_token);
         let token = self.cur_token.clone();
 
         if !self.expect_peek(TokenType::LPAREN) {
@@ -345,7 +332,6 @@ impl Parser {
     }
 
     fn parse_block_stmt(&mut self) -> BlockStmt {
-        println!("parse_block_stmt: {:?}", self.cur_token);
         let token = self.cur_token.clone();
         let mut stmts: Vec<Stmt> = Vec::new();
 
@@ -364,7 +350,6 @@ impl Parser {
     }
 
     fn parse_func_lite(&mut self) -> Option<Expr> {
-        println!("parse_func_lite: {:?}", self.cur_token);
         let token = self.cur_token.clone();
         if !self.expect_peek(TokenType::LPAREN) {
             return None;
@@ -382,7 +367,6 @@ impl Parser {
     }
 
     fn parse_func_parameters(&mut self) -> Vec<Ident> {
-        println!("parse_func_parameters: {:?}", self.cur_token);
         let mut idents: Vec<Ident> = Vec::new();
         if self.peek_token_is(TokenType::RPAREN) {
             self.next_token();
@@ -545,7 +529,7 @@ mod tests {
             ("let foobar = y;", "foobar", Box::new("y")),
         ];
         for tt in tests.iter() {
-            let l = Lexer::new(String::from(tt.0));
+            let l = Lexer::new(tt.0);
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parser_errors(&mut p);
@@ -626,7 +610,7 @@ mod tests {
     return 10;
     return 993322;
             ";
-        let l = Lexer::new(String::from(input));
+        let l = Lexer::new(input);
         let mut p = Parser::new(l);
 
         let program = p.parse_program();
@@ -647,7 +631,7 @@ mod tests {
                         token.literal
                     );
                 } else {
-                    println!("stmt not ReturnStmt. got={:?}", stmt);
+                    assert!(false, "stmt not ReturnStmt. got={:?}", stmt);
                 }
             }
         } else {
@@ -658,7 +642,7 @@ mod tests {
     #[test]
     fn test_indent_expr() {
         let input = "foobar;";
-        let l = Lexer::new(String::from(input));
+        let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parser_errors(&mut p);
@@ -707,7 +691,7 @@ mod tests {
     fn test_integer_literal_expr() {
         let input = "5;";
 
-        let l = Lexer::new(String::from(input));
+        let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parser_errors(&mut p);
@@ -753,7 +737,7 @@ mod tests {
         let tests = [("!5;", "!", 5), ("-15;", "-", 15)];
 
         for tt in tests.iter() {
-            let l = Lexer::new(String::from(tt.0));
+            let l = Lexer::new(tt.0);
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parser_errors(&mut p);
@@ -833,7 +817,7 @@ mod tests {
         ];
 
         for tt in tests.iter() {
-            let l = Lexer::new(String::from(tt.0));
+            let l = Lexer::new(tt.0);
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parser_errors(&mut p);
@@ -916,7 +900,7 @@ mod tests {
             ),
         ];
         for tt in tests.iter() {
-            let l = Lexer::new(String::from(tt.0));
+            let l = Lexer::new(tt.0);
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parser_errors(&mut p);
@@ -981,7 +965,7 @@ mod tests {
     fn test_if_expr() {
         let input = "if (x < y) { x }";
 
-        let l = Lexer::new(String::from(input));
+        let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parser_errors(&mut p);
@@ -1043,7 +1027,7 @@ mod tests {
     fn test_if_else_expr() {
         let input = "if (x < y) { x } else { y }";
 
-        let l = Lexer::new(String::from(input));
+        let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parser_errors(&mut p);
@@ -1147,7 +1131,7 @@ mod tests {
     #[test]
     fn test_func_lite_parsing() {
         let input = "fn(x, y) { x + y; }";
-        let l = Lexer::new(String::from(input));
+        let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parser_errors(&mut p);
@@ -1222,7 +1206,7 @@ mod tests {
     #[test]
     fn test_call_expr_parsing() {
         let input = "add(1, 2 * 3, 4 + 5);";
-        let l = Lexer::new(String::from(input));
+        let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parser_errors(&mut p);
@@ -1277,7 +1261,7 @@ mod tests {
     #[test]
     fn test_str_lite_expr() {
         let input = r#""hello world";"#;
-        let l = Lexer::new(String::from(input));
+        let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parser_errors(&mut p);
@@ -1305,7 +1289,7 @@ mod tests {
     #[test]
     fn test_parse_array_lite() {
         let input = "[1, 2 * 2, 3 + 3]";
-        let l = Lexer::new(String::from(input));
+        let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parser_errors(&mut p);
@@ -1346,7 +1330,7 @@ mod tests {
     #[test]
     fn test_parsing_index_expr() {
         let input = "myArray[1 + 1]";
-        let l = Lexer::new(String::from(input));
+        let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parser_errors(&mut p);
@@ -1375,7 +1359,7 @@ mod tests {
     fn test_parsing_hash_lites_string_keys() {
         let input = r#"{"one":1, "two":2, "three":3}"#;
 
-        let l = Lexer::new(String::from(input));
+        let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parser_errors(&mut p);
@@ -1415,7 +1399,7 @@ mod tests {
     #[test]
     fn test_parsing_empty_hash_lite() {
         let input = "{}";
-        let l = Lexer::new(String::from(input));
+        let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parser_errors(&mut p);
@@ -1442,7 +1426,7 @@ mod tests {
     #[test]
     fn test_parsing_hash_lites_with_expr() {
         let input = r#"{"one": 0 + 1, "two": 10 - 8, "three": 15 / 5}"#;
-        let l = Lexer::new(String::from(input));
+        let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parser_errors(&mut p);

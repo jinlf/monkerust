@@ -10,7 +10,6 @@ pub const FALSE: Object = Object::Bool(Bool { value: false });
 pub const NULL: Object = Object::Null {};
 
 pub fn eval(node: Node, env: Rc<RefCell<Env>>) -> Option<Object> {
-    println!("eval: {:?}", node);
     match node {
         Node::Program(program) => eval_program(program, env),
         Node::Stmt(stmt) => match stmt {
@@ -130,7 +129,6 @@ pub fn eval(node: Node, env: Rc<RefCell<Env>>) -> Option<Object> {
 }
 
 fn eval_program(program: Program, env: Rc<RefCell<Env>>) -> Option<Object> {
-    println!("eval_program: {:?}", program);
     let mut result: Option<Object> = None;
     for stmt in program.stmts.iter() {
         result = eval(Node::Stmt(stmt.clone()), Rc::clone(&env));
@@ -153,7 +151,6 @@ fn native_bool_to_boolean_obj(input: bool) -> Object {
 }
 
 fn eval_prefix_expr(operator: &str, right: Option<Object>) -> Option<Object> {
-    println!("eval_prefix_expr: {} {:?}", operator, right);
     match operator {
         "!" => eval_bang_operator_expr(right),
         "-" => eval_minus_operator_expr(right),
@@ -166,7 +163,6 @@ fn eval_prefix_expr(operator: &str, right: Option<Object>) -> Option<Object> {
 }
 
 fn eval_bang_operator_expr(right: Option<Object>) -> Option<Object> {
-    println!("eval_bang_operator_expr: {:?}", right);
     match right {
         Some(Object::Bool(Bool { value })) => {
             if value {
@@ -181,7 +177,6 @@ fn eval_bang_operator_expr(right: Option<Object>) -> Option<Object> {
 }
 
 fn eval_minus_operator_expr(right: Option<Object>) -> Option<Object> {
-    println!("eval_minus_operator_expr: {:?}", right);
     if let Some(Object::Int(Int { value })) = right {
         return Some(Object::Int(Int { value: -value }));
     } else {
@@ -190,7 +185,6 @@ fn eval_minus_operator_expr(right: Option<Object>) -> Option<Object> {
 }
 
 fn eval_infix_expr(operator: &str, left: Option<Object>, right: Option<Object>) -> Option<Object> {
-    println!("eval_infix_expr: {} {:?} {:?}", operator, left, right);
     if let Some(Object::Int(Int { value: _ })) = left {
         if let Some(Object::Int(Int { value: _ })) = right {
             return eval_int_infix_expr(&operator, left, right);
@@ -231,7 +225,6 @@ fn eval_int_infix_expr(
     left: Option<Object>,
     right: Option<Object>,
 ) -> Option<Object> {
-    println!("eval_int_infix_expr: {} {:?} {:?}", operator, left, right);
     if let Some(Object::Int(Int { value })) = left {
         let left_val = value;
         if let Some(Object::Int(Int { value })) = right {
@@ -266,7 +259,6 @@ fn eval_int_infix_expr(
 }
 
 fn eval_if_expr(expr: Expr, env: Rc<RefCell<Env>>) -> Option<Object> {
-    println!("eval_if_expr: {:?}", expr);
     if let Expr::IfExpr {
         token: _,
         condition,
@@ -293,7 +285,6 @@ fn eval_if_expr(expr: Expr, env: Rc<RefCell<Env>>) -> Option<Object> {
 }
 
 fn is_truthy(obj: Option<Object>) -> bool {
-    println!("is_truthy: {:?}", obj);
     match obj {
         Some(NULL) | Some(FALSE) => false,
         _ => true,
@@ -301,7 +292,6 @@ fn is_truthy(obj: Option<Object>) -> bool {
 }
 
 fn eval_block_stmt(block: BlockStmt, env: Rc<RefCell<Env>>) -> Option<Object> {
-    println!("eval_block_stmt: {:?}", block);
     let mut result: Option<Object> = None;
     for stmt in block.stmts {
         result = eval(Node::Stmt(stmt), Rc::clone(&env));
@@ -328,7 +318,6 @@ fn is_error(obj: &Option<Object>) -> bool {
 }
 
 fn eval_ident(ident: Ident, env: Rc<RefCell<Env>>) -> Option<Object> {
-    println!("eval_ident: {:?}", ident);
     let (val, ok) = env.borrow().get(ident.value.clone());
     if ok {
         return val;
@@ -341,7 +330,6 @@ fn eval_ident(ident: Ident, env: Rc<RefCell<Env>>) -> Option<Object> {
 }
 
 fn eval_exprs(exps: Vec<Option<Expr>>, env: Rc<RefCell<Env>>) -> Vec<Option<Object>> {
-    println!("eval_exprs: {:?}", exps);
     let mut result: Vec<Option<Object>> = Vec::new();
     for e in exps.iter() {
         let evaluated = eval(Node::Expr(e.as_ref().unwrap().clone()), Rc::clone(&env));
@@ -354,7 +342,6 @@ fn eval_exprs(exps: Vec<Option<Expr>>, env: Rc<RefCell<Env>>) -> Vec<Option<Obje
 }
 
 fn apply_func(func: Option<Object>, args: &Vec<Option<Object>>) -> Option<Object> {
-    println!("apply_func: {:?} {:?}", func, args);
     if let Some(Object::Func(function)) = func {
         let extended_env = extend_func_env(function.clone(), args);
         let evaluated = eval(Node::Stmt(Stmt::BlockStmt(function.body)), extended_env);
@@ -655,7 +642,7 @@ mod tests {
 
     fn test_eval(input: &str) -> Option<Object> {
         let env = Rc::new(RefCell::new(new_env()));
-        let l = Lexer::new(String::from(input));
+        let l = Lexer::new(input);
         let mut p = Parser::new(l);
         let program = p.parse_program();
 

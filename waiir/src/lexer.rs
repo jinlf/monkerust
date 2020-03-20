@@ -1,13 +1,13 @@
 use super::token::*;
 
-pub struct Lexer {
-    input: String,
-    position: usize,
-    read_position: usize,
-    ch: u8,
+pub struct Lexer<'a> {
+    input: &'a str,
+    position: usize,      // current position in input (points to current char)
+    read_position: usize, // current reading position in input (after current char)
+    ch: u8,               // current char under examination
 }
-impl Lexer {
-    pub fn new(input: String) -> Lexer {
+impl<'a> Lexer<'a> {
+    pub fn new(input: &'a str) -> Lexer<'a> {
         let mut l = Lexer {
             input: input,
             position: 0,
@@ -162,44 +162,10 @@ pub fn new_token(token_type: TokenType, ch: u8) -> Token {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn test_next_token1() {
-        let input = "=+(){},;";
-        let tests: [(TokenType, &str); 9] = [
-            (TokenType::ASSIGN, "="),
-            (TokenType::PLUS, "+"),
-            (TokenType::LPAREN, "("),
-            (TokenType::RPAREN, ")"),
-            (TokenType::LBRACE, "{"),
-            (TokenType::RBRACE, "}"),
-            (TokenType::COMMA, ","),
-            (TokenType::SEMICOLON, ";"),
-            (TokenType::EOF, ""),
-        ];
-
-        let mut l = Lexer::new(String::from(input));
-        for (i, tt) in tests.iter().enumerate() {
-            let tok = l.next_token();
-            assert!(
-                tok.tk_type == tt.0,
-                "tests[{}] - tokentype wrong. expected={:?}, got={:?}",
-                i,
-                tt.0,
-                tok.tk_type
-            );
-            assert!(
-                tok.literal == tt.1,
-                "tests[{}] - literal wrong. expected={}, got={}",
-                i,
-                tt.1,
-                tok.literal
-            );
-        }
-    }
 
     #[test]
-    fn test_next_token2() {
-        let input = r#"
+    fn test_next_token() {
+        let input = r#"=+(){},;
         let five = 5;
         let ten = 10;
         let add = fn(x, y) { 
@@ -222,7 +188,15 @@ mod tests {
         [1,2];
         {"foo": "bar"}
         "#;
-        let tests: [(TokenType, &str); 87] = [
+        let tests: [(TokenType, &str); 95] = [
+            (TokenType::ASSIGN, "="),
+            (TokenType::PLUS, "+"),
+            (TokenType::LPAREN, "("),
+            (TokenType::RPAREN, ")"),
+            (TokenType::LBRACE, "{"),
+            (TokenType::RBRACE, "}"),
+            (TokenType::COMMA, ","),
+            (TokenType::SEMICOLON, ";"),
             (TokenType::LET, "let"),
             (TokenType::IDENT, "five"),
             (TokenType::ASSIGN, "="),
@@ -312,7 +286,7 @@ mod tests {
             (TokenType::EOF, ""),
         ];
 
-        let mut l = Lexer::new(String::from(input));
+        let mut l = Lexer::new(input);
         for (i, tt) in tests.iter().enumerate() {
             let tok = l.next_token();
             assert!(

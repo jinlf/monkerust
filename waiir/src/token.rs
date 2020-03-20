@@ -1,17 +1,3 @@
-#[derive(Debug, PartialEq)]
-pub struct Token {
-    pub tk_type: TokenType,
-    pub literal: String,
-}
-impl Clone for Token {
-    fn clone(&self) -> Self {
-        Token {
-            tk_type: self.tk_type,
-            literal: self.literal.clone(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TokenType {
     ILLEGAL,
@@ -49,6 +35,20 @@ pub enum TokenType {
     LBRACKET,
     RBRACKET,
     COLON,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Token {
+    pub tk_type: TokenType,
+    pub literal: String,
+}
+impl Clone for Token {
+    fn clone(&self) -> Self {
+        Token {
+            tk_type: self.tk_type,
+            literal: self.literal.clone(),
+        }
+    }
 }
 
 pub fn lookup_ident(ident: &str) -> TokenType {
