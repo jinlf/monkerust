@@ -157,7 +157,7 @@ fn eval_prefix_expr(operator: &str, right: Option<Object>) -> Option<Object> {
         _ => new_error(format!(
             "unknown operator: {}{}",
             operator,
-            right.unwrap().get_type()
+            get_type(&right)
         )),
     }
 }
@@ -180,7 +180,7 @@ fn eval_minus_operator_expr(right: Option<Object>) -> Option<Object> {
     if let Some(Object::Int(Int { value })) = right {
         return Some(Object::Int(Int { value: -value }));
     } else {
-        return new_error(format!("unknown operator: -{}", right.unwrap().get_type()));
+        new_error(format!("unknown operator: -{}", get_type(&right)))
     }
 }
 
@@ -201,19 +201,19 @@ fn eval_infix_expr(operator: &str, left: Option<Object>, right: Option<Object>) 
         "==" => Some(native_bool_to_boolean_obj(left == right)),
         "!=" => Some(native_bool_to_boolean_obj(left != right)),
         _ => {
-            if left.as_ref().unwrap().get_type() != right.as_ref().unwrap().get_type() {
+            if get_type(&left) != get_type(&right) {
                 new_error(format!(
                     "type mismatch: {} {} {}",
-                    left.unwrap().get_type(),
+                    get_type(&left),
                     operator,
-                    right.unwrap().get_type()
+                    get_type(&right)
                 ))
             } else {
                 new_error(format!(
                     "unknown operator: {} {} {}",
-                    left.unwrap().get_type(),
+                    get_type(&left),
                     operator,
-                    right.unwrap().get_type()
+                    get_type(&right)
                 ))
             }
         }
@@ -248,9 +248,9 @@ fn eval_int_infix_expr(
                 "!=" => Some(native_bool_to_boolean_obj(left_val != right_val)),
                 _ => new_error(format!(
                     "unknown operator: {} {} {}",
-                    left.unwrap().get_type(),
+                    get_type(&left),
                     operator,
-                    right.unwrap().get_type()
+                    get_type(&right)
                 )),
             };
         }
@@ -332,7 +332,7 @@ fn eval_ident(ident: Ident, env: Rc<RefCell<Env>>) -> Option<Object> {
 fn eval_exprs(exps: Vec<Option<Expr>>, env: Rc<RefCell<Env>>) -> Vec<Option<Object>> {
     let mut result: Vec<Option<Object>> = Vec::new();
     for e in exps.iter() {
-        let evaluated = eval(Node::Expr(e.as_ref().unwrap().clone()), Rc::clone(&env));
+        let evaluated = eval(Node::Expr(e.as_ref().unwrap().clone()), Rc::clone(&env)); //TODO expr in list must not None
         if is_error(&evaluated) {
             return vec![evaluated];
         }
@@ -416,7 +416,7 @@ fn get_builtin(val: &str) -> Option<Object> {
                 } else {
                     new_error(format!(
                         "argument to `len` not supported. got {}",
-                        args[0].as_ref().unwrap().get_type()
+                        get_type(&args[0])
                     ))
                 }
             };
@@ -439,7 +439,7 @@ fn get_builtin(val: &str) -> Option<Object> {
                 } else {
                     return new_error(format!(
                         "argument to `first` must be ARRAY, got {}",
-                        args[0].as_ref().unwrap().get_type()
+                        get_type(&args[0])
                     ));
                 }
             };
@@ -462,7 +462,7 @@ fn get_builtin(val: &str) -> Option<Object> {
                 } else {
                     return new_error(format!(
                         "argument to `last` must be ARRAY, got {}",
-                        args[0].as_ref().unwrap().get_type()
+                        get_type(&args[0])
                     ));
                 }
             };
@@ -490,7 +490,7 @@ fn get_builtin(val: &str) -> Option<Object> {
                 } else {
                     return new_error(format!(
                         "argument to `rest` must be ARRAY, got {}",
-                        args[0].as_ref().unwrap().get_type()
+                        get_type(&args[0])
                     ));
                 }
             };
@@ -516,7 +516,7 @@ fn get_builtin(val: &str) -> Option<Object> {
                 } else {
                     return new_error(format!(
                         "argument to `push` must be ARRAY, got {}",
-                        args[0].as_ref().unwrap().get_type()
+                        get_type(&args[0])
                     ));
                 }
             };
@@ -575,8 +575,8 @@ fn eval_hash_lite(node: &HashLite, env: Rc<RefCell<Env>>) -> Option<Object> {
                 pairs.insert(
                     hashed,
                     HashPair {
-                        key: key.unwrap(),
-                        value: value.unwrap(),
+                        key: hash_key.clone(),
+                        value: value.unwrap(), // hash value must not None
                     },
                 );
             } else {
@@ -606,6 +606,14 @@ fn eval_hash_index_expr(hash: Option<Object>, index: Option<Object>) -> Option<O
         }
     } else {
         return new_error(format!("unusable as hash object: {:?}", hash));
+    }
+}
+
+fn get_type(item: &Option<Object>) -> String {
+    if let Some(i) = item {
+        i.get_type()
+    } else {
+        String::from("None")
     }
 }
 

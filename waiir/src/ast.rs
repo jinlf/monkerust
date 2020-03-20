@@ -266,7 +266,7 @@ impl NodeTrait for Expr {
                 let mut out = String::new();
                 let mut args: Vec<String> = Vec::new();
                 for a in arguments.iter() {
-                    args.push(a.as_ref().unwrap().string());
+                    args.push(a.as_ref().unwrap().string()); //TODO argument must not None
                 }
                 out.push_str(&func.string());
                 out.push_str("(");
@@ -279,7 +279,7 @@ impl NodeTrait for Expr {
                 let mut out = String::new();
                 let mut elems: Vec<String> = Vec::new();
                 for el in elements.iter() {
-                    elems.push(el.as_ref().unwrap().string()); //TODO
+                    elems.push(el.as_ref().unwrap().string()); //TODO array item must not None
                 }
                 out.push_str("[");
                 out.push_str(&elems.join(", "));

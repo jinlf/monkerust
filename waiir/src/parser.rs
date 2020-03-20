@@ -76,6 +76,9 @@ impl<'a> Parser<'a> {
         self.next_token();
 
         let value = self.parse_expr(Precedence::LOWEST);
+        if value.is_none() {
+            return None;
+        }
 
         while !self.cur_token_is(TokenType::SEMICOLON) {
             self.next_token();
@@ -84,7 +87,7 @@ impl<'a> Parser<'a> {
         Some(Stmt::LetStmt {
             token: token,
             name: name,
-            value: value.unwrap(), //TODO
+            value: value.unwrap(), // has returned when None
         })
     }
 
@@ -122,13 +125,16 @@ impl<'a> Parser<'a> {
         let token = self.cur_token.clone();
         self.next_token();
         let value = self.parse_expr(Precedence::LOWEST);
+        if value.is_none() {
+            return None;
+        }
         while !self.cur_token_is(TokenType::SEMICOLON) {
             self.next_token();
         }
 
         Some(Stmt::ReturnStmt {
             token: token,
-            value: value.unwrap(), //TODO
+            value: value.unwrap(), //has returned when None
         })
     }
 
@@ -143,7 +149,7 @@ impl<'a> Parser<'a> {
         }
         Some(Stmt::ExprStmt {
             token: token,
-            expr: expr.unwrap(),
+            expr: expr.unwrap(), // has returned when None
         })
     }
 
@@ -166,6 +172,10 @@ impl<'a> Parser<'a> {
             }
         };
 
+        if left_exp.is_none() {
+            return None;
+        }
+
         while !self.peek_token_is(TokenType::SEMICOLON) && precedence < self.peek_precedence() {
             match self.peek_token.tk_type {
                 TokenType::PLUS
@@ -177,15 +187,15 @@ impl<'a> Parser<'a> {
                 | TokenType::LT
                 | TokenType::GT => {
                     self.next_token();
-                    left_exp = self.parse_infix_expr(left_exp.unwrap()); //TODO
+                    left_exp = self.parse_infix_expr(left_exp.unwrap()); //has returned when None
                 }
                 TokenType::LPAREN => {
                     self.next_token();
-                    left_exp = self.parse_call_expr(&left_exp.unwrap());
+                    left_exp = self.parse_call_expr(&left_exp.unwrap()); //has returned when None
                 }
                 TokenType::LBRACKET => {
                     self.next_token();
-                    left_exp = self.parse_index_expr(left_exp.unwrap());
+                    left_exp = self.parse_index_expr(left_exp.unwrap()); //has returned when None
                 }
                 _ => {
                     return left_exp;
@@ -230,11 +240,14 @@ impl<'a> Parser<'a> {
         self.next_token();
 
         let right = self.parse_expr(Precedence::PREFIX);
+        if right.is_none() {
+            return None;
+        }
 
         Some(Expr::PrefixExpr(PrefixExpr {
             token: token,
             operator: operator,
-            right: Box::new(right.unwrap()), //TODO
+            right: Box::new(right.unwrap()), //has returned when None
         }))
     }
 
@@ -272,7 +285,7 @@ impl<'a> Parser<'a> {
             token: token,
             operator: operator,
             left: Box::new(left),
-            right: Box::new(right.unwrap()), //TODO
+            right: Box::new(right.unwrap()), //has returned when None
         }))
     }
 
@@ -301,6 +314,9 @@ impl<'a> Parser<'a> {
 
         self.next_token();
         let condition = self.parse_expr(Precedence::LOWEST);
+        if condition.is_none() {
+            return None;
+        }
 
         if !self.expect_peek(TokenType::RPAREN) {
             return None;
@@ -325,7 +341,7 @@ impl<'a> Parser<'a> {
 
         Some(Expr::IfExpr {
             token: token,
-            condition: Box::new(condition.unwrap()), //TODO
+            condition: Box::new(condition.unwrap()), //has returned when None
             consequence: consequence,
             alternative: alternative,
         })
@@ -397,10 +413,14 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_call_expr(&mut self, func: &Expr) -> Option<Expr> {
+        let arguments = self.parse_expr_list(TokenType::RPAREN);
+        if arguments.is_none() {
+            return None;
+        }
         Some(Expr::CallExpr {
             token: self.cur_token.clone(),
             func: Box::new(func.clone()),
-            arguments: self.parse_expr_list(TokenType::RPAREN).unwrap(), //TODO
+            arguments: arguments.unwrap(), //has returned when None
         })
     }
 
@@ -443,9 +463,12 @@ impl<'a> Parser<'a> {
     fn parse_array_lite(&mut self) -> Option<Expr> {
         let token = self.cur_token.clone();
         let elements = self.parse_expr_list(TokenType::RBRACKET);
+        if elements.is_none() {
+            return None;
+        }
         Some(Expr::ArrayLite {
             token: token,
-            elements: elements.unwrap(), //TODO
+            elements: elements.unwrap(), //has returned when None
         })
     }
 
@@ -494,12 +517,18 @@ impl<'a> Parser<'a> {
         while !self.peek_token_is(TokenType::RBRACE) {
             self.next_token();
             let key = self.parse_expr(Precedence::LOWEST);
+            if key.is_none() {
+                return None;
+            }
             if !self.expect_peek(TokenType::COLON) {
                 return None;
             }
             self.next_token();
             let value = self.parse_expr(Precedence::LOWEST);
-            pairs.insert(key.unwrap(), value.unwrap());
+            if value.is_none() {
+                return None;
+            }
+            pairs.insert(key.unwrap(), value.unwrap()); // has returned when None
 
             if !self.peek_token_is(TokenType::RBRACE) && !self.expect_peek(TokenType::COMMA) {
                 return None;

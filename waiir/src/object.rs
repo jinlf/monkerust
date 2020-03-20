@@ -91,7 +91,13 @@ impl ObjectTrait for Object {
             Object::Int(Int { value }) => String::from(format!("{}", value)),
             Object::Bool(Bool { value }) => String::from(format!("{}", value)),
             Object::Null {} => String::from("null"),
-            Object::ReturnValue { value } => value.as_ref().as_ref().unwrap().inspect(),
+            Object::ReturnValue { value } => {
+                if let Some(v) = value.as_ref() {
+                    v.inspect()
+                } else {
+                    String::from("None")
+                }
+            }
             Object::Error { message } => String::from(format!("ERROR: {}", message)),
             Object::Func(func) => {
                 let mut out = String::new();
@@ -113,7 +119,7 @@ impl ObjectTrait for Object {
                 let mut out = String::new();
                 let mut elems: Vec<String> = Vec::new();
                 for e in elements.iter() {
-                    elems.push(e.as_ref().unwrap().inspect());
+                    elems.push(e.as_ref().unwrap().inspect()); //Array item must not None
                 }
 
                 out.push_str("[");

@@ -134,7 +134,7 @@ impl<'a> Lexer<'a> {
         if self.read_position >= self.input.len() {
             return 0;
         } else {
-            return self.input.bytes().nth(self.read_position).unwrap();
+            return self.input.bytes().nth(self.read_position).unwrap(); // bytes of nth must exists
         }
     }
 
