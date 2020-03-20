@@ -81,6 +81,9 @@ impl<'a> Parser<'a> {
         }
 
         while !self.cur_token_is(TokenType::SEMICOLON) {
+            if self.cur_token_is(TokenType::EOF) {
+                return None;
+            }
             self.next_token();
         }
 
@@ -129,6 +132,9 @@ impl<'a> Parser<'a> {
             return None;
         }
         while !self.cur_token_is(TokenType::SEMICOLON) {
+            if self.cur_token_is(TokenType::EOF) {
+                return None;
+            }
             self.next_token();
         }
 
@@ -353,6 +359,7 @@ impl<'a> Parser<'a> {
 
         self.next_token();
 
+        // TODO what about EOF
         while !self.cur_token_is(TokenType::RBRACE) {
             if let Some(stmt) = self.parse_stmt() {
                 stmts.push(stmt);
