@@ -1,4 +1,4 @@
-# 扩展语法分析器
+# 扩展解析器
 
 ```rust,noplaypen
 // src/parser_test.rs

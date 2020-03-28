@@ -1,4 +1,16 @@
-# 语法分析器第一步：解析let语句
+# 解析器第一步：解析let语句
+
+在Monkey语言中，变量绑定语句形式如下：
+```js
+let x = 5;
+let y = 10;
+let foobar = add(5, 5);
+let barfoo = 5 * 5 / 10 + 18 - add(5, 5) + multiply(124); 
+let anotherName = barfoo;
+```
+这种语句称为“let语句”，它把变量值绑定到一个名字上。
+
+正确工作的解析器将构造一个符合原始let语句信息的抽象语法树。
 
 定义抽象语法树节点：
 ```rust,noplaypen
@@ -26,8 +38,9 @@ impl NodeTrait for Expression {
     }
 }
 ```
+注意Rust语言的Trait与其它语言的接口不完全是同一个概念，因此向下类型转换（downcast）就不是很方便，不能用传统的C++、Go这类语言的方式实现相同的功能。
 
-注意Rust语言的Trait与其它语言的接口不完全是同一个概念，因此向下类型转换就不是很方便，不能用传统的C++、Go这类语言的方式实现相同的功能。
+上述代码中的NodeTrait规定了所有Node的共同特征，具有token_literal方法，该方法返回当前Node节点的Token字面量（literal)。Monkey语言AST中节点Node可以是Statement，也可以是Expression。下面再加上一种：Program节点。
 
 定义Program：
 ```rust,noplaypen
@@ -56,7 +69,7 @@ pub enum Node {
     Expression(Expression),
 }
 ```
-定义let语句：
+Program节点是所有AST的根节点，包含一系列Statement节点。下面定义let语句：
 ```rust,noplaypen
 // src/ast.rs
 
@@ -83,6 +96,8 @@ impl NodeTrait for Identifier {
     }
 }
 ```
+LetStatement节点包含name和value两个成员，其中name表示绑定的标识符，value表示产生value的表达式。Identifier节点包含的value即标识符的名字。
+
 将LetStatement加入Statement，将Identifier加入Expression，如下：
 ```rust,noplaypen
 // src/ast.rs
@@ -108,8 +123,16 @@ impl NodeTrait for Expression {
     }
 }
 ```
+定义完上述三种节点，则Monkey源代码：
+```js
+let x = 5;
+```
+将形成以下AST：
 
-下面我们开始编码语法分析器。
+![AST](image/f3-1.png "一棵AST")
+
+
+下面我们开始编码解析器：
 ```rust,noplaypen
 // src/parser.rs
 
@@ -144,6 +167,8 @@ impl<'a> Parser<'a> {
     }
 }
 ```
+解析器有三个成员：词法分析器，当前Token，下一个Token。next_token()方法就是从词法分析器中读取Token并更新当前Token和下一个Token的过程。
+
 由于这里需要实现Token的clone方法，需要修改Token和TokenType的属性：
 ```rust,noplaypen
 // src/token.rs
@@ -155,10 +180,88 @@ pub struct Token {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub enum TokenType {    
+pub enum TokenType {   
+// [...] 
 ```
+在继续进一步工作前，先用伪代码解释一下解析器的工作原理：
+```js
+function parseProgram() { 
+    program = newProgramASTNode()
 
-下面先写测试用例：
+    advanceTokens()
+
+    for (currentToken() != EOF_TOKEN) {
+        statement = null
+
+        if (currentToken() == LET_TOKEN) { 
+            statement = parseLetStatement()
+        } else if (currentToken() == RETURN_TOKEN) { 
+            statement = parseReturnStatement()
+        } else if (currentToken() == IF_TOKEN) { 
+            statement = parseIfStatement()
+        }
+
+        if (statement != null) { 
+            program.Statements.push(statement)
+        }
+    
+        advanceTokens() 
+    }
+    return program 
+}
+
+function parseLetStatement() { 
+    advanceTokens()
+
+    identifier = parseIdentifier()
+
+    advanceTokens()
+
+    if currentToken() != EQUAL_TOKEN { 
+        parseError("no equal sign!") 
+        return null
+    }
+
+    advanceTokens()
+
+    value = parseExpression()
+    variableStatement = newVariableStatementASTNode() 
+    variableStatement.identifier = identifier 
+    variableStatement.value = value
+    return variableStatement
+}
+
+function parseIdentifier() { 
+    identifier = newIdentifierASTNode() 
+    identifier.token = currentToken() 
+    return identifier
+}
+
+function parseExpression() {
+    if (currentToken() == INTEGER_TOKEN) {
+        if (nextToken() == PLUS_TOKEN) {    
+            return parseOperatorExpression()
+        } else if (nextToken() == SEMICOLON_TOKEN) { 
+            return parseIntegerLiteral()
+        }
+    } else if (currentToken() == LEFT_PAREN) {
+        return parseGroupedExpression() 
+    }
+// [...]
+}
+
+function parseOperatorExpression() {
+    operatorExpression = newOperatorExpression()
+    operatorExpression.left = parseIntegerLiteral() 
+    operatorExpression.operator = currentToken() 
+    operatorExpression.right = parseExpression()
+    return operatorExpression() 
+}
+// [...]
+```
+上述伪代码的基本思想是递归下降解析。入口是parseProgram，用来构造AST的根节点，然后调用它的子节点解析函数，构造各个Statement。这些解析函数再调用它们的解析函数，递归下去。
+
+下面我们继续开发，先写测试用例：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -222,7 +325,9 @@ fn test_let_statement(s: &Statement, expected_name: &str) {
     }
 }
 ```
-测试中输出了Statement，因此需要添加Statement的Debug属性，进而需要添加Expression, LetStatement和Identifier的Debug属性：
+测试用例的思想是递归下降分析解析出来的AST，跟预期的AST是否一致。
+
+测试中需要打印输出Statement，因此需要添加Statement的Debug属性，进而需要添加Expression, LetStatement和Identifier的Debug属性：
 ```rust,noplaypen
 // src/ast.rs
 
@@ -258,11 +363,11 @@ pub mod parser;
 
 mod parser_test;
 ```
-测试失败：
+测试失败的信息如下：
 ```
 thread 'parser::tests::test_let_statements' panicked at 'parse_program() returned None', src/parser_test.rs:59:13
 ```
-因为parse_program还没实现呢。
+必然的，因为parse_program还没实现呢。
 
 实现如下：
 ```rust,noplaypen
@@ -310,8 +415,7 @@ thread 'parser::tests::test_let_statements' panicked at 'parse_program() returne
             return None;
         }
 
-        // TODO: We're skipping the expressions until we 
-        // encounter a semicolon
+        // TODO: 我们将跳过分号之前的表达式
         while !self.cur_token_is(TokenType::SEMICOLON) {
             if self.cur_token_is(TokenType::EOF) {
                 return None;
@@ -341,7 +445,7 @@ thread 'parser::tests::test_let_statements' panicked at 'parse_program() returne
         }
     }
 ```
-由于LetStatement的value是Expression，而到目前为止，我们还没有能解析Expression的能力，所以我这里做了一个占位用的MockExpression定义，未来需要移除，代码如下：
+由于LetStatement的value是Expression，而到目前为止，我们还没有能解析Expression的能力，只能跳过，所以我这里做了一个占位用的MockExpression定义，未来需要移除，代码如下：
 ```rust,noplaypen
 // src/ast.rs
 
@@ -361,7 +465,9 @@ impl NodeTrait for Expression {
 ```
 测试通过！
 
-下面加一些错误处理的能力。
+大家可以比较一下用Rust实现的program、statement和let_statement的解析过程，跟伪代码逻辑是一致的，只是暂时缺少解析其它类型语句的分支，我们会在后续的开发过程中补上。
+
+为了更好地调试，我们在继续工作之前先为解析器加入一些错误处理的能力：
 ```rust,noplaypen
 // src/parser.rs
 
@@ -416,8 +522,7 @@ fn check_parser_errors(p: &mut Parser) {
     assert!(false, msgs);
 }
 ```
-
-expect_peek也需要修改一下：
+修改expect_peek，加上收集错误的代码调用：
 ```rust,noplaypen
 // src/parser.rs
 
@@ -431,6 +536,7 @@ expect_peek也需要修改一下：
         }
     }
 ```
+注意，这里执行了一次t.clone()，因为根据Rust的安全限制，不能访问已经移走的对象，因此第一次访问t时候我使用的是复制出来的对象。
 
 为了测试一下解析错误的情况，可以临时修改测试用例：
 ```rust,noplaypen

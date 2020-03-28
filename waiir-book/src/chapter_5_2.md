@@ -15,7 +15,7 @@ pub enum TokenType {
 // src/lexer_test.rs
 
     fn test_next_token() {
-        let input = "=+(){},;
+        let input = "
 // [...]
 10 == 10;
 10 != 9;

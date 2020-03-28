@@ -1,5 +1,15 @@
 # 解析return语句
 
+Monkey中的return语句示例如下：
+```js
+return 5; 
+return 10; 
+return add(15);
+```
+其结构是：
+```js
+return <expression>;
+```
 定义return语句：
 ```rust,noplaypen
 // src/ast.rs
@@ -73,7 +83,7 @@ return 993322;
     }
 }
 ```
-测试失败，必然的。
+测试必然失败，信息如下：
 ```
 thread 'parser::tests::test_return_statement' panicked at 'program.statements does not contain 3 statements. got=0', src/parser_test.rs:192:13
 ```
@@ -104,8 +114,7 @@ thread 'parser::tests::test_return_statement' panicked at 'program.statements do
         let token = self.cur_token.clone();
         self.next_token();
 
-        // TODO: We're skipping the expressions until we
-        // encounter a semicolon
+        // TODO: 我们将跳过分号之前的表达式
         while !self.cur_token_is(TokenType::SEMICOLON) {
             if self.cur_token_is(TokenType::EOF) {
                 return None;
@@ -121,3 +130,5 @@ thread 'parser::tests::test_return_statement' panicked at 'program.statements do
 这里的return_value仍然用MockExpression。
 
 测试通过！
+
+接下来看我们怎样解析表达式的。

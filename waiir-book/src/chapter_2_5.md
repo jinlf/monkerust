@@ -1,8 +1,8 @@
 # 编写REPL
 
-REPL表示“Read Eval Print Loop”，解释语言所常用的一种形式，也称控制台。
+REPL表示“Read Eval Print Loop”，有时称做控制台，有时也称做交互模式，Python、Ruby和JavaScript等许多语言开发环境中都包含REPL。REPL读取输入，发送给解释器来求值，打印解释器的结果，再次启动。
 
-我们先实现一个REPL如下：
+我们当前还不知道怎样求值，但我们可以把Monkey源代码的Token打印出来，这样实现的REPL如下：
 ```rust,noplaypen
 // src/repl.rs
 
@@ -84,3 +84,5 @@ Token { tk_type: RBRACE, literal: "}" }
 Token { tk_type: SEMICOLON, literal: ";" }
 >> 
 ```
+
+完美！接下来开发解析器吧。

@@ -16,7 +16,7 @@ pub enum TokenType {
 // src/lexer_test.rs
 
 fn test_next_token() {
-    let input = "=+(){},;
+    let input = "
 // [...]
 [1, 2];
 ";

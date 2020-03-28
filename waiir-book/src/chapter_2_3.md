@@ -1,6 +1,8 @@
 # 词法分析器
 
-遵循测试驱动的开发（TDD）的原则，先写单元测试用例。
+词法分析器输入的是源代码，每次调用next_token()方法时返回下一个Token。本文为了简化，不在Token中增加文件名和行号等信息。
+
+遵循测试驱动开发（Test-Driven Development，简称TDD）的原则，先写单元测试用例：
 ```rust,noplaypen
 // src/lexer_test.rs
 
@@ -42,10 +44,11 @@ fn test_next_token() {
     }
 }
 ```
+本文中每段代码的顶部给出了所在文件的路径，如果文件路径第一次出现需要创建该文件。
 
-为了支持自动化测试，首先需要将工程文件补充完整。
+上述代码中的#[test]属性表示下面的函数是个测试函数，在自动化测试时会执行。代码的功能是将一个字符串作为输入，让词法分析器分析并使用断言验证输出的结果与预定内容是否一致。
 
-创建src/lib.js文件，内容如下：
+为了支持Rust的自动化测试，首先需要将工程文件补充完整。创建src/lib.js文件，内容如下：
 ```rust,noplaypen
 // src/lib.rs
 
@@ -60,21 +63,21 @@ mod lexer_test;
 include!("lib.rs");
 ```
 
-这样就可以在命令行下执行测试命令了：
+这样就可以在命令行下执行Rust的自动化测试命令：
 ```
 $ cargo test
 ```
-不出意外，测试失败了，因为我还没写正式的代码。
+不出意外，测试失败了，因为我们还没写正式的代码。
 
-首先补充Lexer的定义和new方法，如下：
+首先补充词法分析器的定义和new方法，如下：
 ```rust,noplaypen
 // src/lexer.rs
 
 pub struct Lexer<'a> {
     input: &'a str,
-    position: usize,      // current position in input (points to current char)
-    read_position: usize, // current reading position in input (after current char)
-    ch: u8,               // current char under examination
+    position: usize,      // 当前字符位置
+    read_position: usize, // 当前读取位置（在当前字符位置之后）
+    ch: u8,               // 当前字符
 }
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Lexer<'a> {
@@ -94,9 +97,11 @@ impl<'a> Lexer<'a> {
 pub mod lexer;
 ```
 
-这里将Lexer的input做成了字符串引用，避免运行时对Monkey源代码的内存拷贝，带来的麻烦就是需要考虑生命周期。
+这里将词法分析器中的input做成了字符串引用，避免运行时对Monkey源代码的内存拷贝，需要定义生命周期，即代码中的'a。
 
-定义Lexer的read_char方法如下：
+这里使用read_position的原因是为了向前看若干字符。
+
+定义词法分析器的read_char方法如下：
 ```rust,noplaypen
 // src/lexer.rs
 
@@ -110,7 +115,11 @@ pub mod lexer;
         self.read_position += 1;
     }
 ```
-这样，原来的Lexer的new方法，就可以改成：
+read_char()方法的目的是读取下一个字符，并前进一个字符。如果到输入结尾不能读字符时，就设置ch为0。这个特殊符号用来代表EOF。
+
+简单起见，本为实现的解释器只支持ASCII。您可以自己尝试支持Unicode。
+
+在new()方法中调用read_char方法，可以改成：
 ```rust,noplaypen
 // src/lexer.rs
 
@@ -125,7 +134,9 @@ pub mod lexer;
         l
     }
 ```
-下面来实现Lexer的next_token方法：
+这样，创建词法分析器的同时，读入第一个字符，初始化了ch、position和read_position。
+
+下面来实现词法分析器的next_token方法：
 ```rust,noplaypen
 // src/lexer.rs
 use super::token::*;
@@ -153,9 +164,7 @@ use super::token::*;
         self.read_char();
         tok
     }
-```
-其中调用的new_token函数如下：
-```rust,noplaypen
+// [...]
 pub fn new_token(token_type: TokenType, ch: u8) -> Token {
     let mut literal = String::new();
     literal.push(ch as char);
@@ -165,6 +174,8 @@ pub fn new_token(token_type: TokenType, ch: u8) -> Token {
     }
 }
 ```
+next_token()方法的功能就是根据当前字符，返回下一个Token。
+
 在lexer_test.rs中加入：
 ```rust,noplaypen
 // src/lexer_test.rs
@@ -187,7 +198,7 @@ error[E0369]: binary operation `==` cannot be applied to type `token::TokenType`
    |
    = note: an implementation of `std::cmp::PartialEq` might be missing for `token::TokenType`
 ```
-这是因为TokenType没有实现运算符"=="。实现的方法很简单，在TokenType的定义上加上PartialEq属性，另外为了输出TokenType，还需要加上Debug属性，如下：
+这是因为TokenType没有实现运算符"=="不能直接比较。解决的方法是在TokenType定义上加上PartialEq属性，另外为了打印输出TokenType，还需要加上Debug属性，如下：
 ```rust,noplaypen
 // src/token.rs
 
@@ -215,13 +226,14 @@ running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 ```
+测试通过表明现在词法分析器已经能够支持分析测试用例中的各个Token了。
 
-下面扩展测试用例：
+下面扩展测试用例（测试本章前面提到的Monkey代码）：
 ```rust,noplaypen
 // src/lexer_test.rs
 
 fn test_next_token() {
-    let input = "=+(){},;
+    let input = "
 let five = 5;        
 let ten = 10;
 
@@ -233,7 +245,6 @@ let result = add(five, ten);
 ";
 
     let tests = [
-// [...]
         (TokenType::LET, "let"),
         (TokenType::IDENT, "five"),
         (TokenType::ASSIGN, "="),
@@ -274,7 +285,9 @@ let result = add(five, ten);
     ];
 // [...]
 ```
-支持标识符（identifier）的代码如下：
+测试必然会失败，因为词法分析器还没有支持标识符、关键字和数字。
+
+支持标识符的代码如下：
 ```rust,noplaypen
 // src/lexer.rs
 
@@ -284,7 +297,7 @@ let result = add(five, ten);
         match self.ch {
 // [...]            
             _ => {
-                if self.ch.is_ascii_alphabetic() {
+                if is_letter(self.ch) {
                     tok = Token {
                         tk_type: TokenType::IDENT,
                         literal: self.read_identifier(),
@@ -299,12 +312,22 @@ let result = add(five, ten);
 
     fn read_identifier(&mut self) -> String {
         let position = self.position;
-        while self.ch.is_ascii_alphabetic() {
+        while is_letter(self.ch) {
             self.read_char();
         }
         String::from(&self.input[position..self.position])
-    }                   
+    }      
+// [...]
+fn is_letter(ch) -> bool {
+    ch.is_ascii_alphabetic() || ch == b'_'
+}
 ```
+不符合标识符字符的情况会返回ILLEGAL。
+
+is_letter函数检查是否是字符和下划线，这是标识符中支持的字符。
+
+由于这里不再是单一字符了，所以没有使用new_token来创建Token，而是由read_identifier()方法返回的字符串直接创建Token。
+
 需要支持关键字，在token.rs中实现一个关键字查找函数：
 ```rust,noplaypen
 // src/token.rs
@@ -317,6 +340,8 @@ pub fn lookup_ident(ident: &str) -> TokenType {
     }
 }
 ```
+测试用例中只出现了let和fn关键字。
+
 这样lexer.rs中处理标识符的代码就应该改成：
 ```rust,noplaypen
 // src/lexer.rs
@@ -327,7 +352,7 @@ pub fn lookup_ident(ident: &str) -> TokenType {
         match self.ch {
 // [...]            
             _ => {
-                if self.ch.is_ascii_alphabetic() {
+                if is_letter(self.ch) {
                     let literal = self.read_identifier();
                     tok = Token {
                         tk_type: lookup_ident(&literal),
@@ -341,6 +366,8 @@ pub fn lookup_ident(ident: &str) -> TokenType {
 // [...] 
     }
 ```
+由于这里调用了read_identifier()方法，已经不需要在返回之前再次调用read_char了，用return语句直接返回tok即可。
+
 执行cargo test，仍然报错，如下：
 ```
 ---- lexer::tests::test_next_token stdout ----
@@ -368,6 +395,7 @@ thread 'lexer::tests::test_next_token' panicked at 'test[8] - tokentype wrong. e
         }
     }
 ```
+
 下面再加上整数的词法分析：
 ```rust,noplaypen
 // src/lexer.rs
@@ -380,7 +408,7 @@ thread 'lexer::tests::test_next_token' panicked at 'test[8] - tokentype wrong. e
         match self.ch {
 // [...]            
             _ => {
-                if self.ch.is_ascii_alphabetic() {
+                if is_letter(self.ch) {
                     let literal = self.read_identifier();
                     tok = Token {
                         tk_type: lookup_ident(&literal),
@@ -409,3 +437,7 @@ thread 'lexer::tests::test_next_token' panicked at 'test[8] - tokentype wrong. e
     }
 ```
 执行cargo test，成功！
+
+由此，前文提到的Monkey代码段已经能够被我们的词法分析器分析了。
+
+注意，本文实现的解释器不支持浮点、十六进制、八进制表示。感兴趣的读者您自己实现一下试一试吧。
