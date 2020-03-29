@@ -1,5 +1,16 @@
 # return语句
 
+return语句的行为是停止对一系列语句的求值，返回值作为最后的求值结果。
+
+例如：
+```js
+5 * 5 * 5; 
+return 10; 
+9 * 9 * 9;
+```
+上述三条语句的求值结果为10。表达式9 * 9 * 9不会被求值。
+
+定义如下：
 ```rust,noplaypen
 // src/object.rs
 
@@ -55,6 +66,7 @@ fn test_return_statements() {
 }
 ```
 
+增加一条求值return语句的分支：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -89,7 +101,9 @@ fn eval_statements(stmts: Vec<Statement>) -> Option<Object> {
     result
 }
 ```
+需要注意的是，遇到return语句时，返回的是语句中表达式的值，而不是return本身。
 
+增加一个测试用例：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -112,7 +126,9 @@ fn test_return_statements() {
 ```
 thread 'evaluator::tests::test_return_statements' panicked at 'object has wrong value. got=1, want=10', src/evaluator_test.rs:224:13
 ```
-修改如下：
+失败的原因是，嵌套块语句中包含retrun求值时，应该在最外层终止并返回。前面实现的eval_statements仅适用于Program这种最外层的语句中。
+
+所以我们将刚刚修改过的eval_statements修改为eval_program，如下：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -137,6 +153,7 @@ fn eval_program(node: Node) -> Option<Object> {
 }
 ```
 
+我们增加一个新函数eval_block_statement来支持对允许嵌套的块语句求值，如下：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -160,6 +177,6 @@ fn eval_block_statement(block: BlockStatement) -> Option<Object> {
     result
 }
 ```
-Program和BlockStatement中处理return是不一样的。
+这里return求值的结果对象是ReturnValue，而不是内部的Expression。
 
 测试通过！

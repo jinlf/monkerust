@@ -1,9 +1,14 @@
 # 表达式求值
 
+下面是求值函数的声明。
+```rust,noplaypen
+fn eval(node: Node) -> Option<Object>
+```
+它输入Node节点，输出Object节点，由于Rust语言不支持空值，考虑到求值返回空值的情况，这里用Option包装了Object。
+
 ## 整数字面量
 
-测试用例
-
+测试用例：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -49,10 +54,9 @@ fn test_integer_object(obj: Option<Object>, expected: i64) {
 // src/lib.rs
 
 mod evaluator_test;
-
 ```
 
-测试失败，因为 eval 函数没有定义，并且 Object 对象还不支持输出，先解决 Object 的输出问题：
+测试失败，因为eval函数没有定义，并且Object对象还不支持打印输出，先解决 Object的输出问题：
 
 ```rust,noplaypen
 // src/object.rs
@@ -76,7 +80,7 @@ pub struct BooleanObj {
 pub struct Null {}
 ```
 
-加上 eval 函数
+定义eval函数
 
 ```rust,noplaypen
 // src/evaluator.rs
@@ -106,8 +110,7 @@ fn eval_statements(stmts: Vec<Statement>) -> Option<Object> {
     result
 }
 ```
-
-这里由于需要在 eval_statements 中对 statement 执行 clone，需要把 ast.rs 中 Statement, Expression 相关枚举和结构体定义统一加上 Clone 属性，保证整个 AST 系统都能 Clone。
+这里由于需要在eval_statements中对statement执行clone方法，需要把ast.rs中的Statement, Expression相关枚举和结构体定义统一加上Clone属性，保证整个 AST系统都能clone。
 
 在lib.rs中加入
 ```rust,noplaypen
@@ -125,7 +128,9 @@ use super::evaluator::*;
 
 测试通过！
 
-## 补充 REPL
+## 完成REPL
+
+有了eval函数，我们可以将RPPL改成真正的REPL（读入-求值-打印-循环）。
 
 ```rust,noplaypen
 // src/repl.rs
@@ -166,8 +171,9 @@ Feel free to type in commands
 >>
 ```
 
-## 布尔字面量
+## 布尔值字面量
 
+定义如下：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -195,14 +201,13 @@ fn test_boolean_object(obj: Option<Object>, expected: bool) {
 }
 ```
 
-测试结果
+测试结果如下：
 
 ```
-thread 'evaluator::tests::test_eval_boolean_Expression' panicked at 'object is not Boolean. got=None', src/evaluator_test.rs:83:13
+thread 'evaluator::tests::test_eval_boolean_expression' panicked at 'object is not Boolean. got=None', src/evaluator_test.rs:83:13
 ```
 
-加上求值代码
-
+加上求值代码：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -217,8 +222,7 @@ pub fn eval(node: Node) -> Option<Object> {
 }
 ```
 
-但是考虑到。。。
-
+因为布尔值只有两个可能的值，我们可以引用它们而不是每次都创建新值：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -245,14 +249,21 @@ pub fn eval(node: Node) -> Option<Object> {
 
 ## 空值
 
+跟布尔值类似，不需要每次都创建一个新的空值。
+
 ```rust,noplaypen
 // src/evaluator.rs
 
 pub const NULL: Null = Null {};
 ```
 
+现在，对象系统中包含了整数、布尔值和空值，可以求值操作符表达式了。
+
 ## 前缀表达式
 
+Monkey语言有两个前缀操作符：“!”和“-”。
+
+这里从“!”开始：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -273,6 +284,7 @@ fn test_bang_operator() {
     }
 }
 ```
+true和false取反很好理解，Monkey语言中“!5”这种表达式结果会返回false，因为语言规定5这种是真值。
 
 ```rust,noplaypen
 // src/evaluator.rs
@@ -297,6 +309,11 @@ fn eval_prefix_expression(operator: &str, right: Option<Object>) -> Option<Objec
         _ => None,
     }
 }
+```
+如果操作符无效，直接返回NULL值，这种做法比较简单，省去了错误判断。
+
+```rust,noplaypen
+// src/evaluator.rs
 
 fn eval_bang_operator_expression(right: Option<Object>) -> Option<Object> {
     match right {
@@ -307,13 +324,12 @@ fn eval_bang_operator_expression(right: Option<Object>) -> Option<Object> {
     }
 }
 ```
-
 由于这里需要比较 Object，需要将Object及其子类型加上 PartialEq 和 Eq 两个属性。
 
 测试通过！
 
-下面再加
 
+下面再加“-”操作符：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -324,8 +340,7 @@ fn test_eval_integer_expression() {
 }
 ```
 
-加上
-
+需要在eval_prefix_expression中增加一个分支：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -366,8 +381,24 @@ null
 >>
 ```
 
+神奇吧！
+
 ## 中缀表达式
 
+Monkey语言支持的8中中缀操作符：
+```js
+5 + 5; 
+5 - 5; 
+5 * 5; 
+5 / 5;
+
+5 > 5; 
+5 < 5; 
+5 == 5; 
+5 != 5;
+```
+
+先实现第一组数值操作符，测试用例如下：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -391,6 +422,7 @@ fn test_eval_integer_expression() {
     ];
 ```
 
+首先需要在eval中增加一个分支：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -409,7 +441,9 @@ pub fn eval(node: Node) -> Option<Object> {
 // [...]
 }
 ```
+不管左子表达式和右子表达式具体什么Node类型，eval都能对其求值。
 
+下面代码表示，当左右子表达式都是整数时根据运算符对其值进行加减乘除操作，否则返回空值。
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -446,9 +480,9 @@ fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Optio
     }
 }
 ```
-
 测试通过！
 
+下面考虑逻辑操作符：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -468,6 +502,7 @@ fn test_eval_boolean_expression() {
     ];
 // [...]
 ```
+对整数左右子表达式进行比较。
 
 ```rust,noplaypen
 // src/evaluator.rs
@@ -483,7 +518,9 @@ fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Optio
     }
 }
 ```
+上面实现了对整数的四个逻辑操作符。
 
+下面添加对布尔值的“==”和“!=”操作，先添加测试用例：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -557,3 +594,5 @@ false
 false
 >>
 ```
+
+到现在为止，我们已经实现了一个“计算器”了。

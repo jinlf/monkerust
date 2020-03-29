@@ -1,5 +1,7 @@
 # 读入-解析-打印-循环
 
+如果说我们之前的REPL其实是RLPL（读入-词法分析-打印-循环），那现在我们可以把词法分析器换成解析器，实现RPPL（读入-解析-打印-循环）。
+
 ```rust,noplaypen
 // src/repl.rs
 
@@ -100,3 +102,5 @@ Woops! We ran into some monkey business here!
  parser errros:
         expected next token to be ASSIGN, got INT instead
 ```
+
+酷！让我们开始对AST求值吧。

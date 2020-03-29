@@ -10,7 +10,7 @@ let anotherName = barfoo;
 ```
 这种语句称为“let语句”，它把变量值绑定到一个名字上。
 
-正确工作的解析器将构造一个符合原始let语句信息的抽象语法树。
+正确工作的解析器将构造一个符合原始语句信息的抽象语法树。
 
 定义抽象语法树节点：
 ```rust,noplaypen
@@ -24,6 +24,7 @@ pub enum Node {
     Statement(Statement),
     Expression(Expression),
 }
+
 pub enum Statement {}
 impl NodeTrait for Statement {
     fn token_literal(&self) -> String {
@@ -38,7 +39,9 @@ impl NodeTrait for Expression {
     }
 }
 ```
-注意Rust语言的Trait与其它语言的接口不完全是同一个概念，因此向下类型转换（downcast）就不是很方便，不能用传统的C++、Go这类语言的方式实现相同的功能。
+注意Rust语言的Trait与其它语言的接口不完全是同一个概念，在向下类型转换（downcast）时也不是很方便，这里就没有采用原著中的接口继承和强制类型转换方式来实现。
+
+Rust语言具有强大的enum和match匹配能力，本文用enum来定义Node、Statement和Expression，以便用match语句进行类型匹配。
 
 上述代码中的NodeTrait规定了所有Node的共同特征，具有token_literal方法，该方法返回当前Node节点的Token字面量（literal)。Monkey语言AST中节点Node可以是Statement，也可以是Expression。下面再加上一种：Program节点。
 
@@ -69,7 +72,9 @@ pub enum Node {
     Expression(Expression),
 }
 ```
-Program节点是所有AST的根节点，包含一系列Statement节点。下面定义let语句：
+Program节点是所有AST的根节点，包含一系列Statement节点。
+
+下面定义let语句：
 ```rust,noplaypen
 // src/ast.rs
 
@@ -96,7 +101,7 @@ impl NodeTrait for Identifier {
     }
 }
 ```
-LetStatement节点包含name和value两个成员，其中name表示绑定的标识符，value表示产生value的表达式。Identifier节点包含的value即标识符的名字。
+LetStatement节点包含name和value两个成员，其中name表示绑定的标识符，value表示产生值的表达式。Identifier节点包含的value即标识符的名字。
 
 将LetStatement加入Statement，将Identifier加入Expression，如下：
 ```rust,noplaypen
@@ -167,9 +172,11 @@ impl<'a> Parser<'a> {
     }
 }
 ```
-解析器有三个成员：词法分析器，当前Token，下一个Token。next_token()方法就是从词法分析器中读取Token并更新当前Token和下一个Token的过程。
+解析器有三个成员：词法分析器，当前Token，下一个Token。next_token()方法的功能就是从词法分析器中读取Token并更新当前Token和下一个Token。
 
-由于这里需要实现Token的clone方法，需要修改Token和TokenType的属性：
+在创建解析器时调用了两次next_token方法，是为了初始化当前Token和下一个Token。不用担心input是否够用的问题，词法分析器在input结尾处会一直返回EOF。
+
+由于这里需要调用Token的clone方法，修改Token和TokenType的属性如下：
 ```rust,noplaypen
 // src/token.rs
 
@@ -259,7 +266,7 @@ function parseOperatorExpression() {
 }
 // [...]
 ```
-上述伪代码的基本思想是递归下降解析。入口是parseProgram，用来构造AST的根节点，然后调用它的子节点解析函数，构造各个Statement。这些解析函数再调用它们的解析函数，递归下去。
+上述伪代码的基本思想是递归下降解析。入口是parseProgram，用来构造AST的根节点，然后调用它的子节点解析函数，构造各个Statement。这些解析函数再调用它们的解析函数，递归下去，解析完成时返回的是整个AST。
 
 下面我们继续开发，先写测试用例：
 ```rust,noplaypen
@@ -325,7 +332,9 @@ fn test_let_statement(s: &Statement, expected_name: &str) {
     }
 }
 ```
-测试用例的思想是递归下降分析解析出来的AST，跟预期的AST是否一致。
+测试用例的思想是递归下降验证解析出来的AST，跟预期的AST是否一致。
+
+上述代码还使用了Rust语言中的if let语句，这种语句可以匹配展开复杂的数据结构，酷！
 
 测试中需要打印输出Statement，因此需要添加Statement的Debug属性，进而需要添加Expression, LetStatement和Identifier的Debug属性：
 ```rust,noplaypen
@@ -354,7 +363,7 @@ pub struct Identifier {
     pub value: String,
 }
 ```
-为了支持测试，需要修改lib.rs，加入下面两行。
+为了支持测试，需要修改lib.rs，加入下面几行。
 ```rust,noplaypen
 // src/lib.rs
 
@@ -445,7 +454,7 @@ thread 'parser::tests::test_let_statements' panicked at 'parse_program() returne
         }
     }
 ```
-由于LetStatement的value是Expression，而到目前为止，我们还没有能解析Expression的能力，只能跳过，所以我这里做了一个占位用的MockExpression定义，未来需要移除，代码如下：
+由于LetStatement的value是Expression，目前为止，我们还没有能解析Expression的能力，只能跳过，我这里做了一个占位用的MockExpression定义，未来需要移除，代码如下：
 ```rust,noplaypen
 // src/ast.rs
 

@@ -44,9 +44,9 @@ fn test_next_token() {
     }
 }
 ```
-本文中每段代码的顶部给出了所在文件的路径，如果文件路径第一次出现需要创建该文件。
+本文中每段代码的顶部给出了所在文件的路径，根据情况打开或创建该文件。
 
-上述代码中的#[test]属性表示下面的函数是个测试函数，在自动化测试时会执行。代码的功能是将一个字符串作为输入，让词法分析器分析并使用断言验证输出的结果与预定内容是否一致。
+上述代码中的#[test]属性表示下面的函数是个测试函数，在自动化测试时会执行。代码的功能是将一个字符串作为输入，让词法分析器分析并使用断言验证输出的结果与预期结果是否一致。
 
 为了支持Rust的自动化测试，首先需要将工程文件补充完整。创建src/lib.js文件，内容如下：
 ```rust,noplaypen
@@ -99,7 +99,7 @@ pub mod lexer;
 
 这里将词法分析器中的input做成了字符串引用，避免运行时对Monkey源代码的内存拷贝，需要定义生命周期，即代码中的'a。
 
-这里使用read_position的原因是为了向前看若干字符。
+这里使用read_position是为了向前看若干字符。
 
 定义词法分析器的read_char方法如下：
 ```rust,noplaypen
@@ -117,7 +117,7 @@ pub mod lexer;
 ```
 read_char()方法的目的是读取下一个字符，并前进一个字符。如果到输入结尾不能读字符时，就设置ch为0。这个特殊符号用来代表EOF。
 
-简单起见，本为实现的解释器只支持ASCII。您可以自己尝试支持Unicode。
+简单起见，本文实现的解释器只支持ASCII。您可以自己尝试支持Unicode。
 
 在new()方法中调用read_char方法，可以改成：
 ```rust,noplaypen
@@ -226,9 +226,9 @@ running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 ```
-测试通过表明现在词法分析器已经能够支持分析测试用例中的各个Token了。
+测试通过表明现在词法分析器已经能够支持测试用例中的各种Token了。
 
-下面扩展测试用例（测试本章前面提到的Monkey代码）：
+修改测试用例，测试本章前面提到的Monkey代码：
 ```rust,noplaypen
 // src/lexer_test.rs
 
@@ -326,7 +326,7 @@ fn is_letter(ch) -> bool {
 
 is_letter函数检查是否是字符和下划线，这是标识符中支持的字符。
 
-由于这里不再是单一字符了，所以没有使用new_token来创建Token，而是由read_identifier()方法返回的字符串直接创建Token。
+这里Token的literal不再是单一字符，所以没有使用new_token()函数来创建Token，而是根据read_identifier()方法返回的字符串直接创建Token。
 
 需要支持关键字，在token.rs中实现一个关键字查找函数：
 ```rust,noplaypen
@@ -340,9 +340,9 @@ pub fn lookup_ident(ident: &str) -> TokenType {
     }
 }
 ```
-测试用例中只出现了let和fn关键字。
+目前只支持测试用例中的let和fn关键字。
 
-这样lexer.rs中处理标识符的代码就应该改成：
+这样，处理标识符的代码就应该改成：
 ```rust,noplaypen
 // src/lexer.rs
 
@@ -366,7 +366,7 @@ pub fn lookup_ident(ident: &str) -> TokenType {
 // [...] 
     }
 ```
-由于这里调用了read_identifier()方法，已经不需要在返回之前再次调用read_char了，用return语句直接返回tok即可。
+这里调用了read_identifier()方法，不需要在返回之前再次调用read_char方法来更新Lexer，所以用return语句直接返回tok即可。
 
 执行cargo test，仍然报错，如下：
 ```
@@ -440,4 +440,4 @@ thread 'lexer::tests::test_next_token' panicked at 'test[8] - tokentype wrong. e
 
 由此，前文提到的Monkey代码段已经能够被我们的词法分析器分析了。
 
-注意，本文实现的解释器不支持浮点、十六进制、八进制表示。感兴趣的读者您自己实现一下试一试吧。
+注意：简单起见，本文实现的解释器不支持浮点数，以及十六进制、八进制等表示方式。感兴趣的读者您可以自行实现。

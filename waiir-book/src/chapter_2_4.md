@@ -19,7 +19,7 @@ let result = add(five, ten);
 ";
 // [...]
 ```
-这里省略了后面添加的用于验证的Token序列，您需要根据测试用例补充上去。
+这里省略了后面添加的用于验证的Token序列，您在动手实践时需要根据测试用例补充上去。
 
 扩展TokenType，如下：
 ```rust,noplaypen
@@ -85,7 +85,7 @@ if (5 < 10) {
 }
 ```
 这里用到了if、else、return、true和false。
-您需要根据新增加的测试用例，再次添加验证Token序列。
+您需要根据新增加的测试用例，再次补充验证Token序列。
 
 然后扩展TokenType如下：
 ```rust,noplaypen
@@ -217,5 +217,5 @@ thread 'lexer::tests::test_next_token' panicked at 'test[74] - tokentype wrong. 
 
 测试通过。
 
-词法分析器就完成了！在编写解析器之前，我们先在下一章做个REPL。
+词法分析器就完成了！在编写解析器之前，我们先编写一个REPL。
 

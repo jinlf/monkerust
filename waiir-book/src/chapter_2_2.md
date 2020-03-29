@@ -10,7 +10,7 @@ let add = fn(x, y) {
 let result = add(five, ten);
 ```
 
-这里包含整数5和10，变量名x、y、add和result，关键字let和fn，以及其它一些字符：(、)、{、}、=、,、;、+。
+这里包含整数5和10，变量名five、ten、x、y、add和result，关键字let和fn，以及其它一些字符：(、)、{、}、=、,、;、+。
 
 用Rust语言定义Token数据结构，以及表示Token类型的TokenType：
 ```rust,noplaypen
@@ -39,7 +39,7 @@ pub enum TokenType {
 }
 ```
 这里有两个Token类型比较特殊：
-- ILLEGAL：表示未知的Token，分析到ILLEGAL表示遇到错误；
+- ILLEGAL：表示未知的Token，分析到ILLEGAL时表示遇到了错误；
 - EOF：表示文件结束符，分析到EOF时就可以停止了。
 
-下面开始写词法分析器。
+下面开始编写词法分析器。

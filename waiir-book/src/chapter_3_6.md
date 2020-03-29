@@ -1,16 +1,128 @@
 # 解析表达式
 
+解析表达式，需要考虑操作符优先级。例如：
+```js
+5 * 5 + 10
+```
+对应的AST表示的是：
+```js
+((5 * 5) + 10)
+```
+就是说5 * 5在AST中的深度更深，比加法求值更早。解析器需要区分“*”和“+”的优先级。
+但是：
+```js
+5 * (5 + 10)
+```
+这种带括号的分组表达式的求值顺序却不同，因为括号比“*”的优先级更高。
+
+另一个问题是同一个操作符可以出现在表达式的不同位置，如：
+```js
+-5 - 10
+```
+第一个“-”号是前缀操作符，第二个“-”号是中缀操作符。类似的情况还有：
+```js
+5 * (add(2, 3) + 10)
+```
+外面的括号是分组操作符，里面的括号是调用表达式的一部分。
 
 ## Monkey语言表达式
 
+Monkey编程语言中let和return后面的都是表达式，还有仅包含表达式的语句。表达式有以下几种：
 
-## 自顶向下运算法优先级
+前缀操作符表达式：
+```js
+-5
+!true
+!false
+```
 
+中缀操作符（数值操作符）表达式：
+```js
+5 + 5
+5 - 5
+5 / 5
+5 * 5
+```
+
+中缀操作符（比较操作符）表达式：
+```js
+foo == bar
+foo != bar
+foo < bar
+foo > bar
+```
+
+分组表达式：
+```js
+5 * (5 + 5)
+((5 + 5) * 5) + 5
+```
+
+调用表达式：
+```js
+add(2, 3)
+add(add(2, 3), add(5, 10))
+max(5, add(5, (5 * 5)))
+```
+
+标识符表达式：
+```js
+foo * bar / foobar
+add(foo, bar)
+```
+
+前面提到过函数是一等公民，函数字面量也是表达式：
+```js
+let add = fn(x, y) { return x + y };
+```
+可以用函数字面量来替换标识符：
+```js
+fn(x, y) { return x + y}(5, 5)
+(fn(x){ return x}(5) + 10) * 10
+```
+
+跟很多语言不同，if也是表达式：
+```js
+let result = if (10 > 5) { true } else { flase };
+result // => true
+```
+
+## 自顶向下操作符优先级（普拉特解析）
+
+1973年发表的论文，最近才被广泛使用。
+
+与基于CFG解析不同的是，普拉特解析不把函数关联到语法规则，而是关联到Token。根据前缀和中缀位置不同，每种Token最多关联两个解析函数。
 
 ## 术语
 
+**前缀操作符**：操作符在操作数之前，例如：
+```js
+--5
+```
+**后缀操作符**：操作符在操作数之后，例如：
+```js
+foobar++
+```
+**中缀操作符**：操作符在两个操作数之间，例如：
+```js
+5 * 8
+```
+**操作符优先级**：例如
+```js
+5 + 5 * 10
+```
+“*”比“+”优先级要高。
+
 ## 准备AST
 
+首先考虑表达式语句，例如：
+```js
+let x = 5;
+x + 10;
+```
+第一行是let语句，第二行就是表达式语句，是语句和表达式之间的桥梁。
+
+定义如下：
 ```rust,noplaypen
 // src/ast.rs
 
@@ -46,7 +158,7 @@ impl NodeTrait for Statement {
 }
 ```
 
-给NodeTrait增加string函数，并通过补写函数解决由此带来的一系列问题。
+给NodeTrait增加string方法，并通过补写各种Node的string方法来解决由此带来的一系列编译问题。
 ```rust,noplaypen
 // src/ats.rs
 
@@ -169,9 +281,22 @@ mod ast_test;
 
 ## 实现递归下降解析器
 
-原著中实现的是Pratt词法分析器，即用语义代码关联到Token类型上。我用Rust实现类似的方式时，发现Rust中可变方法指针的使用不是很方便，考虑原因应该是这种灵活的写法容易带来内存管理方面的不安全，Rust不推荐也不适用这种方式。于是本书中使用最基本的递归下降解析方法。
+原著中实现的普拉特解析器，使用了Go语言的函数指针。我用Rust实现类似的方式时，发现Rust中可变方法指针的使用不是很方便，考虑原因应该是这种灵活的写法容易带来内存管理方面的不安全，Rust不推荐也不适用这种方式。于是本文中将代码直接写到前缀和中缀表达式解析过程中，原理是一致的。
 
-先写标识符的测试用例：
+先考虑Monkey语言中最简单的表达式，标识符。表达式语句中的标识符是这样的：
+```js
+foobar;
+```
+在其它上下文中的标识符是这样的：
+```js
+add(foobar, barfoo);
+foobar + barfoo;
+if (foobar) {
+    // [...]
+}
+```
+
+从测试用例开始：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -222,7 +347,9 @@ fn test_identifier_expression() {
     }
 }
 ```
-测试失败：
+上述代码的思想是解析一个表达式，从根上开始验证AST，是否是Program，是否是一条语句，是否是一条表达式语句，表达式是否是标识符，标识符内容是否正确。
+
+当然，测试失败：
 ```
 thread 'parser::tests::test_identifier_expression' panicked at 'program has not enough statements. got=0', src/parser_test.rs:257:13
 ```
@@ -296,9 +423,22 @@ pub enum Precedence {
         }))
     }
 ```
+这里就是与原著不同的地方，原著中为标识符Token注册了前缀解析函数（放到函数指针表里），在parse_expression方法中通过查表来调用。本文中通过match匹配标识符Token，直接调用其前缀解析方法parse_identifier，表达方式不同，原理一致。
+
 测试通过！
 
-## 整型字面量
+## 整数字面量
+
+Monkey中的整数字面量如下：
+```js
+5;
+```
+在其它上下文中的整数字面量如下：
+```js
+let x = 5;
+add(5, 10);
+5 + 5 + 5;
+```
 
 测试用例如下：
 ```rust,noplaypen
@@ -346,7 +486,9 @@ fn test_integer_literal_expression() {
     }
 }
 ```
-IntegerLiteral的定义在ast.rs中：
+与测试标识符的原理一致，测试整数字面量也需要这么多代码:(
+
+整数字面量的定义如下：
 ```rust,noplaypen
 // src/ast.rs
 
@@ -384,7 +526,9 @@ impl NodeTrait for Expression {
     }
 }
 ```
-新增加IntegerLiteral的解析代码：
+这里用Rust的i64类型保存整数字面量的值。
+
+新增解析代码：
 ```rust,noplaypen
 // src/parser.rs
 
@@ -408,7 +552,7 @@ impl NodeTrait for Expression {
 thread 'parser::tests::test_integer_literal_expression' panicked at 'program has not enough statements. got=0', src/parser_test.rs:367:13
 ```
 
-在parse_expression方法中增加对IntegerLiteral的支持：
+在parse_expression方法中增加对整数字面量的支持：
 ```rust,noplaypen
 // src/parser.rs
 
@@ -425,6 +569,24 @@ thread 'parser::tests::test_integer_literal_expression' panicked at 'program has
 测试通过！
 
 ## 前缀操作符
+
+Monkey中的前缀操作符是“!”和“-”，使用如下：
+```js
+-5;
+!foobar;
+5 + - 10;
+```
+结构表示：
+```js
+<prefix operator><expression>;
+```
+
+任何表达式都可以接在前缀操作符后面：
+```js
+!isGreaterThanZero(2);
+5 + -add(5, 5);
+```
+
 
 测试用例：
 ```rust,noplaypen
@@ -480,7 +642,7 @@ fn test_parsing_prefix_expression() {
     }
 }
 ```
-
+为了提高测试代码的重用性，定义测试整数字面量的函数：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -504,7 +666,9 @@ fn test_integer_literal(il: &Expression, expected_value: i64) {
     }
 }
 ```
-PrefixExpression的定义如下：
+测试失败！
+
+前缀表达式的定义如下：
 ```rust,noplaypen
 // src/ast.rs
 
@@ -542,6 +706,8 @@ impl NodeTrait for Expression {
     }
 }
 ```
+这里使用Box\<Expression\>表示right的类型，是因为这是一个递归定义，必须借用Box来避免Rust编译器报错。
+
 测试错误：
 ```
 thread 'parser::tests::test_parsing_prefix_expression' panicked at 'stmt is not PrefixExpression. got=IntegerLiteral(IntegerLiteral { token: Token { tk_type: INT, literal: "5" }, value: 5 })', src/parser_test.rs:434:25
@@ -555,6 +721,8 @@ thread 'parser::tests::test_parsing_prefix_expression' panicked at 'stmt is not 
             .push(format!("no prefix parse function for {:?} found", t));
     }
 ```
+虽然我们并没有采用原著中的函数指针的方式，但简单起见，这里沿用了原著中的错误提示。
+
 修改parse_expression方法，使用上面的方法：
 ```rust,noplaypen
 // src/parser.rs
@@ -579,7 +747,7 @@ thread 'parser::tests::test_parsing_prefix_expression' panicked at 'parser has 1
 parser error: "no prefix parse function for BANG found"
 ', src/parser_test.rs:281:9
 ```
-为“！”和“-”增加处理代码：
+提示很明显，需要为“!”和“-”增加处理代码：
 ```rust,noplaypen
 // src/parser.rs
 
@@ -612,8 +780,27 @@ parser error: "no prefix parse function for BANG found"
 ```
 测试成功！
 
+迄今为止，我们只使用了LOWEST一种优先级，下面我们会用到其它优先级。
+
 ## 中缀操作符
 
+中缀操作符如下：
+```js
+5 + 5; 
+5 - 5; 
+5 * 5; 
+5 / 5; 
+5 > 5; 
+5 < 5;
+5 == 5; 
+5 != 5;
+```
+结构如下：
+```js
+<expression><infix operator><expression>
+```
+
+先写测试用例：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -681,7 +868,9 @@ fn test_parsing_infix_expressions() {
     }
 }
 ```
-定义InfixExpression
+跟前缀表达式不同，这里需要验证left和right两个分支。
+
+定义中缀表达式：
 ```rust,noplaypen
 // src/ast.rs
 
@@ -732,6 +921,8 @@ thread 'parser::tests::test_parsing_infix_expressions' panicked at 'parser has 1
 parser error: "no prefix parse function for PLUS found"
 ', src/parser_test.rs:298:9
 ```
+提示我们没有处理“+”号的代码。
+
 
 这里用到了优先级，需要实现一个Token的优先级查表：
 ```rust,noplaypen
@@ -777,7 +968,9 @@ fn get_precedence(t: &TokenType) -> Precedence {
         }))
     }
 ```
-需要修改parse_expression支持InfixExpression：
+与前缀表达式解析不同的是，中缀表达式的左边子表达式已经在外面解析完成，通过参数传递进来，本方法中解析右边子表达式，然后组合成中缀表达式节点返回。
+
+需要修改parse_expression支持中缀表达式：
 ```rust,noplaypen
 // src/parser.rs
 
@@ -811,7 +1004,9 @@ fn get_precedence(t: &TokenType) -> Precedence {
         left_exp
     }
 ```
-这里需要把left_exp修改成可变的。
+此部分代码是普拉特解析器的核心，稍后我们会做解释。
+
+注意：这里需要把left_exp修改成可变的（mut）。
 
 另外，由于这里有precedence的比较，需要修改Precedence的定义，加上PartialOrd和PartialEq属性。
 ```rust,noplaypen
@@ -867,3 +1062,4 @@ fn test_operator_precedence_parsing() {
 ```
 测试通过！
 
+那普拉特解析器是如何工作的呢？

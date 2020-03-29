@@ -1,5 +1,6 @@
 # 扩展解析器
 
+类似于test_integer_literal，我们再编写一个帮助测试的函数：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -24,6 +25,7 @@ fn test_identifier(exp: &Expression, expected_value: String) {
 }
 ```
 
+下面用这个函数来做测试：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -63,9 +65,20 @@ fn test_infix_expression(
     }
 }
 ```
+这里用到了Rust中的向下转换方法downcast_ref，这个方法能够将std::any::Any对象转换成具体struct，转换不了的返回None。
 
-## Boolean字面量
+上述测试代码的预期值（expected）是用std::dyn::Any传递和转换的。
 
+## 布尔值字面量
+
+布尔值字面量表示如下：
+```js
+true;
+false;
+let foobar = true; 
+let barfoo = false;
+```
+定义如下：
 ```rust,noplaypen
 // src/ast.rs
 
@@ -103,8 +116,9 @@ impl NodeTrait for Expression {
     }
 }
 ```
+用Rust的bool类型保存Monkey语言的布尔值。
 
-在parse_expression中增加
+在parse_expression中增加对布尔值字面量的支持
 ```rust,noplaypen
 // src/parser.rs
 
@@ -130,7 +144,8 @@ impl NodeTrait for Expression {
 ```
 测试通过！
 
-在test_operator_precedence_parsing中增加
+
+增加一些测试用例测试布尔值字面量：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -145,7 +160,7 @@ fn test_operator_precedence_parsing() {
 // [...]
 ```
 
-修改test_literal_expression
+修改test_literal_expression，增加对布尔值字面量的支持：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -176,7 +191,7 @@ fn test_boolean_literal(exp: &Expression, expected_value: bool) {
     }
 }
 ```
-修改test_parsing_infix_expressions为
+为了能够使用test_literal_expression方法，需要将test_parsing_infix_expressions重构：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -224,7 +239,14 @@ fn test_parsing_infix_expressions() {
                 } else {
 // [...]
 ```
-修改test_parsing_infix_expression 
+这里需要使用Box封装Any，否则Rust编译器会报错。
+只是这些值是需要用
+```rust,noplaypen
+                    test_literal_expression(left, &*tt.1);
+```
+这种古怪方式来使用。
+
+同样重构test_parsing_infix_expression 
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -258,7 +280,12 @@ fn test_parsing_prefix_expression() {
 ```
 测试通过！
 
-## 组合表达式
+## 分组表达式
+
+Monkey语言中的分组表达式如下：
+```js
+(5 + 5) * 2;
+```
 
 测试用例
 ```rust,noplaypen
@@ -312,7 +339,31 @@ parser error: "no prefix parse function for PLUS found"
 
 ## if表达式
 
-定义：
+在Monkey语言中if和else例子如下：
+```js
+if (x > y) { 
+    return x;
+} else { 
+    return y;
+}
+```
+else是可选的：
+```js
+if (x > y) { 
+    return x;
+}
+```
+Monkey中if是表达式，可以这样用：
+```js
+let foobar = if (x > y) { x } else { y };
+```
+结构如下：
+```js
+if (<condition>)<consequence> else <alternative>
+```
+其中consequence和alternative都是块语句，即被中括号包围起来的一系列语句。
+
+定义如下：
 ```rust,noplaypen
 // src/ast.rs
 
@@ -360,7 +411,9 @@ impl NodeTrait for Expression {
     }
 }
 ```
-而BlockStatement的定义如下：
+由于alternative是可选的，这里用Option来处理。
+
+用到的BlockStatement定义如下：
 ```rust,noplaypen
 // src/ast.rs
 
@@ -489,7 +542,7 @@ fn test_if_expression() {
 ```rust,noplaypen
 if (x < y) { x } else { y }
 ```
-可以做另一个测试用例test_if_else_expression。
+可以编写另一个测试用例test_if_else_expression，与test_if_expression不同的部分如下：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -630,6 +683,40 @@ parser error: "no prefix parse function for RBRACE found"
 
 ## 函数字面量
 
+Monkey语言中函数字面量如下：
+```js
+fn(x, y) { 
+    return x + y;
+}
+```
+其结构如下：
+```js
+fn <parameters><block statement>
+```
+其中parameters的结构是：
+```js
+(<parameter 1>, <parameter 2>, <parameter 3>, ...)
+```
+参数可以为空：
+```js
+fn() {
+    return foobar + barfoo;
+}
+```
+Monkey中的函数字面量也是表达式：
+```js
+fn() {
+    return fn(x, y) { return x > y; };
+}
+```
+这里一个函数是另一个函数返回语句中的表达式。
+
+还可以用函数做实参：
+```js
+myFunc(x, y, fn(x, y) { return x > y; });
+```
+
+定义如下：
 ```rust,noplaypen
 // src/ast.rs
 
@@ -676,7 +763,9 @@ impl NodeTrait for Expression {
     }
 }
 ```
-测试用例
+上述定义中参数是标识符列表，函数体是一个块语句。
+
+测试用例：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -914,7 +1003,30 @@ fn test_function_parameter_parsing() {
 
 ## 调用表达式
 
-定义
+调用表达式的结构如下：
+```js
+<expression>(<expression 1>, <expression 2>, ...)
+```
+其中实参，即括号内的表达式可以为空。
+
+调用表达式示例如下：
+```js
+add(2, 3)
+```
+或
+```js
+add(2 + 2, 3 * 3 * 3)
+```
+函数名称也可以换成函数字面量：
+```js
+fn(x, y) { x + y; }(2, 3)
+```
+调用表达式的实参表达式也可以是函数字面量：
+```js
+callsFunction(2, 3, fn(x, y) { x + y; });
+```
+
+定义如下：
 ```rust,noplaypen
 // src/ast.rs
 
@@ -957,7 +1069,7 @@ impl NodeTrait for Expression {
     }
 }
 ```
-测试用例
+测试用例：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -1039,7 +1151,7 @@ parser error: "no prefix parse function for RPAREN found"
 parser error: "no prefix parse function for SEMICOLON found"
 ', src/parser_test.rs:497:9
 ```
-修改：
+在中缀操作符解析时加上左括号的处理：
 ```rust,noplaypen
 // src/parser.rs
 
@@ -1104,7 +1216,7 @@ parser error: "no prefix parse function for SEMICOLON found"
         Some(args)
     }
 ```
-测试结果
+测试结果仍然出错：
 ```
 thread 'parser::tests::test_call_expression_parsing' panicked at 'parser has 5 errors
 parser error: "expected next token to be RPAREN, got COMMA instead"
@@ -1114,7 +1226,7 @@ parser error: "no prefix parse function for RPAREN found"
 parser error: "no prefix parse function for SEMICOLON found"
 ', src/parser_test.rs:546:9
 ```
-修改get_precedence
+出现此错误的原因是中缀处理时没查到对应的优先级，修改get_precedence函数：
 ```rust,noplaypen
 // src/parser.rs
 
@@ -1126,7 +1238,7 @@ fn get_precedence(t: &TokenType) -> Precedence {
     }
 }
 ```
-扩展测试用例
+为了验证CALL优先级是最高优先级，扩展测试用例：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -1147,6 +1259,8 @@ fn test_operator_precedence_parsing() {
 测试通过！
 
 ## 删除TODO
+
+我们开始写解析器的时候，由于没有表达式解析能力，在处理let和return语句时加入了MockExpression，和跳过表达式解析的代码，现在是时候解决这些问题了。
 
 删除ast.rs中的TODO
 ```rust,noplaypen
@@ -1246,3 +1360,5 @@ impl NodeTrait for Expression {
     }
 ```
 测试通过！
+
+TODO都删除了，下面试一试测试驱动的解析。

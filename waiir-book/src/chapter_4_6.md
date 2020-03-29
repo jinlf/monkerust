@@ -1,5 +1,23 @@
 # 条件
 
+例如：
+```js
+if (x > 10) { 
+    puts("everything okay!");
+} else {
+    puts("x is too low!"); shutdownSystem();
+}
+```
+当条件为真时，求值第一个块语句，否则求值第二个块语句。
+
+如果情况如下：
+```js
+if (false) { 10 }
+```
+应返回NULL。
+
+
+测试用例如下：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -51,6 +69,7 @@ fn test_null_object(obj: Option<Object>) {
 thread 'evaluator::tests::test_if_else_expression' panicked at 'object is not Integer. got=None', src/evaluator_test.rs:188:13
 ```
 
+增加支持If表达式的分支：
 ```rust,noplaypen
 // src/evaluator.rs
 

@@ -4,9 +4,9 @@
 
 ![f1-1](image/f1-1.png)
 
-第一个转换，从源代码到Token（译为记号，本文为了简便，直接使用Token），被称作“词法分析”，我们需要实现一个词法分析器（Lexer）。
+第一个转换，从源代码到Token（译为记号，本文为了简便，直接使用Token），称作“词法分析”，我们需要实现一个词法分析器（Lexer）。
 
-第二个转换，从Token到抽象语法树（Abstract Syntax Tree，简称AST），被称作“解析”，我们需要实现一个解析器（Parser）。
+第二个转换，从Token到抽象语法树（Abstract Syntax Tree，简称AST），称作“解析”，我们需要实现一个解析器（Parser）。
 
 例如，输入到词法分析器的源代码为：
 ```js
