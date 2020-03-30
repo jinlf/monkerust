@@ -1,6 +1,6 @@
 # 扩展解析器
 
-类似于test_integer_literal，我们再编写一个帮助测试的函数：
+类似于test_integer_literal，我们再编写一个辅助测试的函数：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -118,7 +118,7 @@ impl NodeTrait for Expression {
 ```
 用Rust的bool类型保存Monkey语言的布尔值。
 
-在parse_expression中增加对布尔值字面量的支持
+在parse_expression中增加对布尔值字面量的支持：
 ```rust,noplaypen
 // src/parser.rs
 
@@ -1260,7 +1260,7 @@ fn test_operator_precedence_parsing() {
 
 ## 删除TODO
 
-我们开始写解析器的时候，由于没有表达式解析能力，在处理let和return语句时加入了MockExpression，和跳过表达式解析的代码，现在是时候解决这些问题了。
+我们开始编写解析器的时候，由于没有表达式解析能力，在处理let和return语句时加入了MockExpression，以及跳过表达式解析的代码，现在是时候解决这些问题了。
 
 删除ast.rs中的TODO
 ```rust,noplaypen

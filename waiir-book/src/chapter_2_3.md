@@ -1,6 +1,6 @@
 # 词法分析器
 
-词法分析器输入的是源代码，每次调用next_token方法时返回下一个Token。本文为了简化，不在Token中增加文件名和行号等信息。
+词法分析器输入的是源代码，每次调用next_token方法时返回下一个Token。本文为了简化，不在Token中包含文件名和行号等信息。
 
 遵循测试驱动开发（Test-Driven Development，简称TDD）的原则，先写单元测试用例：
 ```rust,noplaypen
