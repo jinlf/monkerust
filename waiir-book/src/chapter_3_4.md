@@ -266,7 +266,7 @@ function parseOperatorExpression() {
 }
 // [...]
 ```
-上述伪代码的基本思想是递归下降解析。入口是parseProgram，用来构造AST的根节点，然后调用它的子节点解析函数，构造各个Statement。这些解析函数再调用它们的解析函数，递归下去，解析完成时返回的是整个AST。
+上述伪代码的基本思想是递归下降解析。入口是parseProgram，用来构造AST的根节点，然后调用它的子节点解析函数，构造各个Statement。这些解析函数再调用它们子节点的解析函数，递归下去，解析完成时返回的是整个AST。
 
 下面我们继续开发，先写测试用例：
 ```rust,noplaypen
