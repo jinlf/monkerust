@@ -27,11 +27,6 @@ pub enum Object {
     Array(Array),
     Hash(Hash),
 }
-// impl Drop for Object {
-//     fn drop(&mut self) {
-//         println!("Dropping Object {}", self.get_type());
-//     }
-// }
 impl ObjectTrait for Object {
     fn get_type(&self) -> String {
         match self {
@@ -67,6 +62,11 @@ impl ObjectTrait for Object {
 pub struct Integer {
     pub value: i64,
 }
+// impl Drop for Integer {
+//     fn drop(&mut self) {
+//         println!("dropping Integer {}", self.inspect());
+//     }
+// }
 impl ObjectTrait for Integer {
     fn get_type(&self) -> String {
         String::from("INTEGER")

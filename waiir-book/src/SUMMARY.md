@@ -32,7 +32,7 @@
     - [错误处理](./chapter_4_8.md)
     - [绑定与环境](./chapter_4_9.md)
     - [函数与函数调用](./chapter_4_10.md)
-    - [谁把垃圾拿走了](./chapter_4_11.md)
+    - [谁在拿垃圾？](./chapter_4_11.md)
 - [扩展解释器](./chapter_5.md)    
     - [数据类型与函数](./chapter_5_1.md)
     - [字符串](./chapter_5_2.md)
