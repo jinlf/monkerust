@@ -275,6 +275,7 @@ fn test_string() {
 ```rust,noplaypen
 // src/lib.rs
 
+#[cfg(test)]
 mod ast_test;
 ```
 测试通过！
@@ -423,7 +424,7 @@ pub enum Precedence {
         }))
     }
 ```
-这里就是与原著不同的地方，原著中为标识符Token注册了前缀解析函数（放到函数指针表里），在parse_expression方法中通过查表来调用。本文中通过match匹配标识符Token，直接调用其前缀解析方法parse_identifier，表达方式不同，原理一致。
+这里就是与原著不同的地方，原著中为标识符Token注册了前缀解析函数（放到函数指针表里），在parse_expression方法中通过查表来调用。本文中通过match匹配标识符Token类型，直接调用其前缀解析方法parse_identifier，表达方式不同，原理一致。
 
 测试通过！
 
@@ -968,7 +969,7 @@ fn get_precedence(t: &TokenType) -> Precedence {
         }))
     }
 ```
-与前缀表达式解析不同的是，中缀表达式的左边子表达式已经在外面解析完成，通过参数传递进来，本方法中解析右边子表达式，然后组合成中缀表达式节点返回。
+与前缀表达式解析不同的是，中缀表达式的左边子表达式已经在方法外面解析完成，通过参数传递进来，本方法中解析右边子表达式，然后组合成中缀表达式节点返回。
 
 需要修改parse_expression支持中缀表达式：
 ```rust,noplaypen
@@ -1008,7 +1009,7 @@ fn get_precedence(t: &TokenType) -> Precedence {
 
 注意：这里需要把left_exp修改成可变的（mut）。
 
-另外，由于这里有precedence的比较，需要修改Precedence的定义，加上PartialOrd和PartialEq属性。
+另外，由于这里有precedence的比较，需要修改Precedence的定义，加上PartialOrd和PartialEq属性，由此产生的优先级排序正好满足我们的需求。
 ```rust,noplaypen
 // src/parser.rs
 

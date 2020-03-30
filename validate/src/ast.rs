@@ -48,7 +48,7 @@ pub enum Expression {
     IntegerLiteral(IntegerLiteral),
     PrefixExpression(PrefixExpression),
     InfixExpression(InfixExpression),
-    Boolean(Boolean),
+    BooleanLiteral(BooleanLiteral),
     IfExpression(IfExpression),
     FunctionLiteral(FunctionLiteral),
     CallExpression(CallExpression),
@@ -64,7 +64,7 @@ impl NodeTrait for Expression {
             Expression::IntegerLiteral(integer_literal) => integer_literal.token_literal(),
             Expression::PrefixExpression(prefix_expr) => prefix_expr.token_literal(),
             Expression::InfixExpression(infix_expr) => infix_expr.token_literal(),
-            Expression::Boolean(bo) => bo.token_literal(),
+            Expression::BooleanLiteral(bo) => bo.token_literal(),
             Expression::IfExpression(if_expr) => if_expr.token_literal(),
             Expression::FunctionLiteral(function_literal) => function_literal.token_literal(),
             Expression::CallExpression(call_expr) => call_expr.token_literal(),
@@ -80,7 +80,7 @@ impl NodeTrait for Expression {
             Expression::IntegerLiteral(integer_literal) => integer_literal.string(),
             Expression::PrefixExpression(prefix_expr) => prefix_expr.string(),
             Expression::InfixExpression(infix_expr) => infix_expr.string(),
-            Expression::Boolean(bo) => bo.string(),
+            Expression::BooleanLiteral(bo) => bo.string(),
             Expression::IfExpression(if_expr) => if_expr.string(),
             Expression::FunctionLiteral(function_literal) => function_literal.string(),
             Expression::CallExpression(call_expr) => call_expr.string(),
@@ -225,11 +225,11 @@ impl NodeTrait for InfixExpression {
 }
 
 #[derive(Debug, Clone)]
-pub struct Boolean {
+pub struct BooleanLiteral {
     pub token: Token,
     pub value: bool,
 }
-impl NodeTrait for Boolean {
+impl NodeTrait for BooleanLiteral {
     fn token_literal(&self) -> String {
         self.token.literal.clone()
     }

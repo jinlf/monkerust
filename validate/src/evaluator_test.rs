@@ -88,7 +88,7 @@ fn test_eval_boolean_expression() {
 }
 
 fn test_boolean_object(obj: Option<Object>, expected: bool) {
-    if let Some(Object::BooleanObj(BooleanObj { value })) = obj {
+    if let Some(Object::Boolean(Boolean { value })) = obj {
         assert!(
             value == expected,
             "object has wrong value. got={}, want={}",
@@ -96,7 +96,7 @@ fn test_boolean_object(obj: Option<Object>, expected: bool) {
             expected
         );
     } else {
-        assert!(false, "object is not Boolean. got={:?}", obj);
+        assert!(false, "object is not BooleanLiteral. got={:?}", obj);
     }
 }
 

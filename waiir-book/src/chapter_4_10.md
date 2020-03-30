@@ -1,5 +1,37 @@
 # 函数与函数调用
 
+假设我们的Monkey语言已经支持函数和函数调用，那REPL将会是这样的：
+```
+>> let add = fn(a, b, c, d) { return a + b + c + d };
+>> add(1, 2, 3, 4); 
+10
+>> let addThree = fn(x) { return x + 3 };
+>> addThree(3); 
+6
+>> let max = fn(x, y) { if (x > y) { x } else { y } };
+>> max(5, 10) 
+10
+>> let factorial = fn(n) { if (n == 0) { 1 } else { n * factorial(n - 1) } };
+>> factorial(5) 
+120
+```
+
+再如：
+```
+>> let callTwoTimes = fn(x, func) { func(func(x)) }; 
+>> callTwoTimes(3, addThree);
+9
+>> callTwoTimes(3, fn(x) { x + 1 });
+5
+>> let newAdder = fn(x) { fn(n) { x + n } }; 
+>> let addTwo = newAdder(2);
+>> addTwo(2);
+4
+```
+
+为此，需要做两件事：定义内部对象系统中函数的表示形式，并在eval中增加对函数调用的支持。
+
+函数对象定义如下：
 ```rust,noplaypen
 // src/object.rs
 
@@ -56,8 +88,17 @@ impl ObjectTrait for Object {
     }
 }
 ```
-其中需要Environment支持Debug属性。
+函数对象比较特殊，它内部包含了对AST中参数列表和函数体节点的引用。函数对象中的env记录了函数定义处的环境，后续我们会介绍它的用途。
 
+这里定义比较函数对象的方法时，我采用了简单的内存地址比较方法。语句：
+```rust,noplaypen
+        let addr = self as *const Function as usize;
+```
+取得的是函数对象的内存地址。
+
+这里还需要为Environment加上Debug属性（代码略）。
+
+测试用例如下：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -96,6 +137,7 @@ fn test_function_object() {
 }
 ```
 
+在eval中支持函数字面量：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -116,6 +158,7 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
 }
 ```
 
+函数调用的测试用例：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -136,6 +179,7 @@ fn test_function_application() {
 }
 ```
 
+在eval中增加函数调用的支持：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -173,7 +217,11 @@ fn eval_expressions(exps: Vec<Expression>, env: Rc<RefCell<Environment>>) -> Vec
     result
 }
 ```
+对函数调用的求值代码该如何完成呢？
 
+这里需要使用嵌套环境，就是在求值函数体时创建一个新的内部环境，在函数体内取标识符的值时先在内部环境中查找，如果查不到，再到外部环境中查找，以此类推，如果直到找到最外层环境中仍然没有查到，则报错。
+
+修改Environment代码支持嵌套环境：
 ```rust,noplaypen
 // src/environment.rs
 
@@ -221,6 +269,7 @@ impl Environment {
 }
 ```
 
+求值函数调用时修改如下：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -274,9 +323,11 @@ fn unwrap_return_value(obj: Option<Object>) -> Option<Object> {
     obj
 }
 ```
+在extend_function_env方法中创建嵌套环境，其内部的outer成员指向函数对象中保存的外部环境。将每个参数的值设置到内部环境中，在apply_function中调用eval求值函数体时就使用内部环境作为实参。
+
 测试通过！
 
-执行cargo run
+执行cargo run：
 ```
 Hello, This is the Monkey programming language!
 Feel free to type in commands
@@ -299,6 +350,7 @@ true
 >>
 ```
 
+自此Monkey也能够支持闭包了，测试代码如下：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -315,7 +367,7 @@ addTwo(2);";
 ```
 测试通过！
 
-用cargo run执行
+用cargo run执行：
 ```
 Hello, This is the Monkey programming language!
 Feel free to type in commands
@@ -338,7 +390,10 @@ fn(y) {
 >> 
 ```
 
-再次
+闭包是能够将定义处的环境封闭起来的函数。它们携带自己的环境，并且在每次被调用时都可以访问它。
+分析上面输入，newAdder是一个高阶函数，addTwo就是一个闭包，因为他不仅能访问自己的参数y，还能访问调用newAdder(2)时绑定的x，即使这个绑定已经超出范围，也不在当前环境中。
+
+测一下：
 ```
 Hello, This is the Monkey programming language!
 Feel free to type in commands
@@ -354,12 +409,14 @@ fn(y) {
 ERROR: identifier not found: x
 >> 
 ```
+x在我们的最外层环境中没有绑定值。 但是addTwo仍然可以访问它：
 
 ```
 >> addTwo(3)
 5
 ```
 
+函数也可以作为参数，例如：
 ```
 Hello, This is the Monkey programming language!
 Feel free to type in commands
@@ -381,3 +438,5 @@ func(a, b)
 8
 >> 
 ```
+
+至此，我们的解释器已经能够支持函数和函数调用了。

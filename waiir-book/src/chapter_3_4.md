@@ -128,6 +128,18 @@ impl NodeTrait for Expression {
     }
 }
 ```
+其实Rust支持将匿名结构体作为枚举成员的类型，例如：
+```rust,noplaypen
+pub enum Statement {
+    LetStatement {  
+        token: Token,
+        name: Identifier,
+        value: Expression,
+    },
+}
+```
+这种方式在match匹配时会省去一些代码输入工作，但考虑到做成匿名结构体后无法直接按类型访问，在无法确定匿名方式是否合适的情况下，本文统一使用结构体和枚举定义分类的方式。
+
 定义完上述三种节点，则Monkey源代码：
 ```js
 let x = 5;
@@ -172,9 +184,9 @@ impl<'a> Parser<'a> {
     }
 }
 ```
-解析器有三个成员：词法分析器，当前Token，下一个Token。next_token()方法的功能就是从词法分析器中读取Token并更新当前Token和下一个Token。
+解析器有三个成员：词法分析器，当前Token，下一个Token。next_token方法的功能就是从词法分析器中读取Token并更新当前Token和下一个Token。
 
-在创建解析器时调用了两次next_token方法，是为了初始化当前Token和下一个Token。不用担心input是否够用的问题，词法分析器在input结尾处会一直返回EOF。
+在创建解析器时调用了两次next_token方法，是为了初始化当前Token和下一个Token。这里您不用担心input是否够用的问题，词法分析器在input结尾处会一直返回EOF，而不会报错。
 
 由于这里需要调用Token的clone方法，修改Token和TokenType的属性如下：
 ```rust,noplaypen
@@ -370,6 +382,7 @@ pub struct Identifier {
 pub mod ast;
 pub mod parser;
 
+#[cfg(test)]
 mod parser_test;
 ```
 测试失败的信息如下：
@@ -474,7 +487,7 @@ impl NodeTrait for Expression {
 ```
 测试通过！
 
-大家可以比较一下用Rust实现的program、statement和let_statement的解析过程，跟伪代码逻辑是一致的，只是暂时缺少解析其它类型语句的分支，我们会在后续的开发过程中补上。
+大家可以比较一下用Rust实现的program、statement和let_statement的解析过程，跟伪代码逻辑是一致的，只是暂时缺少解析其它类型语句的分支，我们会在后续的开发过程中逐渐补充。
 
 为了更好地调试，我们在继续工作之前先为解析器加入一些错误处理的能力：
 ```rust,noplaypen

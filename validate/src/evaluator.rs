@@ -8,11 +8,11 @@ use std::cell::*;
 use std::collections::*;
 use std::rc::*;
 
-pub const TRUE: BooleanObj = BooleanObj { value: true };
-pub const FALSE: BooleanObj = BooleanObj { value: false };
+pub const TRUE: Boolean = Boolean { value: true };
+pub const FALSE: Boolean = Boolean { value: false };
 pub const NULL: Null = Null {};
 
-pub fn native_bool_to_boolean_object(input: bool) -> BooleanObj {
+pub fn native_bool_to_boolean_object(input: bool) -> Boolean {
     if input {
         TRUE
     } else {
@@ -30,8 +30,8 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
         Node::Expression(Expression::IntegerLiteral(IntegerLiteral { token: _, value })) => {
             Some(Object::Integer(Integer { value: value }))
         }
-        Node::Expression(Expression::Boolean(Boolean { token: _, value })) => {
-            Some(Object::BooleanObj(native_bool_to_boolean_object(value)))
+        Node::Expression(Expression::BooleanLiteral(BooleanLiteral { token: _, value })) => {
+            Some(Object::Boolean(native_bool_to_boolean_object(value)))
         }
         Node::Expression(Expression::PrefixExpression(PrefixExpression {
             token: _,
@@ -158,21 +158,20 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
         }
         Node::Expression(Expression::HashLiteral(hash_literal)) => {
             eval_hash_literal(hash_literal, Rc::clone(&env))
-        }
-        _ => None,
+        } // _ => None,
     }
 }
 
-fn eval_statements(stmts: Vec<Statement>, env: Rc<RefCell<Environment>>) -> Option<Object> {
-    let mut result: Option<Object> = None;
-    for statement in stmts.iter() {
-        result = eval(Node::Statement(statement.clone()), Rc::clone(&env));
-        if let Some(Object::ReturnValue(ReturnValue { value })) = result {
-            return Some(*value);
-        }
-    }
-    result
-}
+// fn eval_statements(stmts: Vec<Statement>, env: Rc<RefCell<Environment>>) -> Option<Object> {
+//     let mut result: Option<Object> = None;
+//     for statement in stmts.iter() {
+//         result = eval(Node::Statement(statement.clone()), Rc::clone(&env));
+//         if let Some(Object::ReturnValue(ReturnValue { value })) = result {
+//             return Some(*value);
+//         }
+//     }
+//     result
+// }
 
 fn eval_prefix_expression(operator: &str, right: Option<Object>) -> Option<Object> {
     match operator {
@@ -188,10 +187,10 @@ fn eval_prefix_expression(operator: &str, right: Option<Object>) -> Option<Objec
 
 fn eval_bang_operator_expression(right: Option<Object>) -> Option<Object> {
     match right {
-        Some(Object::BooleanObj(TRUE)) => Some(Object::BooleanObj(FALSE)),
-        Some(Object::BooleanObj(FALSE)) => Some(Object::BooleanObj(TRUE)),
-        Some(Object::Null(NULL)) => Some(Object::BooleanObj(TRUE)),
-        _ => Some(Object::BooleanObj(FALSE)),
+        Some(Object::Boolean(TRUE)) => Some(Object::Boolean(FALSE)),
+        Some(Object::Boolean(FALSE)) => Some(Object::Boolean(TRUE)),
+        Some(Object::Null(NULL)) => Some(Object::Boolean(TRUE)),
+        _ => Some(Object::Boolean(FALSE)),
     }
 }
 
@@ -231,10 +230,10 @@ fn eval_infix_expression(
     if let Some(left_obj) = left {
         if let Some(right_obj) = right {
             return match operator {
-                "==" => Some(Object::BooleanObj(native_bool_to_boolean_object(
+                "==" => Some(Object::Boolean(native_bool_to_boolean_object(
                     left_obj == right_obj,
                 ))),
-                "!=" => Some(Object::BooleanObj(native_bool_to_boolean_object(
+                "!=" => Some(Object::Boolean(native_bool_to_boolean_object(
                     left_obj != right_obj,
                 ))),
                 _ => new_error(format!(
@@ -263,16 +262,12 @@ fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Optio
         "/" => Some(Object::Integer(Integer {
             value: left / right,
         })),
-        "<" => Some(Object::BooleanObj(native_bool_to_boolean_object(
-            left < right,
-        ))),
-        ">" => Some(Object::BooleanObj(native_bool_to_boolean_object(
-            left > right,
-        ))),
-        "==" => Some(Object::BooleanObj(native_bool_to_boolean_object(
+        "<" => Some(Object::Boolean(native_bool_to_boolean_object(left < right))),
+        ">" => Some(Object::Boolean(native_bool_to_boolean_object(left > right))),
+        "==" => Some(Object::Boolean(native_bool_to_boolean_object(
             left == right,
         ))),
-        "!=" => Some(Object::BooleanObj(native_bool_to_boolean_object(
+        "!=" => Some(Object::Boolean(native_bool_to_boolean_object(
             left != right,
         ))),
         _ => new_error(format!("unknown operator: INTEGER {} INTEGER", operator)),
@@ -302,8 +297,8 @@ fn eval_if_expression(ie: IfExpression, env: Rc<RefCell<Environment>>) -> Option
 fn is_truthy(obj: &Option<Object>) -> bool {
     match obj {
         Some(Object::Null(NULL)) => false,
-        Some(Object::BooleanObj(TRUE)) => true,
-        Some(Object::BooleanObj(FALSE)) => false,
+        Some(Object::Boolean(TRUE)) => true,
+        Some(Object::Boolean(FALSE)) => false,
         _ => true,
     }
 }

@@ -1,6 +1,6 @@
 # 词法分析器
 
-词法分析器输入的是源代码，每次调用next_token()方法时返回下一个Token。本文为了简化，不在Token中增加文件名和行号等信息。
+词法分析器输入的是源代码，每次调用next_token方法时返回下一个Token。本文为了简化，不在Token中增加文件名和行号等信息。
 
 遵循测试驱动开发（Test-Driven Development，简称TDD）的原则，先写单元测试用例：
 ```rust,noplaypen
@@ -44,8 +44,6 @@ fn test_next_token() {
     }
 }
 ```
-本文中每段代码的顶部给出了所在文件的路径，根据情况打开或创建该文件。
-
 上述代码中的#[test]属性表示下面的函数是个测试函数，在自动化测试时会执行。代码的功能是将一个字符串作为输入，让词法分析器分析并使用断言验证输出的结果与预期结果是否一致。
 
 为了支持Rust的自动化测试，首先需要将工程文件补充完整。创建src/lib.js文件，内容如下：
@@ -54,6 +52,7 @@ fn test_next_token() {
 
 pub mod token;
 
+#[cfg(test)]
 mod lexer_test;
 ```
 在src/main.rs文件头部添加：
@@ -115,11 +114,11 @@ pub mod lexer;
         self.read_position += 1;
     }
 ```
-read_char()方法的目的是读取下一个字符，并前进一个字符。如果到输入结尾不能读字符时，就设置ch为0。这个特殊符号用来代表EOF。
+read_char方法的目的是读取下一个字符，并前进一个字符。如果到输入结尾不能读字符时，就设置ch为0。这个特殊符号用来代表EOF。
 
 简单起见，本文实现的解释器只支持ASCII。您可以自己尝试支持Unicode。
 
-在new()方法中调用read_char方法，可以改成：
+在new方法中调用read_char方法，可以改成：
 ```rust,noplaypen
 // src/lexer.rs
 
@@ -174,7 +173,7 @@ pub fn new_token(token_type: TokenType, ch: u8) -> Token {
     }
 }
 ```
-next_token()方法的功能就是根据当前字符，返回下一个Token。
+next_token方法的功能就是根据当前字符，返回下一个Token。
 
 在lexer_test.rs中加入：
 ```rust,noplaypen
@@ -326,7 +325,7 @@ fn is_letter(ch) -> bool {
 
 is_letter函数检查是否是字符和下划线，这是标识符中支持的字符。
 
-这里Token的literal不再是单一字符，所以没有使用new_token()函数来创建Token，而是根据read_identifier()方法返回的字符串直接创建Token。
+这里Token的literal不再是单一字符，所以没有使用new_token函数来创建Token，而是根据read_identifier方法返回的字符串直接创建Token。
 
 需要支持关键字，在token.rs中实现一个关键字查找函数：
 ```rust,noplaypen
@@ -366,7 +365,7 @@ pub fn lookup_ident(ident: &str) -> TokenType {
 // [...] 
     }
 ```
-这里调用了read_identifier()方法，不需要在返回之前再次调用read_char方法来更新Lexer，所以用return语句直接返回tok即可。
+这里调用了read_identifier方法，不需要在返回之前再次调用read_char方法来更新Lexer，所以用return语句直接返回tok即可。
 
 执行cargo test，仍然报错，如下：
 ```

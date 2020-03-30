@@ -1,5 +1,10 @@
 # 错误处理
 
+这里不是指Monkey语言支持错误处理，而是对解释器遇到内部错误时的处理。例如：非法操作符、不支持的操作或其它执行期间遇到的错误。
+
+错误的处理方式跟Return语句的处理方式类似。遇到错误终止求值，返回错误对象。
+
+错误对象的定义如下：
 ```rust,noplaypen
 // src/object.rs
 
@@ -35,7 +40,9 @@ impl ObjectTrait for Object {
     }
 }
 ```
+这里实现的错误对象仅仅封装了错误消息。您可以试着加上文件名和行号这类信息。
 
+测试用例：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -78,11 +85,11 @@ return 1;
     }
 }
 ```
-测试结果
+测试失败结果如下：
 ```
 thread 'evaluator::tests::test_error_handling' panicked at 'no error object returned. got=Some(Null(Null))', src/evaluator_test.rs:409:17
 ```
-
+编写一个创建错误对象的辅助函数：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -90,7 +97,7 @@ pub fn new_error(msg: String) -> Option<Object> {
     Some(Object::ErrorObj(ErrorObj { message: msg }))
 }
 ```
-
+先处理前缀表达式中使用了不支持的操作符错误：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -120,6 +127,12 @@ fn eval_minus_prefix_operator_expression(right: Option<Object>) -> Option<Object
         new_error(format!("unknown operator: -{}", get_type(&right)))
     }
 }
+```
+这里编写了一个get_type辅助函数，支持取得Objec或None的类型。
+
+中缀表达式除了非法操作符错误，还有左右子表达式类型不一致的错误：
+```rust,noplaypen
+// src/evaluator.rs
 
 fn eval_infix_expression(
     operator: &str,
@@ -158,11 +171,13 @@ fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Optio
     }
 }
 ```
-测试结果
+
+测试仍然失败：
 ```
 thread 'evaluator::tests::test_error_handling' panicked at 'no error object returned. got=Some(Integer(Integer { value: 5 }))', src/evaluator_test.rs:438:17
 ```
 
+需要在Program和块语句中处理求值出错的情况：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -196,6 +211,7 @@ fn eval_block_statement(block: BlockStatement) -> Option<Object> {
 }
 ```
 
+遍历AST求值过程中，任何一个eval相关函数都可能遇到求值错误，需要停止求值并返回：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -266,4 +282,8 @@ fn eval_if_expression(ie: IfExpression) -> Option<Object> {
 // [...]
 }
 ```
+这里实现了一个is_error判断函数。
+
 测试通过！
+
+错误处理已经完成！

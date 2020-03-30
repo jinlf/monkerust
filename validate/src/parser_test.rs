@@ -458,7 +458,7 @@ fn test_infix_expression(
 }
 
 fn test_boolean_literal(exp: &Expression, expected_value: bool) {
-    if let Expression::Boolean(Boolean { token, value }) = exp {
+    if let Expression::BooleanLiteral(BooleanLiteral { token, value }) = exp {
         assert!(
             *value == expected_value,
             "bo.value not {}. got={}",
@@ -472,7 +472,7 @@ fn test_boolean_literal(exp: &Expression, expected_value: bool) {
             token.literal
         );
     } else {
-        assert!(false, "exp not Boolean. got={:?}", exp);
+        assert!(false, "exp not BooleanLiteral. got={:?}", exp);
     }
 }
 

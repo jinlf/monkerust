@@ -4,7 +4,7 @@
 ```rust,noplaypen
 fn eval(node: Node) -> Option<Object>
 ```
-它输入Node节点，输出Object节点，由于Rust语言不支持空值，考虑到求值返回空值的情况，这里用Option包装了Object。
+它输入Node节点，输出Object节点，由于Rust语言不支持空值，考虑到求值的各种情况，这里用Option包装了Object。
 
 ## 整数字面量
 
@@ -53,6 +53,7 @@ fn test_integer_object(obj: Option<Object>, expected: i64) {
 ```rust,noplaypen
 // src/lib.rs
 
+#[cfg(test)]
 mod evaluator_test;
 ```
 
@@ -72,7 +73,7 @@ pub struct Integer {
 }
 
 #[derive(Debug)]
-pub struct BooleanObj {
+pub struct Boolean {
 // [...]
 }
 
@@ -188,7 +189,7 @@ fn test_eval_boolean_expression() {
 }
 
 fn test_boolean_object(obj: Option<Object>, expected: bool) {
-    if let Some(Object::BooleanObj(BooleanObj { value })) = obj {
+    if let Some(Object::Boolean(Boolean { value })) = obj {
         assert!(
             value == expected,
             "object has wrong value. got={}, want={}",
@@ -196,7 +197,7 @@ fn test_boolean_object(obj: Option<Object>, expected: bool) {
             expected
         );
     } else {
-        assert!(false, "object is not Boolean. got={:?}", obj);
+        assert!(false, "object is not BooleanLiteral. got={:?}", obj);
     }
 }
 ```
@@ -204,7 +205,7 @@ fn test_boolean_object(obj: Option<Object>, expected: bool) {
 测试结果如下：
 
 ```
-thread 'evaluator::tests::test_eval_boolean_expression' panicked at 'object is not Boolean. got=None', src/evaluator_test.rs:83:13
+thread 'evaluator::tests::test_eval_boolean_expression' panicked at 'object is not BooleanLiteral. got=None', src/evaluator_test.rs:83:13
 ```
 
 加上求值代码：
@@ -214,8 +215,8 @@ thread 'evaluator::tests::test_eval_boolean_expression' panicked at 'object is n
 pub fn eval(node: Node) -> Option<Object> {
     match node {
 // [...]
-        Node::Expression(Expression::Boolean(Boolean { token: _, value })) => {
-            Some(Object::BooleanObj(BooleanObj { value: value }))
+        Node::Expression(Expression::BooleanLiteral(BooleanLiteral { token: _, value })) => {
+            Some(Object::Boolean(Boolean { value: value }))
         }
         _ => None,
     }
@@ -226,8 +227,8 @@ pub fn eval(node: Node) -> Option<Object> {
 ```rust,noplaypen
 // src/evaluator.rs
 
-pub const TRUE: BooleanObj = BooleanObj { value: true };
-pub const FALSE: BooleanObj = BooleanObj { value: false };
+pub const TRUE: Boolean = Boolean { value: true };
+pub const FALSE: Boolean = Boolean { value: false };
 
 pub fn native_bool_to_boolean_object(input: bool) -> Object {
     if input {
@@ -240,8 +241,8 @@ pub fn native_bool_to_boolean_object(input: bool) -> Object {
 pub fn eval(node: Node) -> Option<Object> {
     match node {
 // [...]
-        Node::Expression(Expression::Boolean(Boolean { token: _, value })) => {
-            Some(Object::BooleanObj(native_bool_to_boolean_object(value)))
+        Node::Expression(Expression::BooleanLiteral(BooleanLiteral { token: _, value })) => {
+            Some(Object::Boolean(native_bool_to_boolean_object(value)))
         }
 // [...]
 }
@@ -284,7 +285,7 @@ fn test_bang_operator() {
     }
 }
 ```
-true和false取反很好理解，Monkey语言中“!5”这种表达式结果会返回false，因为语言规定5这种是真值。
+true和false取反很好理解，Monkey语言中“!5”这种表达式结果会返回false，因为语言规定5是真值。
 
 ```rust,noplaypen
 // src/evaluator.rs
@@ -306,7 +307,7 @@ pub fn eval(node: Node) -> Option<Object> {
 fn eval_prefix_expression(operator: &str, right: Option<Object>) -> Option<Object> {
     match operator {
         "!" => eval_bang_operator_expression(right),
-        _ => None,
+        _ => Some(Object::Null(NULL)),
     }
 }
 ```
@@ -317,10 +318,10 @@ fn eval_prefix_expression(operator: &str, right: Option<Object>) -> Option<Objec
 
 fn eval_bang_operator_expression(right: Option<Object>) -> Option<Object> {
     match right {
-        Some(Object::BooleanObj(TRUE)) => Some(Object::BooleanObj(FALSE)),
-        Some(Object::BooleanObj(FALSE)) => Some(Object::BooleanObj(TRUE)),
-        Some(Object::Null(NULL)) => Some(Object::BooleanObj(TRUE)),
-        _ => Some(Object::BooleanObj(FALSE)),
+        Some(Object::Boolean(TRUE)) => Some(Object::Boolean(FALSE)),
+        Some(Object::Boolean(FALSE)) => Some(Object::Boolean(TRUE)),
+        Some(Object::Null(NULL)) => Some(Object::Boolean(TRUE)),
+        _ => Some(Object::Boolean(FALSE)),
     }
 }
 ```
@@ -385,7 +386,7 @@ null
 
 ## 中缀表达式
 
-Monkey语言支持的8中中缀操作符：
+Monkey语言支持的8种中缀操作符：
 ```js
 5 + 5; 
 5 - 5; 
@@ -482,7 +483,7 @@ fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Optio
 ```
 测试通过！
 
-下面考虑逻辑操作符：
+下面考虑比较操作符：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -510,15 +511,15 @@ fn test_eval_boolean_expression() {
 fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Option<Object> {
     match operator {
 // [...]
-        "<" => Some(Object::BooleanObj(native_bool_to_boolean_object(left < right))),
-        ">" => Some(Object::BooleanObj(native_bool_to_boolean_object(left > right))),
-        "==" => Some(Object::BooleanObj(native_bool_to_boolean_object(left == right))),
-        "!=" => Some(Object::BooleanObj(native_bool_to_boolean_object(left != right))),
+        "<" => Some(Object::Boolean(native_bool_to_boolean_object(left < right))),
+        ">" => Some(Object::Boolean(native_bool_to_boolean_object(left > right))),
+        "==" => Some(Object::Boolean(native_bool_to_boolean_object(left == right))),
+        "!=" => Some(Object::Boolean(native_bool_to_boolean_object(left != right))),
         _ => Some(Object::Null(NULL)),
     }
 }
 ```
-上面实现了对整数的四个逻辑操作符。
+上面实现了对整数的四个比较操作符。
 
 下面添加对布尔值的“==”和“!=”操作，先添加测试用例：
 ```rust,noplaypen
@@ -542,7 +543,7 @@ fn test_eval_boolean_expression() {
 测试结果如下：
 
 ```
-thread 'evaluator_test::test_eval_boolean_expression' panicked at 'object is not Boolean. got=None', src/evaluator_test.rs:94:
+thread 'evaluator_test::test_eval_boolean_expression' panicked at 'object is not BooleanLiteral. got=None', src/evaluator_test.rs:94:
 ```
 
 ```rust,noplaypen
@@ -563,8 +564,8 @@ fn eval_infix_expression(
     if let Some(left_obj) = left {
         if let Some(right_obj) = right {
             return match operator {
-                "==" => Some(Object::BooleanObj(native_bool_to_boolean_object(left_obj == right_obj))),
-                "!=" => Some(Object::BooleanObj(native_bool_to_boolean_object(left_obj != right_obj))),
+                "==" => Some(Object::Boolean(native_bool_to_boolean_object(left_obj == right_obj))),
+                "!=" => Some(Object::Boolean(native_bool_to_boolean_object(left_obj != right_obj))),
                 _ => Some(Object::Null(NULL)),
             };
         }

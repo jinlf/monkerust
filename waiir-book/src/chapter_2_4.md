@@ -213,7 +213,7 @@ thread 'lexer::tests::test_next_token' panicked at 'test[74] - tokentype wrong. 
         }        
     }
 ```
-这里当当前字符是“=”时，我们通过调用peek_char()方法看看下一个字符是否是“=”，如果是，就将这两个字符连起来构成“==”Token，否则返回“=”Token。“!”与“!=”的处理也是如此。
+这里当当前字符是“=”时，我们通过调用peek_char方法看看下一个字符是否是“=”，如果是，就将这两个字符连起来构成“==”Token，否则返回“=”Token。“!”与“!=”的处理也是如此。
 
 测试通过。
 

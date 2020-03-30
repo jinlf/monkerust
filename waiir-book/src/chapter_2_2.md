@@ -38,6 +38,8 @@ pub enum TokenType {
     LET,       // let
 }
 ```
+本文中每段代码的顶部给出了所在文件的路径，根据情况打开或创建该文件。
+
 这里有两个Token类型比较特殊：
 - ILLEGAL：表示未知的Token，分析到ILLEGAL时表示遇到了错误；
 - EOF：表示文件结束符，分析到EOF时就可以停止了。

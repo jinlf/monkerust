@@ -65,7 +65,7 @@ fn test_infix_expression(
     }
 }
 ```
-这里用到了Rust中的向下转换方法downcast_ref，这个方法能够将std::any::Any对象转换成具体struct，转换不了的返回None。
+这里用到了Rust中的std::any:Any及其方法downcast_ref，这个方法能够将std::any::Any对象转换成具体struct，转换不了的返回None。
 
 上述测试代码的预期值（expected）是用std::dyn::Any传递和转换的。
 
@@ -83,11 +83,11 @@ let barfoo = false;
 // src/ast.rs
 
 #[derive(Debug)]
-pub struct Boolean {
+pub struct BooleanLiteral {
     pub token: Token,
     pub value: bool,
 }
-impl NodeTrait for Boolean {
+impl NodeTrait for BooleanLiteral {
     fn token_literal(&self) -> String {
         self.token.literal.clone()
     }
@@ -99,19 +99,19 @@ impl NodeTrait for Boolean {
 #[derive(Debug)]
 pub enum Expression {
 // [...]
-    Boolean(Boolean),
+    BooleanLiteral(BooleanLiteral),
 }
 impl NodeTrait for Expression {
     fn token_literal(&self) -> String {
         match self {
 // [...]
-            Expression::Boolean(bo) => bo.token_literal(),
+            Expression::BooleanLiteral(bo) => bo.token_literal(),
         }
     }
     fn string(&self) -> String {
         match self {
 // [...]
-            Expression::Boolean(bo) => bo.string(),
+            Expression::BooleanLiteral(bo) => bo.string(),
         }
     }
 }
@@ -127,7 +127,7 @@ impl NodeTrait for Expression {
         let tk_type = self.cur_token.tk_type.clone();
         match tk_type {
 // [...]
-            TokenType::TRUE | TokenType::FALSE => left_exp = self.parse_boolean(),
+            TokenType::TRUE | TokenType::FALSE => left_exp = self.parse_boolean_literal(),
 // [...]
         }        
 ```
@@ -135,8 +135,8 @@ impl NodeTrait for Expression {
 ```rust,noplaypen
 // src/parser.rs
 
-    fn parse_boolean(&self) -> Option<Expression> {
-        Some(Expression::Boolean(Boolean {
+    fn parse_boolean_literal(&self) -> Option<Expression> {
+        Some(Expression::BooleanLiteral(BooleanLiteral {
             token: self.cur_token.clone(),
             value: self.cur_token_is(TokenType::TRUE),
         }))
@@ -173,7 +173,7 @@ fn test_literal_expression(exp: &Expression, expected: &dyn std::any::Any) {
 }
 
 fn test_boolean_literal(exp: &Expression, expected_value: bool) {
-    if let Expression::Boolean(Boolean { token, value }) = exp {
+    if let Expression::BooleanLiteral(BooleanLiteral { token, value }) = exp {
         assert!(
             *value == expected_value,
             "bo.value not {}. got={}",
@@ -187,7 +187,7 @@ fn test_boolean_literal(exp: &Expression, expected_value: bool) {
             token.literal
         );
     } else {
-        assert!(false, "exp not Boolean. got={:?}", exp);
+        assert!(false, "exp not BooleanLiteral. got={:?}", exp);
     }
 }
 ```
@@ -411,7 +411,7 @@ impl NodeTrait for Expression {
     }
 }
 ```
-由于alternative是可选的，这里用Option来处理。
+由于alternative是可选的，这里用Option来包装。
 
 用到的BlockStatement定义如下：
 ```rust,noplaypen
@@ -1272,7 +1272,7 @@ pub enum Expression {
     IntegerLiteral(IntegerLiteral),
     PrefixExpression(PrefixExpression),
     InfixExpression(InfixExpression),
-    Boolean(Boolean),
+    BooleanLiteral(BooleanLiteral),
     IfExpression(IfExpression),
     FunctionLiteral(FunctionLiteral),
     CallExpression(CallExpression),
@@ -1284,7 +1284,7 @@ impl NodeTrait for Expression {
             Expression::IntegerLiteral(integer_literal) => integer_literal.token_literal(),
             Expression::PrefixExpression(prefix_expr) => prefix_expr.token_literal(),
             Expression::InfixExpression(infix_expr) => infix_expr.token_literal(),
-            Expression::Boolean(bo) => bo.token_literal(),
+            Expression::BooleanLiteral(bo) => bo.token_literal(),
             Expression::IfExpression(if_expr) => if_expr.token_literal(),
             Expression::FunctionLiteral(function_literal) => function_literal.token_literal(),
             Expression::CallExpression(call_expr) => call_expr.token_literal(),
@@ -1296,7 +1296,7 @@ impl NodeTrait for Expression {
             Expression::IntegerLiteral(integer_literal) => integer_literal.string(),
             Expression::PrefixExpression(prefix_expr) => prefix_expr.string(),
             Expression::InfixExpression(infix_expr) => infix_expr.string(),
-            Expression::Boolean(bo) => bo.string(),
+            Expression::BooleanLiteral(bo) => bo.string(),
             Expression::IfExpression(if_expr) => if_expr.string(),
             Expression::FunctionLiteral(function_literal) => function_literal.string(),
             Expression::CallExpression(call_expr) => call_expr.string(),
@@ -1340,7 +1340,7 @@ impl NodeTrait for Expression {
         })
     }
 
-        fn parse_return_statement(&mut self) -> Option<ReturnStatement> {
+    fn parse_return_statement(&mut self) -> Option<ReturnStatement> {
         let token = self.cur_token.clone();
         self.next_token();
 

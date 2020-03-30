@@ -126,7 +126,7 @@ fn test_return_statements() {
 ```
 thread 'evaluator::tests::test_return_statements' panicked at 'object has wrong value. got=1, want=10', src/evaluator_test.rs:224:13
 ```
-失败的原因是，嵌套块语句中包含retrun求值时，应该在最外层终止并返回。前面实现的eval_statements仅适用于Program这种最外层的语句中。
+失败的原因是，嵌套块语句中包含retrun求值时，应该在最外层终止并返回。前面实现的eval_statements仅适用于Program这种最外层语句的情况。
 
 所以我们将刚刚修改过的eval_statements修改为eval_program，如下：
 ```rust,noplaypen
@@ -177,6 +177,6 @@ fn eval_block_statement(block: BlockStatement) -> Option<Object> {
     result
 }
 ```
-这里return求值的结果对象是ReturnValue，而不是内部的Expression。
+与Program不同，这里return求值的结果对象是ReturnValue，而不是内部的Expression。
 
 测试通过！

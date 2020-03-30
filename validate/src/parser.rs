@@ -164,7 +164,7 @@ impl<'a> Parser<'a> {
             TokenType::IDENT => left_exp = self.parse_identifier(),
             TokenType::INT => left_exp = self.parse_integer_literal(),
             TokenType::BANG | TokenType::MINUS => left_exp = self.parse_prefix_expression(),
-            TokenType::TRUE | TokenType::FALSE => left_exp = self.parse_boolean(),
+            TokenType::TRUE | TokenType::FALSE => left_exp = self.parse_boolean_literal(),
             TokenType::LPAREN => left_exp = self.parse_grouped_expression(),
             TokenType::IF => left_exp = self.parse_if_expression(),
             TokenType::FUNCTION => left_exp = self.parse_function_literal(),
@@ -275,8 +275,8 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn parse_boolean(&self) -> Option<Expression> {
-        Some(Expression::Boolean(Boolean {
+    fn parse_boolean_literal(&self) -> Option<Expression> {
+        Some(Expression::BooleanLiteral(BooleanLiteral {
             token: self.cur_token.clone(),
             value: self.cur_token_is(TokenType::TRUE),
         }))
@@ -427,36 +427,36 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn parse_call_arguments(&mut self) -> Option<Vec<Expression>> {
-        let mut args: Vec<Expression> = Vec::new();
-        if self.peek_token_is(TokenType::RPAREN) {
-            self.next_token();
-            return Some(args);
-        }
+    // fn parse_call_arguments(&mut self) -> Option<Vec<Expression>> {
+    //     let mut args: Vec<Expression> = Vec::new();
+    //     if self.peek_token_is(TokenType::RPAREN) {
+    //         self.next_token();
+    //         return Some(args);
+    //     }
 
-        self.next_token();
-        let arg = self.parse_expression(Precedence::LOWEST);
-        if arg.is_none() {
-            return None;
-        }
-        args.push(arg.unwrap());
+    //     self.next_token();
+    //     let arg = self.parse_expression(Precedence::LOWEST);
+    //     if arg.is_none() {
+    //         return None;
+    //     }
+    //     args.push(arg.unwrap());
 
-        while self.peek_token_is(TokenType::COMMA) {
-            self.next_token();
-            self.next_token();
-            let arg = self.parse_expression(Precedence::LOWEST);
-            if arg.is_none() {
-                return None;
-            }
-            args.push(arg.unwrap());
-        }
+    //     while self.peek_token_is(TokenType::COMMA) {
+    //         self.next_token();
+    //         self.next_token();
+    //         let arg = self.parse_expression(Precedence::LOWEST);
+    //         if arg.is_none() {
+    //             return None;
+    //         }
+    //         args.push(arg.unwrap());
+    //     }
 
-        if !self.expect_peek(TokenType::RPAREN) {
-            return None;
-        }
+    //     if !self.expect_peek(TokenType::RPAREN) {
+    //         return None;
+    //     }
 
-        Some(args)
-    }
+    //     Some(args)
+    // }
 
     fn parse_string_literal(&self) -> Option<Expression> {
         Some(Expression::StringLiteral(StringLiteral {

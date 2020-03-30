@@ -17,7 +17,7 @@ pub trait ObjectTrait {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Object {
     Integer(Integer),
-    BooleanObj(BooleanObj),
+    Boolean(Boolean),
     Null(Null),
     ReturnValue(ReturnValue),
     ErrorObj(ErrorObj),
@@ -31,7 +31,7 @@ impl ObjectTrait for Object {
     fn get_type(&self) -> String {
         match self {
             Object::Integer(i) => i.get_type(),
-            Object::BooleanObj(b) => b.get_type(),
+            Object::Boolean(b) => b.get_type(),
             Object::Null(n) => n.get_type(),
             Object::ReturnValue(rv) => rv.get_type(),
             Object::ErrorObj(e) => e.get_type(),
@@ -45,7 +45,7 @@ impl ObjectTrait for Object {
     fn inspect(&self) -> String {
         match self {
             Object::Integer(i) => i.inspect(),
-            Object::BooleanObj(b) => b.inspect(),
+            Object::Boolean(b) => b.inspect(),
             Object::Null(n) => n.inspect(),
             Object::ReturnValue(rv) => rv.inspect(),
             Object::ErrorObj(e) => e.inspect(),
@@ -72,10 +72,10 @@ impl ObjectTrait for Integer {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct BooleanObj {
+pub struct Boolean {
     pub value: bool,
 }
-impl ObjectTrait for BooleanObj {
+impl ObjectTrait for Boolean {
     fn get_type(&self) -> String {
         String::from("BOOLEAN")
     }
@@ -181,7 +181,7 @@ impl std::fmt::Debug for Builtin {
     }
 }
 impl PartialEq for Builtin {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         false
     }
 }
@@ -220,7 +220,7 @@ pub struct HashKey {
 pub trait Hashable {
     fn hash_key(&self) -> HashKey;
 }
-impl Hashable for BooleanObj {
+impl Hashable for Boolean {
     fn hash_key(&self) -> HashKey {
         let mut value: u64 = 0;
         if self.value {
@@ -267,7 +267,7 @@ impl Debug for Hash {
 }
 impl Eq for Hash {}
 impl PartialEq for Hash {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         false
     }
 }
@@ -294,7 +294,7 @@ impl AsHashable for Object {
     fn as_hashable(&self) -> Option<&dyn Hashable> {
         match self {
             Object::Integer(i) => Some(i),
-            Object::BooleanObj(b) => Some(b),
+            Object::Boolean(b) => Some(b),
             Object::StringObj(s) => Some(s),
             _ => None,
         }

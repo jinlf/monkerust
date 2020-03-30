@@ -404,6 +404,7 @@ lib.rs中加入
 ```rust,noplaypen
 // src/lib.rs
 
+#[cfg(test)]
 mod object_test;
 ```
 
@@ -423,7 +424,7 @@ pub struct HashKey {
 pub trait Hashable {
     fn hash_key(&self) -> HashKey;
 }
-impl Hashable for BooleanObj {
+impl Hashable for Boolean {
     fn hash_key(&self) -> HashKey {
         let mut value: u64 = 0;
         if self.value {
@@ -474,7 +475,7 @@ impl Debug for Hash {
 }
 impl Eq for Hash {}
 impl PartialEq for Hash {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         false
     }
 }
@@ -592,7 +593,7 @@ impl AsHashable for Object {
     fn as_hashable(&self) -> Option<&dyn Hashable> {
         match self {
             Object::Integer(i) => Some(i),
-            Object::BooleanObj(b) => Some(b),
+            Object::Boolean(b) => Some(b),
             Object::StringObj(s) => Some(s),
             _ => None,
         }

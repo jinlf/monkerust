@@ -101,8 +101,8 @@ fn eval_if_expression(ie: IfExpression) -> Option<Object> {
 fn is_truthy(obj: &Option<Object>) -> bool {
     match obj {
         Some(Object::Null(NULL)) => false,
-        Some(Object::BooleanObj(TRUE)) => true,
-        Some(Object::BooleanObj(FALSE)) => false,
+        Some(Object::Boolean(TRUE)) => true,
+        Some(Object::Boolean(FALSE)) => false,
         _ => true,
     }
 }

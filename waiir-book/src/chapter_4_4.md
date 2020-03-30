@@ -23,7 +23,7 @@ a + a;
 
 ## 对象系统基础
 
-由于不考虑性能，我们实现Monkey解释器时选择了最简单的实现方式：定义Rust枚举Object，将每种求值得到的结构体作为Object的一种类型。
+由于不考虑性能，我们实现Monkey解释器时选择了最简单的实现方式：定义Rust枚举Object，将每种求值得到的结构体作为Object的一种枚举成员类型。
 
 定义如下：
 ```rust,noplaypen
@@ -88,7 +88,7 @@ impl ObjectTrait for Object {
     }
 }
 ```
-当我们在源代码中遇到整型字面量时，先生成对应的AST节点，对其求值得到Integer对象。
+当我们在源代码中遇到整型字面量时，先生成对应的AST节点，对其求值得到Integer对象。整数的值被包装在Rust的i64类型变量中。
 
 ## 布尔值
 
@@ -96,10 +96,10 @@ impl ObjectTrait for Object {
 ```rust,noplaypen
 // src/object.rs
 
-pub struct BooleanObj {
+pub struct Boolean {
     pub value: bool,
 }
-impl ObjectTrait for BooleanObj {
+impl ObjectTrait for Boolean {
     fn get_type(&self) -> String {
         String::from("BOOLEAN")
     }
@@ -110,19 +110,19 @@ impl ObjectTrait for BooleanObj {
 
 pub enum Object {
     Integer(Integer),
-    BooleanObj(BooleanObj),
+    Boolean(Boolean),
 }
 impl ObjectTrait for Object {
     fn get_type(&self) -> String {
         match self {
             Object::Integer(i) => i.get_type(),
-            Object::BooleanObj(b) => b.get_type(),
+            Object::Boolean(b) => b.get_type(),
         }
     }
     fn inspect(&self) -> String {
         match self {
             Object::Integer(i) => i.inspect(),
-            Object::BooleanObj(b) => b.inspect(),
+            Object::Boolean(b) => b.inspect(),
         }
     }
 }
@@ -149,27 +149,27 @@ impl ObjectTrait for Null {
 
 pub enum Object {
     Integer(Integer),
-    BooleanObj(BooleanObj),
+    Boolean(Boolean),
     Null(Null),
 }
 impl ObjectTrait for Object {
     fn get_type(&self) -> String {
         match self {
             Object::Integer(i) => i.get_type(),
-            Object::BooleanObj(b) => b.get_type(),
+            Object::Boolean(b) => b.get_type(),
             Object::Null(n) => n.get_type(),
         }
     }
     fn inspect(&self) -> String {
         match self {
             Object::Integer(i) => i.inspect(),
-            Object::BooleanObj(b) => b.inspect(),
+            Object::Boolean(b) => b.inspect(),
             Object::Null(n) => n.inspect(),
         }
     }
 }
 ```
 
-空值是个与布尔值或整型类似的结构体，唯一的不同是没有包装任何值。
+空值是个与布尔值或整数类似的结构体，唯一的不同是没有包装任何值。
 
 有了这个最基本的对象系统，我们可以开始实现eval函数了。

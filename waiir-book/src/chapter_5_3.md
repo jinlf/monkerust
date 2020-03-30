@@ -22,7 +22,7 @@ impl std::fmt::Debug for Builtin {
     }
 }
 impl PartialEq for Builtin {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         false
     }
 }

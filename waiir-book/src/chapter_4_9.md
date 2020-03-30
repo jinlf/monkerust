@@ -1,6 +1,12 @@
 # 绑定与环境
 
-测试用例
+需要用绑定来支持let语句，例如：
+```js
+let x = 5 + 5;
+```
+我们需要在求值后x的值为10。
+
+测试用例如下：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -17,6 +23,11 @@ fn test_let_statements() {
         test_integer_object(test_eval(tt.0), tt.1);
     }
 }
+```
+
+还需要测试标识符没有值的情况；
+```rust,noplaypen
+// src/evaluator_test.rs
 
 fn test_error_handling() {
     let tests = [
@@ -25,6 +36,7 @@ fn test_error_handling() {
     ];
 ```
 
+下面我们求值let语句：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -47,6 +59,7 @@ pub fn eval(node: Node) -> Option<Object> {
     }
 }
 ```
+我们需要一个标识符名称到值的映射来保存已经求值出来的信息，这种映射称作环境（Environment），可以用一个哈希表（HashMap）即可。
 
 ```rust,noplaypen
 // src/environment.rs
@@ -88,14 +101,13 @@ impl Environment {
 由于这里用到了Object的clone方法，需要将Object类型及其子类型都添加Clone属性。
 
 在lib.rs中添加：
-
 ```rust,noplaypen
 // src/lib.rs
 
 pub mod environment;
 ```
 
-扩展eval函数，增加Environment类型参数，这里添加用引用计数来实现
+扩展eval函数，增加Environment类型参数，这里使用引用计数来实现：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -107,8 +119,9 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
 // [...]
 }
 ```
-所有需要env做参数的地方，都使用Rc::clone(&env)。
+在Rust中，常用Rc和RefCell组合来实现引用计数，如上述代码中的env参数。
 
+修改REPL，创建（最外层）env：
 ```rust,noplaypen
 // src/repl.rs
 
@@ -130,7 +143,13 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
     }
 }
 ```
+这里需要修改的不仅仅是eval和start函数，很多求值函数都需要传递env做参数，请在命令行中执行：
+```
+$ cargo build
+```
+命令，根据编译器的报错修改相关代码，增加必要的env参数，所有env做实参的地方，都使用Rc::clone(&env)来增加对env的引用计数。重复上述步骤，直至没有此类错误。
 
+之前的测试用例中也需要增加创建和使用env的代码：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -147,6 +166,7 @@ fn test_eval(input: &str) -> Option<Object> {
 }
 ```
 
+修改求值let语句的代码如下：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -169,6 +189,7 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
     }
 }
 ```
+这里使用borrow_mut方法从引用计数中借用可变对象，然后将标识符和值的映射保存在环境中。
 
 ```rust,noplaypen
 // src/evaluator.rs
@@ -189,6 +210,8 @@ fn eval_identifier(node: Identifier, env: Rc<RefCell<Environment>>) -> Option<Ob
     }
 }
 ```
+在使用标识符时，使用borrow方法借用env对象，取得标识符对应的值。
+
 测试通过！
 
 用cargo run执行
