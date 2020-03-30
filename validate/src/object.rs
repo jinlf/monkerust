@@ -27,6 +27,11 @@ pub enum Object {
     Array(Array),
     Hash(Hash),
 }
+// impl Drop for Object {
+//     fn drop(&mut self) {
+//         println!("Dropping Object {}", self.get_type());
+//     }
+// }
 impl ObjectTrait for Object {
     fn get_type(&self) -> String {
         match self {

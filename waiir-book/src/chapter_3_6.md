@@ -461,8 +461,10 @@ fn test_integer_literal_expression() {
             statements.len()
         );
 
-        if let Statement::ExpressionStatement(ExpressionStatement { token, expression }) =
-            &statements[0]
+        if let Statement::ExpressionStatement(ExpressionStatement {
+            token: _,
+            expression,
+        }) = &statements[0]
         {
             if let Expression::IntegerLiteral(IntegerLiteral { token, value }) = expression {
                 assert!(*value == 5, "literal.value not {}. got={}", 5, value);
@@ -610,8 +612,10 @@ fn test_parsing_prefix_expression() {
                 statements.len()
             );
 
-            if let Statement::ExpressionStatement(ExpressionStatement { token, expression }) =
-                &statements[0]
+            if let Statement::ExpressionStatement(ExpressionStatement {
+                token: _,
+                expression,
+            }) = &statements[0]
             {
                 if let Expression::PrefixExpression(PrefixExpression {
                     token: _,
