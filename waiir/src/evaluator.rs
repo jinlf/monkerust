@@ -12,14 +12,6 @@ pub const TRUE: Boolean = Boolean { value: true };
 pub const FALSE: Boolean = Boolean { value: false };
 pub const NULL: Null = Null {};
 
-pub fn native_bool_to_boolean_object(input: bool) -> Boolean {
-    if input {
-        TRUE
-    } else {
-        FALSE
-    }
-}
-
 pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
     match node {
         Node::Program(_) => eval_program(node, Rc::clone(&env)),
@@ -158,20 +150,32 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
         }
         Node::Expression(Expression::HashLiteral(hash_literal)) => {
             eval_hash_literal(hash_literal, Rc::clone(&env))
-        } // _ => None,
+        }
     }
 }
 
-// fn eval_statements(stmts: Vec<Statement>, env: Rc<RefCell<Environment>>) -> Option<Object> {
-//     let mut result: Option<Object> = None;
-//     for statement in stmts.iter() {
-//         result = eval(Node::Statement(statement.clone()), Rc::clone(&env));
-//         if let Some(Object::ReturnValue(ReturnValue { value })) = result {
-//             return Some(*value);
-//         }
-//     }
-//     result
-// }
+fn eval_program(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
+    let mut result: Option<Object> = None;
+    if let Node::Program(Program { statements }) = node {
+        for statement in statements.iter() {
+            result = eval(Node::Statement(statement.clone()), Rc::clone(&env));
+            if let Some(Object::ReturnValue(ReturnValue { value })) = result {
+                return Some(*value);
+            } else if let Some(Object::ErrorObj(_)) = result {
+                return result;
+            }
+        }
+    }
+    result
+}
+
+pub fn native_bool_to_boolean_object(input: bool) -> Boolean {
+    if input {
+        TRUE
+    } else {
+        FALSE
+    }
+}
 
 fn eval_prefix_expression(operator: &str, right: Option<Object>) -> Option<Object> {
     match operator {
@@ -245,7 +249,7 @@ fn eval_infix_expression(
             };
         }
     }
-    Some(Object::Null(NULL))
+    None
 }
 
 fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Option<Object> {
@@ -301,21 +305,6 @@ fn is_truthy(obj: &Option<Object>) -> bool {
         Some(Object::Boolean(FALSE)) => false,
         _ => true,
     }
-}
-
-fn eval_program(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
-    let mut result: Option<Object> = None;
-    if let Node::Program(Program { statements }) = node {
-        for statement in statements.iter() {
-            result = eval(Node::Statement(statement.clone()), Rc::clone(&env));
-            if let Some(Object::ReturnValue(ReturnValue { value })) = result {
-                return Some(*value);
-            } else if let Some(Object::ErrorObj(_)) = result {
-                return result;
-            }
-        }
-    }
-    result
 }
 
 fn eval_block_statement(block: BlockStatement, env: Rc<RefCell<Environment>>) -> Option<Object> {

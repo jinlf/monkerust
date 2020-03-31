@@ -1,3 +1,5 @@
+// src/main.rs
+
 include!("lib.rs");
 
 fn main() {

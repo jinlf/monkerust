@@ -317,7 +317,7 @@ let result = add(five, ten);
         String::from(&self.input[position..self.position])
     }      
 // [...]
-fn is_letter(ch) -> bool {
+fn is_letter(ch: u8) -> bool {
     ch.is_ascii_alphabetic() || ch == b'_'
 }
 ```

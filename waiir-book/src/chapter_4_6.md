@@ -59,7 +59,11 @@ fn test_if_else_expression() {
 }
 
 fn test_null_object(obj: Option<Object>) {
-    assert!(obj == Some(Object::Null(NULL)), "object is not NULL, got={:?}", obj);
+    assert!(
+        obj == Some(Object::Null(NULL)),
+        "object is not NULL, got={:?}",
+        obj
+    );
 }
 ```
 

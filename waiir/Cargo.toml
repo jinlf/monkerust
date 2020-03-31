@@ -1,5 +1,5 @@
 [package]
-name = "validate"
+name = "waiir"
 version = "0.1.0"
 authors = ["阿飞 <jinlongfei@sina.com>"]
 edition = "2018"

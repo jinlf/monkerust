@@ -517,7 +517,7 @@ fn test_if_expression() {
 
                 assert!(
                     consequence.statements.len() == 1,
-                    "consequence is not 1 statements. got={:?}",
+                    "consequence is not 1 statements. got={}",
                     consequence.statements.len()
                 );
 
@@ -562,6 +562,7 @@ fn test_if_expression() {
 #[test]
 fn test_if_else_expression() {
     let input = "if (x < y) { x } else { y }";
+
     let l = Lexer::new(input);
     let mut p = Parser::new(l);
     let program = p.parse_program();

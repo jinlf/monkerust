@@ -230,7 +230,7 @@ pub fn eval(node: Node) -> Option<Object> {
 pub const TRUE: Boolean = Boolean { value: true };
 pub const FALSE: Boolean = Boolean { value: false };
 
-pub fn native_bool_to_boolean_object(input: bool) -> Object {
+pub fn native_bool_to_boolean_object(input: bool) -> Boolean {
     if input {
         TRUE
     } else {
@@ -513,8 +513,12 @@ fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Optio
 // [...]
         "<" => Some(Object::Boolean(native_bool_to_boolean_object(left < right))),
         ">" => Some(Object::Boolean(native_bool_to_boolean_object(left > right))),
-        "==" => Some(Object::Boolean(native_bool_to_boolean_object(left == right))),
-        "!=" => Some(Object::Boolean(native_bool_to_boolean_object(left != right))),
+        "==" => Some(Object::Boolean(native_bool_to_boolean_object(
+            left == right,
+        ))),
+        "!=" => Some(Object::Boolean(native_bool_to_boolean_object(
+            left != right,
+        ))),
         _ => Some(Object::Null(NULL)),
     }
 }
@@ -564,8 +568,12 @@ fn eval_infix_expression(
     if let Some(left_obj) = left {
         if let Some(right_obj) = right {
             return match operator {
-                "==" => Some(Object::Boolean(native_bool_to_boolean_object(left_obj == right_obj))),
-                "!=" => Some(Object::Boolean(native_bool_to_boolean_object(left_obj != right_obj))),
+                "==" => Some(Object::Boolean(native_bool_to_boolean_object(
+                    left_obj == right_obj,
+                ))),
+                "!=" => Some(Object::Boolean(native_bool_to_boolean_object(
+                    left_obj != right_obj,
+                ))),
                 _ => Some(Object::Null(NULL)),
             };
         }

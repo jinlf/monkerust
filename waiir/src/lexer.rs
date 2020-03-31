@@ -4,9 +4,9 @@ use super::token::*;
 
 pub struct Lexer<'a> {
     input: &'a str,
-    position: usize,      // current position in input (points to current char)
-    read_position: usize, // current reading position in input (after current char)
-    ch: u8,               // current char under examination
+    position: usize,      // 当前字符位置
+    read_position: usize, // 当前读取位置（在当前字符位置之后）
+    ch: u8,               // 当前字符
 }
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Lexer<'a> {
@@ -37,6 +37,12 @@ impl<'a> Lexer<'a> {
 
         match self.ch {
             b':' => tok = new_token(TokenType::COLON, self.ch),
+            b'"' => {
+                tok = Token {
+                    tk_type: TokenType::STRING,
+                    literal: self.read_string(),
+                }
+            }
             b'=' => {
                 if self.peek_char() == b'=' {
                     self.read_char();
@@ -71,12 +77,6 @@ impl<'a> Lexer<'a> {
             b'*' => tok = new_token(TokenType::ASTERISK, self.ch),
             b'<' => tok = new_token(TokenType::LT, self.ch),
             b'>' => tok = new_token(TokenType::GT, self.ch),
-            b'"' => {
-                tok = Token {
-                    tk_type: TokenType::STRING,
-                    literal: self.read_string(),
-                }
-            }
             b'[' => tok = new_token(TokenType::LBRACKET, self.ch),
             b']' => tok = new_token(TokenType::RBRACKET, self.ch),
             0 => {
@@ -114,7 +114,6 @@ impl<'a> Lexer<'a> {
         }
         String::from(&self.input[position..self.position])
     }
-
 
     fn skip_whitespace(&mut self) {
         loop {
@@ -165,4 +164,3 @@ pub fn new_token(token_type: TokenType, ch: u8) -> Token {
 fn is_letter(ch: u8) -> bool {
     ch.is_ascii_alphabetic() || ch == b'_'
 }
-

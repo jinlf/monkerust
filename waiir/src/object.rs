@@ -62,11 +62,6 @@ impl ObjectTrait for Object {
 pub struct Integer {
     pub value: i64,
 }
-// impl Drop for Integer {
-//     fn drop(&mut self) {
-//         println!("dropping Integer {}", self.inspect());
-//     }
-// }
 impl ObjectTrait for Integer {
     fn get_type(&self) -> String {
         String::from("INTEGER")
@@ -156,6 +151,12 @@ impl PartialEq for Function {
     }
 }
 impl Eq for Function {}
+
+// impl Drop for Integer {
+//     fn drop(&mut self) {
+//         println!("dropping Integer {}", self.inspect());
+//     }
+// }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct StringObj {
@@ -262,25 +263,6 @@ impl StdHash for StringObj {
     }
 }
 
-pub trait Hashable {
-    fn hash_key(&self) -> HashKey;
-}
-impl Hashable for Boolean {
-    fn hash_key(&self) -> HashKey {
-        HashKey::Boolean(self.clone())
-    }
-}
-impl Hashable for Integer {
-    fn hash_key(&self) -> HashKey {
-        HashKey::Integer(self.clone())
-    }
-}
-impl Hashable for StringObj {
-    fn hash_key(&self) -> HashKey {
-        HashKey::StringObj(self.clone())
-    }
-}
-
 #[derive(Clone)]
 pub struct Hash {
     pub pairs: HashMap<HashKey, Object>,
@@ -323,5 +305,24 @@ impl AsHashable for Object {
             Object::StringObj(s) => Some(s),
             _ => None,
         }
+    }
+}
+
+pub trait Hashable {
+    fn hash_key(&self) -> HashKey;
+}
+impl Hashable for Boolean {
+    fn hash_key(&self) -> HashKey {
+        HashKey::Boolean(self.clone())
+    }
+}
+impl Hashable for Integer {
+    fn hash_key(&self) -> HashKey {
+        HashKey::Integer(self.clone())
+    }
+}
+impl Hashable for StringObj {
+    fn hash_key(&self) -> HashKey {
+        HashKey::StringObj(self.clone())
     }
 }

@@ -676,8 +676,6 @@ fn test_integer_literal(il: &Expression, expected_value: i64) {
     }
 }
 ```
-测试失败！
-
 前缀表达式的定义如下：
 ```rust,noplaypen
 // src/ast.rs

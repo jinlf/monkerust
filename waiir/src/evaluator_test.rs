@@ -38,6 +38,7 @@ fn test_eval_integer_expression() {
 
 fn test_eval(input: &str) -> Option<Object> {
     let env = Rc::new(RefCell::new(new_environment()));
+
     let l = Lexer::new(input);
     let mut p = Parser::new(l);
     let program = p.parse_program();
@@ -80,7 +81,6 @@ fn test_eval_boolean_expression() {
         ("(1 > 2) == true", false),
         ("(1 > 2) == false", true),
     ];
-
     for tt in tests.iter() {
         let evaluated = test_eval(tt.0);
         test_boolean_object(evaluated, tt.1);
@@ -200,11 +200,11 @@ fn test_error_handling() {
         ),
         (
             "
+if (10 > 1) { 
 if (10 > 1) {
-    if (10 > 1) {
-        return true + false;
-    }
-    return 1;
+    return true + false;
+}
+return 1;
 }",
             "unknown operator: BOOLEAN + BOOLEAN",
         ),

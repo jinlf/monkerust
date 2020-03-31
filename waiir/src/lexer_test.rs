@@ -5,7 +5,7 @@ use super::token::*;
 
 #[test]
 fn test_next_token() {
-    let input = "=+(){},;
+    let input = "
 let five = 5;        
 let ten = 10;
 
@@ -32,14 +32,6 @@ if (5 < 10) {
 ";
 
     let tests = [
-        (TokenType::ASSIGN, "="),
-        (TokenType::PLUS, "+"),
-        (TokenType::LPAREN, "("),
-        (TokenType::RPAREN, ")"),
-        (TokenType::LBRACE, "{"),
-        (TokenType::RBRACE, "}"),
-        (TokenType::COMMA, ","),
-        (TokenType::SEMICOLON, ";"),
         (TokenType::LET, "let"),
         (TokenType::IDENT, "five"),
         (TokenType::ASSIGN, "="),
@@ -128,6 +120,7 @@ if (5 < 10) {
         (TokenType::RBRACE, "}"),
         (TokenType::EOF, ""),
     ];
+
     let mut l = Lexer::new(input);
     for (i, tt) in tests.iter().enumerate() {
         let tok = l.next_token();

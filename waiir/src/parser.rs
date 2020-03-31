@@ -205,6 +205,7 @@ impl<'a> Parser<'a> {
                 _ => return left_exp,
             }
         }
+
         left_exp
     }
 
@@ -281,6 +282,7 @@ impl<'a> Parser<'a> {
             value: self.cur_token_is(TokenType::TRUE),
         }))
     }
+
     fn parse_grouped_expression(&mut self) -> Option<Expression> {
         self.next_token();
         let exp = self.parse_expression(Precedence::LOWEST);
