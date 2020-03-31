@@ -128,7 +128,7 @@ fn eval_minus_prefix_operator_expression(right: Option<Object>) -> Option<Object
     }
 }
 ```
-这里编写了一个get_type辅助函数，支持取得Objec或None的类型。
+这里编写了一个get_type辅助函数，用来取得Objec或None的类型字符串。
 
 中缀表达式除了非法操作符错误，还有左右子表达式类型不一致的错误：
 ```rust,noplaypen
@@ -282,7 +282,7 @@ fn eval_if_expression(ie: IfExpression) -> Option<Object> {
 // [...]
 }
 ```
-这里实现了一个is_error判断函数。
+这里实现的is_error辅助函数，用来判断求值结果是否出错。
 
 测试通过！
 

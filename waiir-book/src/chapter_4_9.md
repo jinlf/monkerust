@@ -59,7 +59,7 @@ pub fn eval(node: Node) -> Option<Object> {
     }
 }
 ```
-我们需要一个标识符名称到值的映射来保存已经求值出来的信息，这种映射称作环境（Environment），可以用一个哈希表（HashMap）即可。
+我们需要一个标识符名称到值的映射来保存已经求值出来的信息，这种映射称作环境（Environment），可以用一个哈希表（HashMap）来实现。
 
 ```rust,noplaypen
 // src/environment.rs
@@ -210,7 +210,7 @@ fn eval_identifier(node: Identifier, env: Rc<RefCell<Environment>>) -> Option<Ob
     }
 }
 ```
-在使用标识符时，使用borrow方法借用env对象，取得标识符对应的值。
+在使用标识符时，使用borrow方法借用env不可变对象，取得标识符对应的值。
 
 测试通过！
 

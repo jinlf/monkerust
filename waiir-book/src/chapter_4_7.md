@@ -128,7 +128,7 @@ thread 'evaluator::tests::test_return_statements' panicked at 'object has wrong 
 ```
 失败的原因是，嵌套块语句中包含retrun求值时，应该在最外层终止并返回。前面实现的eval_statements仅适用于Program这种最外层语句的情况。
 
-所以我们将刚刚修改过的eval_statements修改为eval_program，如下：
+所以我们将刚刚修改过的eval_statements改名为eval_program，并修改参数类型，如下：
 ```rust,noplaypen
 // src/evaluator.rs
 

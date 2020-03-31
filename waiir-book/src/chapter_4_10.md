@@ -96,7 +96,14 @@ impl ObjectTrait for Object {
 ```
 取得的是函数对象的内存地址。
 
-这里还需要为Environment加上Debug属性（代码略）。
+这里还需要为Environment加上Debug属性：
+```rust,noplaypen
+// src/environment.rs
+
+#[derive(Debug)]
+pub struct Environment {
+// [...]
+```
 
 测试用例如下：
 ```rust,noplaypen

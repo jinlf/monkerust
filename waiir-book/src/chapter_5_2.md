@@ -1,7 +1,23 @@
 # 字符串
 
+其它许多语言中的表示方法一样，Monke语言的字符串是用双引号括起来的一个字符序列。它们也是一等公民。
+
+我们还将用中缀操作符“+”来支持字符串连接。
+```
+>> let firstName = "Thorsten";
+>> let lastName = "Ball";
+>> let fullName = fn(first, last) { first + " " + last };
+>> fullName(firstName, lastName);
+Thorsten Ball
+```
+
 ## 在词法分析器中支持字符串
 
+字符串的结构如下：
+```
+"<sequence of characters>"
+```
+首先需要增加Token类型：
 ```rust,noplaypen
 // src/token.rs
 
@@ -11,6 +27,7 @@ pub enum TokenType {
 }
 ```
 
+测试用例如下：
 ```rust,noplaypen
 // src/lexer_test.rs
 
@@ -30,12 +47,13 @@ pub enum TokenType {
 // [...]
 ```
 
-测试结果：
+测试失败结果如下：
 
 ```
 thread 'lexer::tests::test_next_token' panicked at 'test[81] - tokentype wrong. expected=STRING, got=ILLEGAL', src/lexer_test.rs:262:13
 ```
 
+扩展词法分析器：
 ```rust,noplaypen
 // src/lexer.rs
 
@@ -65,10 +83,15 @@ thread 'lexer::tests::test_next_token' panicked at 'test[81] - tokentype wrong. 
         String::from(&self.input[position..self.position])
     }
 ```
+这里不支持转义字符，您可以自行添加。
 
 测试通过！
 
+词法分析器准备好了，该解析器了。
+
 ## 解析字符串
+
+首先定义字符串字面量类型：
 
 ```rust,noplaypen
 // src/ast.rs
@@ -107,6 +130,7 @@ impl NodeTrait for Expression {
 }
 ```
 
+增加测试用例：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -143,7 +167,7 @@ fn test_string_literal_expression() {
 }
 ```
 
-测试结果：
+测试失败结果如下：
 
 ```
 thread 'parser::tests::test_string_literal_expression' panicked at 'parser has 2 errors
@@ -152,6 +176,7 @@ parser error: "no prefix parse function for SEMICOLON found"
 ', src/parser_test.rs:549:9
 ```
 
+为字符串Token增加解析函数：
 ```rust,noplaypen
 // src/parser.rs
 
@@ -176,8 +201,11 @@ parser error: "no prefix parse function for SEMICOLON found"
 
 测试通过！
 
+解析器准备好了，该扩展对象系统了。
+
 ## 字符串求值
 
+因为Rust支持字符串类型，封装一下即可：
 ```rust,noplaypen
 // src/object.rs
 
@@ -214,6 +242,7 @@ impl ObjectTrait for Object {
 }
 ```
 
+增加测试用例：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -233,12 +262,13 @@ fn test_string_literal() {
 }
 ```
 
-测试结果：
+测试失败结果如下：
 
 ```
 thread 'evaluator::tests::test_string_literal' panicked at 'object is not String. got=None', src/evaluator_test.rs:658:13
 ```
 
+扩展求值器非常容易：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -255,6 +285,7 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
 
 测试通过！
 
+在REPL中使用：
 ```
 Hello, This is the Monkey programming language!
 Feel free to type in commands
@@ -277,6 +308,9 @@ This is amazing!
 
 ## 字符串连接
 
+使用中缀操作符将两个字符串类型的操作数连接起来。
+
+先写测试用例：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -296,6 +330,7 @@ fn test_string_concatenation() {
 }
 ```
 
+再增加一个出错情况的测试用例：
 ```rust,noplaypen
 // src/evaluator.rs
 
