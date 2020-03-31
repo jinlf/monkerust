@@ -25,7 +25,7 @@ let result = 10 * (20 / 2);
 let myArray = [1, 2, 3, 4, 5];
 let thorsten = {"name": "Thorsten", "age": 28};
 ```
-访问其内容的方式：
+访问其元素的方式：
 ```js
 myArray[0] // => 1 
 thorsten["name"] // => "Thorsten"

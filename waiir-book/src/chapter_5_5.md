@@ -1,6 +1,41 @@
-# 哈希表
+# 哈希
 
-## 哈希表字面量的词法分析
+哈希（hash）在很多语言中的名称不同，如map，哈希map，字典等。其功能是实现键（key）和值（value）映射。
+
+```js
+
+>> let myHash = {"name": "Jimmy", "age": 72, "band": "Led Zeppelin"}; 
+>> myHash["name"]
+Jimmy
+>> myHash["age"]
+72
+>> myHash["band"] 
+Led Zeppelin
+```
+上面例子中mhHash有三个键，都是字符串。我们可以用索引操作符表达式来访问值，只是用到的索引值是字符串。
+当然，其它类型的键也是可以的：
+```js
+>> let myHash = {true: "yes, a boolean", 99: "correct, an integer"}; 
+>> myHash[true]
+yes, a boolean
+>> myHash[99]
+correct, an integer
+```
+表达式作为键也是可以的：
+```js
+>> myHash[5 > 1] 
+yes, a boolean
+>> myHash[100 - 1] 
+correct, an integer
+```
+
+## 哈希字面量的词法分析
+
+哈希字面量的例子如下：
+```js
+{"name": "Jimmy", "age": 72, "band": "Led Zeppelin"}
+```
+这里有一个词法分析器不支持的符号“：”，先添加进Token类型中：
 
 ```rust,noplaypne
 // src/token.rs
@@ -11,6 +46,7 @@ pub enum TokenType {
 }
 ```
 
+测试用例：
 ```rust,noplaypen
 // src/lexer_test.rs
 
@@ -31,6 +67,7 @@ fn test_next_token() {
 }
 ```
 
+扩展词法分析器：
 ```rust,noplaypen
 // src/lexer.rs
 
@@ -45,8 +82,15 @@ fn test_next_token() {
 ```
 测试通过！
 
-## 解析哈希表字面量
+## 解析哈希字面量
 
+哈希字面量的结构如下：
+```js
+{<expression>: <expression>, <expression>: <expression>, ...}
+```
+即用逗号分隔用大括号括起来的的键值对列表。
+
+用Rust语言的HashMap来保存这种对应关系，定义如下：
 ```rust,noplaypen
 // src/ast.rs
 
@@ -97,7 +141,7 @@ impl NodeTrait for Expression {
     }
 }
 ```
-测试用例
+测试用例：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -146,7 +190,7 @@ fn test_parsing_hash_literals_string_keys() {
     }
 }
 ```
-
+需要能够支持空哈希，测试用例如下：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -180,7 +224,7 @@ fn test_parsing_empty_hash_literal() {
     }
 }
 ```
-
+哈希键和值都可以是表达式，测试用例如下：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -256,7 +300,7 @@ fn test_parsing_hash_literal_with_expressions() {
     }
 }
 ```
-测试结果：
+测试失败结果如下：
 ```
 thread 'parser::tests::test_parsing_empty_hash_literal' panicked at 'parser has 2 errors
 parser error: "no prefix parse function for LBRACE found"
@@ -284,6 +328,7 @@ parser error: "no prefix parse function for RBRACE found"
 ', src/parser_test.rs:629:9
 ```
 
+为大括号增加一个前缀解析函数：
 ```rust,noplaypen
 // src/parser.rs
 
@@ -361,9 +406,13 @@ impl StdHash for Expression {
     }
 }
 ```
+为了和后面我们自己定义的Hash区别开，这里将Rust的Hash trait重命名为StdHash。
+
 测试通过！
 
-## 哈希表对象
+## 哈希对象
+
+扩展完词法分析器和解析器，下面我们扩展对象系统。
 
 ```rust,noplaypen
 // src/object_test.rs

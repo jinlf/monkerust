@@ -40,6 +40,8 @@ impl ObjectTrait for Object {
     }
 }
 ```
+为了防止跟Rust自带的Error类型名称冲突，这里使用ErrorObj。
+
 这里实现的错误对象仅仅封装了错误消息。您可以试着加上文件名和行号这类信息。
 
 测试用例：

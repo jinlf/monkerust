@@ -1,9 +1,20 @@
 # 内置函数
 
+内置函数不是用户提供的，也不是用Monkey代码编写的，这些函数内置于解释器和语言本身。
+
+我们的内置函数是用Rust编写的。
+
+下面是内置函数的Rust声明。
+
 ```rust,noplaypen
 // src/object.rs
 
 pub type BuiltinFunction = fn(&Vec<Option<Object>>) -> Option<Object>;
+```
+
+我们需要把这种内置函数封装到我们的对象系统中，定义如下：
+```rust,noplaypen
+// src/object.rs
 
 pub struct Builtin {
     pub func: BuiltinFunction,
@@ -55,6 +66,14 @@ impl ObjectTrait for Object {
 
 ## len函数
 
+首先我们考虑实现的是len函数，功能如下：
+```js
+>> len("Hello World!") 12
+>> len("") 0
+>> len("Hey Bob, how ya doin?") 21
+```
+
+先写测试用例：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -101,11 +120,12 @@ fn test_builtin_functions() {
     }
 }
 ```
-测试输出
+测试失败输出如下：
 ```
 thread 'evaluator::tests::test_builtin_functions' panicked at 'object is not Integer. got=Some(ErrorObj(ErrorObj { message: "identifier not found: len" }))', src/evaluator_test.rs:432:13
 ```
 
+为了方便管理，我们单独使用一个文件来编写内置函数的实现：
 ```rust,noplaypen
 // src/buildins.rs
 
@@ -122,13 +142,16 @@ pub fn get_builtin(name: &str) -> Option<Object> {
     }
 }
 ```
+目前实现的是一个空的len函数。这里用到了Rust的闭包语法。
 
+将builtins模块加入解释器中：
 ```rust,noplaypen
 // src/lib.rs
 
 pub mod builtins;
 ```
 
+增加在求值过程中遇到内置函数情况的处理，这里返回内置函数对象：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -144,7 +167,7 @@ fn eval_identifier(node: Identifier, env: Rc<RefCell<Environment>>) -> Option<Ob
     }
 }
 ```
-执行cargo run
+执行cargo run：
 ```
 Hello, This is the Monkey programming language!
 Feel free to type in commands
@@ -153,6 +176,7 @@ ERROR: not a function: "BUILTIN"
 >> 
 ```
 
+在对函数调用求值时，执行内置函数：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -171,11 +195,12 @@ fn apply_function(func: Option<Object>, args: Vec<Option<Object>>) -> Option<Obj
     }
 }
 ```
-测试结果
+测试必然失败，现在的len函数返回为空：
 ```
 thread 'evaluator::tests::test_builtin_functions' panicked at 'object is not Integer. got=Some(Null(Null))', src/evaluator_test.rs:446:13
 ```
 
+编写len函数，计算字符串的长度，返回整数对象：
 ```rust,noplaypen
 // src/builtins.rs
 
@@ -223,3 +248,5 @@ ERROR: wrong number of arguments. got=2, want=1
 ERROR: argument to `len` not supported, got INTEGER
 >> 
 ```
+
+至此，第一个内置函数已经能正常工作了。

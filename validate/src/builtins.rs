@@ -86,9 +86,9 @@ pub fn get_builtin(name: &str) -> Option<Object> {
                 if let Some(Object::Array(Array { elements })) = &args[0] {
                     let length = elements.len();
                     if length > 0 {
-                        return Some(Object::Array(Array {
-                            elements: elements[1..length].to_vec(),
-                        }));
+                        let mut new_vec: Vec<Object> = vec![Object::Null(NULL); length - 1];
+                        new_vec.clone_from_slice(&elements[1..length]);
+                        return Some(Object::Array(Array { elements: new_vec }));
                     }
                     return Some(Object::Null(NULL));
                 } else {
@@ -109,15 +109,11 @@ pub fn get_builtin(name: &str) -> Option<Object> {
                     ));
                 }
                 if let Some(Object::Array(Array { elements })) = &args[0] {
-                    let length = elements.len();
-                    if length > 0 {
-                        let mut new_elements = elements.to_vec();
-                        new_elements.push(args[1].as_ref().unwrap().clone());
-                        return Some(Object::Array(Array {
-                            elements: new_elements,
-                        }));
-                    }
-                    return Some(Object::Null(NULL));
+                    let mut new_elements = elements.to_vec();
+                    new_elements.push(args[1].as_ref().unwrap().clone());
+                    return Some(Object::Array(Array {
+                        elements: new_elements,
+                    }));
                 } else {
                     return new_error(format!(
                         "arguemnt to `push` must be ARRAY, got={:?}",

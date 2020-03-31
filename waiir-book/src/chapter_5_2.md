@@ -241,6 +241,7 @@ impl ObjectTrait for Object {
     }
 }
 ```
+为了防止跟Rust自带的String类型名称冲突，这里使用StringObj。
 
 增加测试用例：
 ```rust,noplaypen
@@ -342,12 +343,13 @@ fn test_error_handling() {
 // [...]
 ```
 
-测试结果：
+测试失败结果如下：
 
 ```
 thread 'evaluator::tests::test_string_concatenation' panicked at 'object is not String. got=Some(ErrorObj(ErrorObj { message: "unknown operator: STRING + STRING" }))', src/evaluator_test.rs:677:13
 ```
 
+在中缀表达式解析时增加针对字符串的处理方法。
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -400,6 +402,8 @@ fn eval_string_infix_expression(
 
 测试通过！
 
+如果您需要字符串支持其它操作符，例如“==”或“!=”，请添加到eval_string_infix_expression中。
+
 执行 cargo run
 
 ```
@@ -423,3 +427,7 @@ fn(name) {
 Hey there Jerry!
 >> 
 ```
+
+由于字符串输出是没有输出外边的双引号，所以带有字符串字面量的表达式（例如函数字面量）输出并不是真实的情况，您可以思考一下如何解决这个问题。
+
+下面考虑增加一些内置函数。
