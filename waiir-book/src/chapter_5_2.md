@@ -176,7 +176,7 @@ parser error: "no prefix parse function for SEMICOLON found"
 ', src/parser_test.rs:549:9
 ```
 
-为字符串Token增加解析函数：
+为字符串Token增加前缀解析函数：
 ```rust,noplaypen
 // src/parser.rs
 
@@ -402,7 +402,7 @@ fn eval_string_infix_expression(
 
 测试通过！
 
-如果您需要字符串支持其它操作符，例如“==”或“!=”，请添加到eval_string_infix_expression中。
+如果您需要字符串支持其它中缀操作符，例如“==”或“!=”，请添加到eval_string_infix_expression中。
 
 执行 cargo run
 
@@ -428,6 +428,6 @@ Hey there Jerry!
 >> 
 ```
 
-由于字符串输出是没有输出外边的双引号，所以带有字符串字面量的表达式（例如函数字面量）输出并不是真实的情况，您可以思考一下如何解决这个问题。
+由于字符串输出没有输出外边的双引号，所以带有字符串字面量的表达式（例如函数字面量）输出的并不是真实的情况，您可以思考一下如何解决这个问题（本文中没有处理）。
 
 下面考虑增加一些内置函数。

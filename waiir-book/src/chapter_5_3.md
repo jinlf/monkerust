@@ -4,7 +4,7 @@
 
 我们的内置函数是用Rust编写的。
 
-下面是内置函数的Rust声明。
+下面是内置函数类型的Rust声明。
 
 ```rust,noplaypen
 // src/object.rs
@@ -68,9 +68,12 @@ impl ObjectTrait for Object {
 
 首先我们考虑实现的是len函数，功能如下：
 ```js
->> len("Hello World!") 12
->> len("") 0
->> len("Hey Bob, how ya doin?") 21
+>> len("Hello World!") 
+12
+>> len("") 
+0
+>> len("Hey Bob, how ya doin?") 
+21
 ```
 
 先写测试用例：
@@ -142,7 +145,7 @@ pub fn get_builtin(name: &str) -> Option<Object> {
     }
 }
 ```
-目前实现的是一个空的len函数。这里用到了Rust的闭包语法。
+目前实现的是一个返回空值的len函数。这里用到了Rust的闭包语法。
 
 将builtins模块加入解释器中：
 ```rust,noplaypen
@@ -195,7 +198,7 @@ fn apply_function(func: Option<Object>, args: Vec<Option<Object>>) -> Option<Obj
     }
 }
 ```
-测试必然失败，现在的len函数返回为空：
+测试必然失败，现在的len函数返回空值：
 ```
 thread 'evaluator::tests::test_builtin_functions' panicked at 'object is not Integer. got=Some(Null(Null))', src/evaluator_test.rs:446:13
 ```
@@ -234,7 +237,7 @@ pub fn get_builtin(name: &str) -> Option<Object> {
 ```
 测试通过！
 
-用cargo run执行：
+执行cargo run：
 ```
 Hello, This is the Monkey programming language!
 Feel free to type in commands

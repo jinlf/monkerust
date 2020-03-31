@@ -455,7 +455,7 @@ fn eval_array_index_expression(array: Object, index: Object) -> Option<Object> {
 }
 
 fn eval_hash_literal(node: HashLiteral, env: Rc<RefCell<Environment>>) -> Option<Object> {
-    let mut pairs: HashMap<HashKey, HashPair> = HashMap::new();
+    let mut pairs: HashMap<HashKey, Object> = HashMap::new();
 
     for (key_node, value_node) in node.pairs.iter() {
         let key = eval(Node::Expression(key_node.clone()), Rc::clone(&env));
@@ -475,13 +475,7 @@ fn eval_hash_literal(node: HashLiteral, env: Rc<RefCell<Environment>>) -> Option
                 return None;
             }
             let hashed = hash_key.hash_key();
-            pairs.insert(
-                hashed,
-                HashPair {
-                    key: key.unwrap(),
-                    value: value.unwrap(),
-                },
-            );
+            pairs.insert(hashed, value.unwrap());
         } else {
             assert!(false, "unusable as hash key: {}", get_type(&key));
         }
@@ -492,7 +486,7 @@ fn eval_hash_literal(node: HashLiteral, env: Rc<RefCell<Environment>>) -> Option
 fn eval_hash_index_expression(hash: Hash, index: Object) -> Option<Object> {
     if let Some(key) = index.as_hashable() {
         if let Some(pair) = hash.pairs.get(&key.hash_key()) {
-            return Some(pair.value.clone());
+            return Some(pair.clone());
         }
         return Some(Object::Null(NULL));
     } else {

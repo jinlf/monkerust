@@ -3,7 +3,6 @@
 哈希（hash）在很多语言中的名称不同，如map，哈希map，字典等。其功能是实现键（key）和值（value）映射。
 
 ```js
-
 >> let myHash = {"name": "Jimmy", "age": 72, "band": "Led Zeppelin"}; 
 >> myHash["name"]
 Jimmy
@@ -12,7 +11,8 @@ Jimmy
 >> myHash["band"] 
 Led Zeppelin
 ```
-上面例子中mhHash有三个键，都是字符串。我们可以用索引操作符表达式来访问值，只是用到的索引值是字符串。
+上面例子中myHash有三个键，都是字符串。我们可以用索引操作符表达式来访问值，只是用到的索引值是字符串。
+
 当然，其它类型的键也是可以的：
 ```js
 >> let myHash = {true: "yes, a boolean", 99: "correct, an integer"}; 
@@ -35,7 +35,7 @@ correct, an integer
 ```js
 {"name": "Jimmy", "age": 72, "band": "Led Zeppelin"}
 ```
-这里有一个词法分析器不支持的符号“：”，先添加进Token类型中：
+这里有一个词法分析器不支持的符号“:”，需要添加进Token类型中：
 
 ```rust,noplaypne
 // src/token.rs
@@ -190,7 +190,7 @@ fn test_parsing_hash_literals_string_keys() {
     }
 }
 ```
-需要能够支持空哈希，测试用例如下：
+需要能够支持内容为空的哈希，测试用例如下：
 ```rust,noplaypen
 // src/parser_test.rs
 
@@ -382,7 +382,7 @@ use std::collections::*;
         }))
     }
 ```
-这里需要将Expression加入HashMap，这需要为Expression支持PartialEq、Eq和Hash trait，这里我们考虑的实现方式是比较对象的地址，并以对象的地址作为哈希值，代码如下：
+这里需要将Expression加入HashMap，这需要为Expression支持PartialEq、Eq和Hash trait，这里我们考虑的实现方式是比较对象的地址，以对象的地址作为哈希值，代码如下：
 
 ```rust,noplaypen
 // src/ast.rs
@@ -412,8 +412,11 @@ impl StdHash for Expression {
 
 ## 哈希对象
 
-扩展完词法分析器和解析器，下面我们扩展对象系统。
+扩展完词法分析器和解析器，下面我们扩展对象系统。本文中的实现方式跟原著差距较大，这是由Rust语言和Go语言的不同特性导致的。
 
+直观感觉上任何Object都可以作为Hash的键，但实际上，我们的对象系统中真正有实用意义的键只包含三种：整数，布尔值和字符串。其它Object类型暂时不支持。
+
+先增加测试用例：
 ```rust,noplaypen
 // src/object_test.rs
 
@@ -456,66 +459,66 @@ lib.rs中加入
 #[cfg(test)]
 mod object_test;
 ```
-
+这里我们将能够作为哈希键的Object类型放到一起，定义一个HashKey枚举，定义如下：
 ```rust,noplaypen
 // src/object.rs
 
 use std::collections::hash_map::*;
-use std::hash::Hash;
+use std::hash::Hash as StdHash;
 use std::hash::Hasher;
 use std::fmt::*;
 
-#[derive(Clone, PartialEq, Eq, StdHash)]
-pub struct HashKey {
-    pub obj_type: String,
-    pub value: u64,
+#[derive(PartialEq, Eq, StdHash, Clone)]
+pub enum HashKey {
+    Integer(Integer),
+    Boolean(Boolean),
+    StringObj(StringObj),
 }
-pub trait Hashable {
-    fn hash_key(&self) -> HashKey;
+impl HashKey {
+    fn inspect(&self) -> String {
+        match self {
+            HashKey::Integer(i) => i.inspect(),
+            HashKey::Boolean(b) => b.inspect(),
+            HashKey::StringObj(s) => s.inspect(),
+        }
+    }
 }
-impl Hashable for Boolean {
-    fn hash_key(&self) -> HashKey {
-        let mut value: u64 = 0;
+
+impl StdHash for Integer {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.get_type().hash(state);
+        state.write_i64(self.value);
+        state.finish();
+    }
+}
+impl StdHash for Boolean {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.get_type().hash(state);
         if self.value {
-            value = 1;
+            state.write_u8(1);
+        } else {
+            state.write_u8(0);
         }
-        HashKey {
-            obj_type: self.get_type(),
-            value: value,
-        }
+        state.finish();
     }
 }
-impl Hashable for Integer {
-    fn hash_key(&self) -> HashKey {
-        HashKey {
-            obj_type: self.get_type(),
-            value: self.value as u64,
-        }
-    }
-}
-impl Hashable for StringObj {
-    fn hash_key(&self) -> HashKey {
-        let mut h = DefaultHasher::new();
-        self.value.hash(&mut h);
-        HashKey {
-            obj_type: self.get_type(),
-            value: h.finish(),
-        }
+impl StdHash for StringObj {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.get_type().hash(state);
+        self.value.hash(state);
+        state.finish();
     }
 }
 ```
+这里我们分别给出了整数、布尔值和字符串对象的哈希计算方法：类型名称和值都参与哈希计算。
 
+下面为对象系统添加Hash对象定义：
 ```rust,noplaypen
 // src/object.rs
 
 #[derive(Clone)]
-pub struct HashPair {
-    pub key: Object,
-    pub value: Object,
-}
-#[derive(Clone)]
 pub struct Hash {
-    pub pairs: HashMap<HashKey, HashPair>,
+    pub pairs: HashMap<HashKey, Object>,
 }
 impl Debug for Hash {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
@@ -537,7 +540,7 @@ impl ObjectTrait for Hash {
             "{{{}}}",
             self.pairs
                 .iter()
-                .map(|(_, pair)| { format!("{}: {}", pair.key.inspect(), pair.value.inspect()) })
+                .map(|(key, value)| { format!("{}: {}", key.inspect(), value.inspect()) })
                 .collect::<Vec<String>>()
                 .join(", ")
         )
@@ -563,9 +566,13 @@ impl ObjectTrait for Object {
     }
 }
 ```
+其实就是将Rush HashMap封装一下。
 
-## 哈希表字面量求值
+## 哈希字面量求值
 
+修改完词法分析器和解析器，在对象系统中加入Hash对象后，我们可以开始修改求值器了。
+
+测试用例：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -617,7 +624,7 @@ fn test_hash_literals() {
         );
         for (expected_key, expected_value) in expected.iter() {
             if let Some(pair) = pairs.get(expected_key) {
-                test_integer_object(Some(pair.value.clone()), *expected_value);
+                test_integer_object(Some(pair.clone()), *expected_value);
             } else {
                 assert!(false, "no pair for given key in pairs");
             }
@@ -632,6 +639,9 @@ fn test_hash_literals() {
 thread 'evaluator_test::test_hash_literals' panicked at 'eval didn't return Hash. got=None', src/evaluator_test.rs:483:9
 ```
 
+前面提到过，不是所有的Object都能作为HashKey的，需要设计一种方式转换Object对象，某些能用来做HashKey的对象才可以用来求值，这里我设计了两个Rust trait：Hashable和AsHashable，用来转换Object为Hashable。
+
+定义如下：
 ```rust,noplaypen
 // src/object.rs
 
@@ -648,9 +658,29 @@ impl AsHashable for Object {
         }
     }
 }
+
+pub trait Hashable {
+    fn hash_key(&self) -> HashKey;
+}
+impl Hashable for Boolean {
+    fn hash_key(&self) -> HashKey {
+        HashKey::Boolean(self.clone())
+    }
+}
+impl Hashable for Integer {
+    fn hash_key(&self) -> HashKey {
+        HashKey::Integer(self.clone())
+    }
+}
+impl Hashable for StringObj {
+    fn hash_key(&self) -> HashKey {
+        HashKey::StringObj(self.clone())
+    }
+}
 ```
+仅当对象为整数、布尔值和字符串时，可以将其转换成Hashable，然后通过hash_key方法取得HashKey对象。
 
-
+求值器中修改如下：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -663,14 +693,14 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
     }
 }
 ```
-
+其中eval_hash_literal为：
 ```rust,noplaypen
 // src/evaluator.rs
 
 use std::collections::*;
 
 fn eval_hash_literal(node: HashLiteral, env: Rc<RefCell<Environment>>) -> Option<Object> {
-    let mut pairs: HashMap<HashKey, HashPair> = HashMap::new();
+    let mut pairs: HashMap<HashKey, Object> = HashMap::new();
 
     for (key_node, value_node) in node.pairs.iter() {
         let key = eval(Node::Expression(key_node.clone()), Rc::clone(&env));
@@ -690,13 +720,7 @@ fn eval_hash_literal(node: HashLiteral, env: Rc<RefCell<Environment>>) -> Option
                 return None;
             }
             let hashed = hash_key.hash_key();
-            pairs.insert(
-                hashed,
-                HashPair {
-                    key: key.unwrap(),
-                    value: value.unwrap(),
-                },
-            );
+            pairs.insert(hashed, value.unwrap());
         } else {
             assert!(false, "unusable as hash key: {}", get_type(&key));
         }
@@ -706,8 +730,29 @@ fn eval_hash_literal(node: HashLiteral, env: Rc<RefCell<Environment>>) -> Option
 ```
 测试通过！
 
-## 带哈希的索引表达式求值
+运行cargo run启动REPL，输入如下：
+```
+Hello, This is the Monkey programming language!
+Feel free to type in commands
+>> {"name": "Monkey", "age": 0, "type": "Language", "status": "awesome"}
+{age: 0, name: Monkey, type: Language, status: awesome}
+>> 
+```
+不错！但是我们还不能访问哈希中的元素，例如：
+```
+Hello, This is the Monkey programming language!
+Feel free to type in commands
+>> let bob = {"name": "Bob", "age": 99};
+{name: Bob, age: 99}
+>> bob["name"]
+ERROR: index operator not supported: HASH
+>> 
+```
+我马上修！
 
+## 哈希索引表达式求值
+
+增加测试用例：
 ```rust,noplaypen
 // src/evaluator_test.rs
 
@@ -754,12 +799,13 @@ fn test_error_handling() {
         ),
     ];
 ```
-测试结果
+测试失败结果如下：
 ```
 thread 'evaluator::tests::test_hash_index_expressions' panicked at 'object is not Integer. got=Some(ErrorObj(ErrorObj { message: "index operator not supported: HASH" }))', src/evaluator_test.rs:661:13
 thread 'evaluator::tests::test_error_handling' panicked at 'wrong error message. expected=unusable as hash key: FUNCTION, got=index operator not supported: HASH', src/evaluator_test.rs:827:17
 ```
 
+扩展索引表达式求值函数：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -774,6 +820,7 @@ fn eval_index_expression(left: Object, index: Object) -> Option<Object> {
     new_error(format!("index operator not supported: {}", left.get_type()))
 }
 ```
+增加了哈希索引表达式求值方法。具体定义如下：
 
 ```rust,noplaypen
 // src/evaluator.rs
@@ -781,7 +828,7 @@ fn eval_index_expression(left: Object, index: Object) -> Option<Object> {
 fn eval_hash_index_expression(hash: Hash, index: Object) -> Option<Object> {
     if let Some(key) = index.as_hashable() {
         if let Some(pair) = hash.pairs.get(&key.hash_key()) {
-            return Some(pair.value.clone());
+            return Some(pair.clone());
         }
         return Some(Object::Null(NULL));
     } else {
@@ -789,8 +836,9 @@ fn eval_hash_index_expression(hash: Hash, index: Object) -> Option<Object> {
     }
 }
 ```
+测试通过！
 
-用cargo run执行
+执行cargo run：
 ```
 Hello, This is the Monkey programming language!
 Feel free to type in commands

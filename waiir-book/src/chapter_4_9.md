@@ -214,7 +214,7 @@ fn eval_identifier(node: Identifier, env: Rc<RefCell<Environment>>) -> Option<Ob
 
 测试通过！
 
-用cargo run执行
+执行cargo run：
 ```
 Hello, This is the Monkey programming language!
 Feel free to type in commands

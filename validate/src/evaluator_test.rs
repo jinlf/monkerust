@@ -478,7 +478,7 @@ fn test_hash_literals() {
         );
         for (expected_key, expected_value) in expected.iter() {
             if let Some(pair) = pairs.get(expected_key) {
-                test_integer_object(Some(pair.value.clone()), *expected_value);
+                test_integer_object(Some(pair.clone()), *expected_value);
             } else {
                 assert!(false, "no pair for given key in pairs");
             }

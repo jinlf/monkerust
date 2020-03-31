@@ -51,12 +51,15 @@ impl ObjectTrait for Function {
         String::from("FUNCTION")
     }
     fn inspect(&self) -> String {
-        let mut params: Vec<String> = Vec::new();
-        for p in self.parameters.iter() {
-            params.push(p.string());
-        }
-
-        format!("fn({}) {{\n{}\n}}", params.join(", "), self.body.string())
+        format!(
+            "fn({}) {{\n{}\n}}",
+            self.parameters
+                .iter()
+                .map(|x| x.string())
+                .collect::<Vec<String>>()
+                .join(", "),
+            self.body.string()
+        )
     }
 }
 impl PartialEq for Function {
@@ -374,7 +377,7 @@ addTwo(2);";
 ```
 测试通过！
 
-用cargo run执行：
+执行cargo run：
 ```
 Hello, This is the Monkey programming language!
 Feel free to type in commands

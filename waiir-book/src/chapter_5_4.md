@@ -181,7 +181,7 @@ fn test_parsing_array_literals() {
 }
 ```
 
-需要为左中括号Token增加解析函数：
+需要为左中括号Token增加前缀解析函数：
 ```rust,noplaypen
 // src/parser.rs
 
@@ -552,7 +552,7 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
 ```
 测试通过！
 
-用cargo run执行
+执行cargo run：
 ```
 Hello, This is the Monkey programming language!
 Feel free to type in commands
@@ -616,7 +616,7 @@ fn test_array_index_expressions() {
 thread 'evaluator::tests::test_array_index_expressions' panicked at 'object is not Integer. got=None', src/evaluator_test.rs:477:13
 ```
 
-求值时，先需要求值左部，再求值索引，然后才能确定索引表达式的值：
+求值时，需要先求值左部，再求值索引，然后才能确定索引表达式的值：
 ```rust,noplaypen
 // src/evaluator.rs
 
@@ -682,7 +682,7 @@ fn eval_array_index_expression(array: Object, index: Object) -> Option<Object> {
 ```
 测试通过！
 
-用cargo run执行：
+执行cargo run：
 ```
 Hello, This is the Monkey programming language!
 Feel free to type in commands
@@ -737,9 +737,9 @@ pub fn get_builtin(name: &str) -> Option<Object> {
         _ => None,
     }
 ```
-使用Rust Vec的len函数就能做到这一点。
+使用Rust Vec的len方法就能做到这一点。
 
-再增加first函数返回数组的第一个元素：
+增加first内置函数返回数组的第一个元素：
 ```rust,noplaypen
 // src/builtins.rs
 
@@ -772,7 +772,7 @@ pub fn get_builtin(name: &str) -> Option<Object> {
 ```
 不难！
 
-接下来增加last函数，返回数组最后的元素：
+接下来增加last内置函数，返回数组最后的元素：
 ```rust,noplaypen
 // src/builtins.rs
 
@@ -806,7 +806,7 @@ pub fn get_builtin(name: &str) -> Option<Object> {
 ```
 搞定！
 
-再增加rest函数返回除了第一个元素之外的数组元素，返回值仍然是个数组：
+再增加rest内置函数返回除了第一个元素之外的数组元素，返回值仍然是个数组：
 ```rust,noplaypen
 // src/builtins.rs
 
@@ -842,7 +842,7 @@ pub fn get_builtin(name: &str) -> Option<Object> {
 ```
 使用Rust clone_from_slice方法即可！
 
-用cargo run执行
+执行cargo run：
 ```
 Hello, This is the Monkey programming language!
 Feel free to type in commands
@@ -862,7 +862,7 @@ null
 ```
 注意这里返回的是新创建的数组。
 
-下面实现push函数，使用实例如下：
+下面实现push函数，使用示例如下：
 ```js
 >> let a = [1, 2, 3, 4]; 
 >> let b = push(a, 5); 

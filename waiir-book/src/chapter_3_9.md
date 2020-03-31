@@ -41,7 +41,7 @@ fn print_parser_errors(output: &mut dyn Write, errors: &Vec<String>) {
     }
 }
 ```
-用cargo run执行
+执行cargo run：
 ```
 Hello, This is the Monkey programming language!
 Feel free to type in commands
@@ -80,7 +80,7 @@ fn print_parser_errors(output: &mut dyn Write, errors: &Vec<String>) {
     }
 }
 ```
-用cargo run执行，并故意输入错误：
+执行cargo run，并故意输入错误：
 ```
 Hello, This is the Monkey programming language!
 Feel free to type in commands

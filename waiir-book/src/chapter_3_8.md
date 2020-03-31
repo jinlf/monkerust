@@ -731,14 +731,14 @@ impl NodeTrait for FunctionLiteral {
         self.token.literal.clone()
     }
     fn string(&self) -> String {
-        let mut params: Vec<String> = Vec::new();
-        for p in self.parameters.iter() {
-            params.push(p.string());
-        }
         format!(
             "{} ({}) {}",
             self.token_literal(),
-            params.join(", "),
+            self.parameters
+                .iter()
+                .map(|x| x.string())
+                .collect::<Vec<String>>()
+                .join(", "),
             self.body.string()
         )
     }
@@ -1041,12 +1041,15 @@ impl NodeTrait for CallExpression {
         self.token.literal.clone()
     }
     fn string(&self) -> String {
-        let mut args: Vec<String> = Vec::new();
-        for a in self.arguments.iter() {
-            args.push(a.string());
-        }
-
-        format!("{}({})", self.function.string(), args.join(", "))
+        format!(
+            "{}({})",
+            self.function.string(),
+            self.arguments
+                .iter()
+                .map(|x| x.string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
     }
 }
 

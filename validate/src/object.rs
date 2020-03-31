@@ -137,12 +137,15 @@ impl ObjectTrait for Function {
         String::from("FUNCTION")
     }
     fn inspect(&self) -> String {
-        let mut params: Vec<String> = Vec::new();
-        for p in self.parameters.iter() {
-            params.push(p.string());
-        }
-
-        format!("fn({}) {{\n{}\n}}", params.join(", "), self.body.string())
+        format!(
+            "fn({}) {{\n{}\n}}",
+            self.parameters
+                .iter()
+                .map(|x| x.string())
+                .collect::<Vec<String>>()
+                .join(", "),
+            self.body.string()
+        )
     }
 }
 impl PartialEq for Function {
@@ -217,53 +220,70 @@ impl ObjectTrait for Array {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, StdHash)]
-pub struct HashKey {
-    pub obj_type: String,
-    pub value: u64,
+#[derive(PartialEq, Eq, StdHash, Clone)]
+pub enum HashKey {
+    Integer(Integer),
+    Boolean(Boolean),
+    StringObj(StringObj),
 }
+impl HashKey {
+    fn inspect(&self) -> String {
+        match self {
+            HashKey::Integer(i) => i.inspect(),
+            HashKey::Boolean(b) => b.inspect(),
+            HashKey::StringObj(s) => s.inspect(),
+        }
+    }
+}
+
+impl StdHash for Integer {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.get_type().hash(state);
+        state.write_i64(self.value);
+        state.finish();
+    }
+}
+impl StdHash for Boolean {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.get_type().hash(state);
+        if self.value {
+            state.write_u8(1);
+        } else {
+            state.write_u8(0);
+        }
+        state.finish();
+    }
+}
+impl StdHash for StringObj {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.get_type().hash(state);
+        self.value.hash(state);
+        state.finish();
+    }
+}
+
 pub trait Hashable {
     fn hash_key(&self) -> HashKey;
 }
 impl Hashable for Boolean {
     fn hash_key(&self) -> HashKey {
-        let mut value: u64 = 0;
-        if self.value {
-            value = 1;
-        }
-        HashKey {
-            obj_type: self.get_type(),
-            value: value,
-        }
+        HashKey::Boolean(self.clone())
     }
 }
 impl Hashable for Integer {
     fn hash_key(&self) -> HashKey {
-        HashKey {
-            obj_type: self.get_type(),
-            value: self.value as u64,
-        }
+        HashKey::Integer(self.clone())
     }
 }
 impl Hashable for StringObj {
     fn hash_key(&self) -> HashKey {
-        let mut h = DefaultHasher::new();
-        self.value.hash(&mut h);
-        HashKey {
-            obj_type: self.get_type(),
-            value: h.finish(),
-        }
+        HashKey::StringObj(self.clone())
     }
 }
 
 #[derive(Clone)]
-pub struct HashPair {
-    pub key: Object,
-    pub value: Object,
-}
-#[derive(Clone)]
 pub struct Hash {
-    pub pairs: HashMap<HashKey, HashPair>,
+    pub pairs: HashMap<HashKey, Object>,
 }
 impl Debug for Hash {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
@@ -285,7 +305,7 @@ impl ObjectTrait for Hash {
             "{{{}}}",
             self.pairs
                 .iter()
-                .map(|(_, pair)| { format!("{}: {}", pair.key.inspect(), pair.value.inspect()) })
+                .map(|(key, value)| { format!("{}: {}", key.inspect(), value.inspect()) })
                 .collect::<Vec<String>>()
                 .join(", ")
         )
