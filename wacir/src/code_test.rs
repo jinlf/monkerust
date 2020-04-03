@@ -4,7 +4,11 @@ use super::code::*;
 
 #[test]
 fn test_make() {
-    let tests = [(OP_CONSTANT, vec![65534], vec![OP_CONSTANT, 255, 254])];
+    let tests = [(
+        Opcode::OpConstant,
+        vec![65534],
+        vec![Opcode::OpConstant.into(), 255, 254],
+    )];
 
     for tt in tests.iter() {
         let instruction = make(tt.0, &tt.1);
@@ -29,18 +33,17 @@ fn test_make() {
 #[test]
 fn test_instructions_string() {
     let instructions = vec![
-        make(OP_CONSTANT, &vec![1]),
-        make(OP_CONSTANT, &vec![2]),
-        make(OP_CONSTANT, &vec![65535]),
+        make(Opcode::OpConstant, &vec![1]),
+        make(Opcode::OpConstant, &vec![2]),
+        make(Opcode::OpConstant, &vec![65535]),
     ];
 
-    let expected = "0000 OP_CONSTANT 1
-0003 OP_CONSTANT 2
-0006 OP_CONSTANT 65535";
+    let expected = "0000 OpConstant 1
+0003 OpConstant 2
+0006 OpConstant 65535
+";
 
-    let mut concatted = Instructions {
-        content: Vec::new(),
-    };
+    let mut concatted = Instructions::new();
     for ins in instructions {
         concatted.content.extend_from_slice(&ins);
     }
@@ -51,4 +54,31 @@ fn test_instructions_string() {
         expected,
         concatted.string()
     );
+}
+
+fn test_read_operands() {
+    let tests = [(Opcode::OpConstant, vec![65535], 2)];
+
+    for tt in tests.iter() {
+        let instruction = make(tt.0, &tt.1);
+        match lookup(tt.0.into()) {
+            Ok(def) => {
+                let (operands_read, n) =
+                    read_operands(&def, Instructions::from(instruction[1..].to_vec()));
+                assert!(n == tt.2, "n wrong. want={}, got={}", tt.2, n);
+
+                for (i, want) in tt.1.iter().enumerate() {
+                    assert!(
+                        operands_read[i] == *want,
+                        "operand wong. want={}, got{}",
+                        want,
+                        operands_read[i]
+                    );
+                }
+            }
+            Err(e) => {
+                assert!(false, "definition not found: {:?}", e);
+            }
+        }
+    }
 }

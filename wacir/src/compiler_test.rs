@@ -20,8 +20,8 @@ fn test_integer_arithmetic() {
         input: "1 + 2",
         expected_constants: vec![Box::new(1 as i32), Box::new(2 as i32)],
         expected_instructions: vec![
-            Instructions(make(OP_CONSTANT, &vec![0])),
-            Instructions(make(OP_CONSTANT, &vec![1])),
+            Instructions::from(make(Opcode::OpConstant, &vec![0])),
+            Instructions::from(make(Opcode::OpConstant, &vec![1])),
         ],
     }];
     run_compiler_tests(tests);
@@ -31,7 +31,7 @@ fn run_compiler_tests(tests: Vec<CompilerTestCase>) {
     for tt in tests.iter() {
         let program = parse(tt.input);
 
-        let compiler = Compiler::new();
+        let mut compiler = Compiler::new();
 
         match compiler.compile(Node::Program(program.unwrap())) {
             Ok(_) => {
@@ -54,7 +54,7 @@ fn test_instructions(expected: &Vec<Instructions>, actual: &Instructions) {
     let concatted = concat_instructions(expected);
 
     assert!(
-        actual.len() == concatted.len(),
+        actual.content.len() == concatted.content.len(),
         "wrong instructions length. \nwant={:?}\ngot={:?}",
         concatted.content.len(),
         actual.content.len()
@@ -64,16 +64,14 @@ fn test_instructions(expected: &Vec<Instructions>, actual: &Instructions) {
             actual.content[i] == *ins,
             "wrong instruction at {}.\nwant={:?}\ngot={:?}",
             i,
-            concatted.content,
-            actual.content,
+            concatted,
+            actual,
         );
     }
 }
 
 fn concat_instructions(s: &Vec<Instructions>) -> Instructions {
-    let mut out = Instructions {
-        content: Vec::new(),
-    };
+    let mut out = Instructions::new();
     for ins in s.iter() {
         out.content.extend_from_slice(&ins.content);
     }
