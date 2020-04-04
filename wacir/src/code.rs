@@ -143,9 +143,7 @@ pub fn read_operands(def: &Definition, ins: Instructions) -> (Vec<isize>, usize)
     for (i, width) in def.operand_widths.iter().enumerate() {
         match width {
             2 => {
-                let mut bytes: [u8; 2] = Default::default();
-                bytes.copy_from_slice(&ins.content[offset..offset + 2]);
-                operands[i] = u16::from_be_bytes(bytes) as isize
+                operands[i] = read_u16(&ins.content[offset..offset+2]) as isize
             }
             _ => {
                 // error
@@ -154,4 +152,9 @@ pub fn read_operands(def: &Definition, ins: Instructions) -> (Vec<isize>, usize)
         offset += width;
     }
     (operands, offset)
+}
+pub fn read_u16(ins: &[u8]) -> u16 {
+    let mut bytes: [u8; 2] = Default::default();
+    bytes.copy_from_slice(ins);
+    u16::from_be_bytes(bytes)
 }

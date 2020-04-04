@@ -11,6 +11,7 @@ pub mod object;
 pub mod parser;
 pub mod repl;
 pub mod token;
+pub mod vm;
 
 #[cfg(test)]
 mod compiler_test;
@@ -26,3 +27,5 @@ mod code_test;
 // mod object_test;
 // #[cfg(test)]
 // mod parser_test;
+#[cfg(test)]
+mod vm_test;

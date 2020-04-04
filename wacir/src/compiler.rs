@@ -38,7 +38,7 @@ impl Compiler {
             Node::Expression(Expression::InfixExpression(InfixExpression {
                 token: _,
                 left,
-                operator,
+                operator: _,
                 right,
             })) => {
                 match self.compile(Node::Expression(*left)) {
