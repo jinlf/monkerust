@@ -75,7 +75,7 @@ fn test_integer_arithmetic() {
         },
         VmTestCase{
             input:"1 + 2",
-            expected: Box::new(2 as isize),     //FIXME
+            expected: Box::new(3 as isize),     //FIXME
         }
     ];
 

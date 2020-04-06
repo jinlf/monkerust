@@ -49,6 +49,19 @@ impl Vm {
                         Err(err) => return Err(err)
                     }
                 }
+                Opcode::OpAdd => {
+                    let right = self.pop();
+                    let left= self.pop();
+                    if let Object::Integer(Integer{value}) = left {
+                        let left_value = value;
+                        if let Object::Integer(Integer{value}) = right {
+                            let right_value = value;
+
+                            let result = left_value + right_value;
+                            self.push(Object::Integer(Integer{value:result}));
+                        }
+                    }
+                }
                 _=>{}
             }
 
@@ -64,6 +77,12 @@ impl Vm {
         self.stack[self.sp] = o;
         self.sp+=1;
         Ok(String::new())
+    }
+
+    pub fn pop(&mut self) -> Object {
+        let o = self.stack[self.sp - 1].clone();
+        self.sp -= 1;
+        o
     }
 }
 

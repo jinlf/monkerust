@@ -38,7 +38,7 @@ impl Compiler {
             Node::Expression(Expression::InfixExpression(InfixExpression {
                 token: _,
                 left,
-                operator: _,
+                operator,
                 right,
             })) => {
                 match self.compile(Node::Expression(*left)) {
@@ -48,6 +48,10 @@ impl Compiler {
                 match self.compile(Node::Expression(*right)) {
                     Ok(_) => {}
                     Err(err) => return Err(err),
+                }
+                match &operator[..] {
+                    "+" => {self.emit(Opcode::OpAdd, Vec::new());},
+                    _ => return Err(format!("unknown operator {}", operator)),
                 }
             }
             Node::Expression(Expression::IntegerLiteral(IntegerLiteral { token: _, value })) => {

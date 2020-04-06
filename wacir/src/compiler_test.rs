@@ -22,6 +22,7 @@ fn test_integer_arithmetic() {
         expected_instructions: vec![
             Instructions::from(make(Opcode::OpConstant, &vec![0])),
             Instructions::from(make(Opcode::OpConstant, &vec![1])),
+            Instructions::from(make(Opcode::OpAdd, &Vec::new())),
         ],
     }];
     run_compiler_tests(tests);

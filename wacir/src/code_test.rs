@@ -8,6 +8,11 @@ fn test_make() {
         Opcode::OpConstant,
         vec![65534],
         vec![Opcode::OpConstant.into(), 255, 254],
+    ),
+    (
+        Opcode::OpAdd,
+        Vec::new(),
+        vec![Opcode::OpAdd.into()],
     )];
 
     for tt in tests.iter() {
@@ -33,14 +38,14 @@ fn test_make() {
 #[test]
 fn test_instructions_string() {
     let instructions = vec![
-        make(Opcode::OpConstant, &vec![1]),
+        make(Opcode::OpAdd, &Vec::new()),
         make(Opcode::OpConstant, &vec![2]),
         make(Opcode::OpConstant, &vec![65535]),
     ];
 
-    let expected = "0000 OpConstant 1
-0003 OpConstant 2
-0006 OpConstant 65535
+    let expected = "0000 OpAdd
+0001 OpConstant 2
+0004 OpConstant 65535
 ";
 
     let mut concatted = Instructions::new();
@@ -56,6 +61,7 @@ fn test_instructions_string() {
     );
 }
 
+#[test]
 fn test_read_operands() {
     let tests = [(Opcode::OpConstant, vec![65535], 2)];
 

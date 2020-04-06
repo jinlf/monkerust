@@ -57,8 +57,10 @@ impl Instructions {
                 operand_cound
             );
         }
+        println!("operand_cound:{}", operand_cound);
         match operand_cound {
-            1 => return format!("{} {}", def.name, operands[0]),
+            0 => return def.name.clone(),
+            1 => return format!("{} {}", def.name, operands[0]),            
             _ => {
                 return format!("ERROR: unhandled operand_count for {}\n", def.name);
             }
@@ -69,12 +71,14 @@ impl Instructions {
 #[derive(Copy, Clone)]
 pub enum Opcode {
     OpConstant,
+    OpAdd,
     OpUnknown,
 }
 impl From<u8> for Opcode {
     fn from(v: u8) -> Self {
         match v {
             0 => Opcode::OpConstant,
+            1 => Opcode::OpAdd,
             _ => Opcode::OpUnknown,
         }
     }
@@ -83,6 +87,7 @@ impl Into<u8> for Opcode {
     fn into(self) -> u8 {
         match self {
             Opcode::OpConstant => 0,
+            Opcode::OpAdd => 1,
             _ => std::u8::MAX,
         }
     }
@@ -98,6 +103,10 @@ fn get_definition(opcode: Opcode) -> Option<Definition> {
         Opcode::OpConstant => Some(Definition {
             name: String::from("OpConstant"),
             operand_widths: vec![2],
+        }),
+        Opcode::OpAdd => Some(Definition{
+            name:String::from("OpAdd"),
+            operand_widths: Vec::new(),
         }),
         _ => None,
     }
