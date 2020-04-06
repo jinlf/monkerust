@@ -2,19 +2,21 @@
 
 use super::ast::*;
 use super::environment::*;
-use super::evaluator::*;
+// use super::evaluator::*;
 use super::lexer::*;
 use super::object::*;
 use super::parser::*;
 use std::cell::*;
 use std::io::*;
 use std::rc::*;
+use super::compiler::*;
+use super::vm::*;
 
 const PROMPT: &str = ">> ";
 
 pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
     let mut scanner = BufReader::new(input);
-    let env = Rc::new(RefCell::new(new_environment()));
+    // let env = Rc::new(RefCell::new(new_environment()));
 
     loop {
         write!(output, "{}", PROMPT).unwrap();
@@ -30,10 +32,25 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
             print_parser_errors(output, &p.errors);
             continue;
         }
-        if program.is_some() {
-            if let Some(evaluated) = eval(Node::Program(program.unwrap()), Rc::clone(&env)) {
-                writeln!(output, "{}", evaluated.inspect()).unwrap();
+        let mut comp = Compiler::new();
+        match comp.compile(Node::Program(program.unwrap())) {
+            Ok(_) => {
+                let mut machine = Vm::new(comp.bytecode());
+                match machine.run() {
+                    Ok(_) => {
+                        let stack_top = machine.stack_top();
+                        writeln!(output, "{}", stack_top.unwrap().inspect()).unwrap();
+                    },
+                    Err(err) => {
+                        writeln!(output, "Woops! Executing bytecode failed:\n {}", err).unwrap();
+                        continue;                        
+                    }
+                }
             }
+            Err(err) => {
+                writeln!(output, "Woops! Compilation failed:\n {}", err).unwrap();
+                continue;
+            },
         }
     }
 }
