@@ -5,6 +5,8 @@ use super::compiler::*;
 use super::object::*;
 
 const STACK_SIZE: usize = 2048;
+const TRUE: Object = Object::Boolean(Boolean { value: true });
+const FALSE: Object = Object::Boolean(Boolean { value: false });
 
 pub struct Vm {
     pub constants: Vec<Object>,
@@ -70,6 +72,12 @@ impl Vm {
                     Ok(_) => {}
                     Err(err) => return Err(err),
                 },
+                Opcode::OpEqual | Opcode::OpNotEqual | Opcode::OpGreaterThan => {
+                    match self.execute_comparison(op) {
+                        Ok(_) => {}
+                        Err(err) => return Err(err),
+                    }
+                }
                 _ => {}
             }
 
@@ -132,7 +140,50 @@ impl Vm {
         }
         Ok(String::new())
     }
+
+    fn execute_comparison(&mut self, op: Opcode) -> Result<String, String> {
+        let right = self.pop();
+        let left = self.pop();
+
+        if let Some(Object::Integer(Integer { value })) = right.clone() {
+            let right_value = value;
+            if let Some(Object::Integer(Integer { value })) = left.clone() {
+                let left_value = value;
+                return self.execute_integer_comparison(op, left_value, right_value);
+            }
+        }
+
+        match op {
+            Opcode::OpEqual => return self.push(native_bool_to_boolean_object(left == right)),
+            Opcode::OpNotEqual => return self.push(native_bool_to_boolean_object(left != right)),
+            _ => {
+                return Err(format!(
+                    "unknown operator: {:?} ({:?} {:?})",
+                    op, left, right
+                ));
+            }
+        }
+    }
+
+    fn execute_integer_comparison(
+        &mut self,
+        op: Opcode,
+        left: i64,
+        right: i64,
+    ) -> Result<String, String> {
+        match op {
+            Opcode::OpEqual => self.push(native_bool_to_boolean_object(right == left)),
+            Opcode::OpNotEqual => self.push(native_bool_to_boolean_object(right != left)),
+            Opcode::OpGreaterThan => self.push(native_bool_to_boolean_object(left > right)),
+            _ => return Err(format!("unknown operator: {:?}", op)),
+        }
+    }
 }
 
-const TRUE: Object = Object::Boolean(Boolean { value: true });
-const FALSE: Object = Object::Boolean(Boolean { value: false });
+fn native_bool_to_boolean_object(input: bool) -> Object {
+    if input {
+        Object::Boolean(Boolean { value: true })
+    } else {
+        Object::Boolean(Boolean { value: false })
+    }
+}

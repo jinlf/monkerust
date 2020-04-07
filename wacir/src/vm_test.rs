@@ -146,6 +146,74 @@ fn test_boolean_expressions() {
             input: "false",
             expected: Box::new(false),
         },
+        VmTestCase {
+            input: "1 < 2",
+            expected: Box::new(true),
+        },
+        VmTestCase {
+            input: "1 > 2",
+            expected: Box::new(false),
+        },
+        VmTestCase {
+            input: "1 < 1",
+            expected: Box::new(false),
+        },
+        VmTestCase {
+            input: "1 > 1",
+            expected: Box::new(false),
+        },
+        VmTestCase {
+            input: "1 == 1",
+            expected: Box::new(true),
+        },
+        VmTestCase {
+            input: "1 != 1",
+            expected: Box::new(false),
+        },
+        VmTestCase {
+            input: "1 == 2",
+            expected: Box::new(false),
+        },
+        VmTestCase {
+            input: "1 != 2",
+            expected: Box::new(true),
+        },
+        VmTestCase {
+            input: "true == true",
+            expected: Box::new(true),
+        },
+        VmTestCase {
+            input: "false == false",
+            expected: Box::new(true),
+        },
+        VmTestCase {
+            input: "true == false",
+            expected: Box::new(false),
+        },
+        VmTestCase {
+            input: "true != false",
+            expected: Box::new(true),
+        },
+        VmTestCase {
+            input: "false != true",
+            expected: Box::new(true),
+        },
+        VmTestCase {
+            input: "(1 < 2) == true",
+            expected: Box::new(true),
+        },
+        VmTestCase {
+            input: "(1 < 2) == false",
+            expected: Box::new(false),
+        },
+        VmTestCase {
+            input: "(1 > 2) == true",
+            expected: Box::new(false),
+        },
+        VmTestCase {
+            input: "(1 > 2) == false",
+            expected: Box::new(true),
+        },
     ];
 
     run_vm_tests(tests);

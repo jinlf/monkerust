@@ -67,6 +67,9 @@ pub enum Opcode {
     OpDiv,
     OpTrue,
     OpFalse,
+    OpEqual,
+    OpNotEqual,
+    OpGreaterThan,
 }
 impl From<u8> for Opcode {
     fn from(v: u8) -> Self {
@@ -79,6 +82,9 @@ impl From<u8> for Opcode {
             5 => Opcode::OpDiv,
             6 => Opcode::OpTrue,
             7 => Opcode::OpFalse,
+            8 => Opcode::OpEqual,
+            9 => Opcode::OpNotEqual,
+            10 => Opcode::OpGreaterThan,
             _ => panic!("invalid Opcode"),
         }
     }
@@ -121,6 +127,18 @@ fn get_definition<'a>(opcode: Opcode) -> Option<Definition<'a>> {
         }),
         Opcode::OpFalse => Some(Definition {
             name: "OpFalse",
+            operand_widths: Vec::new(),
+        }),
+        Opcode::OpEqual => Some(Definition {
+            name: "OpEqual",
+            operand_widths: Vec::new(),
+        }),
+        Opcode::OpNotEqual => Some(Definition {
+            name: "OpNotEqual",
+            operand_widths: Vec::new(),
+        }),
+        Opcode::OpGreaterThan => Some(Definition {
+            name: "OpGreaterThan",
             operand_widths: Vec::new(),
         }),
     }

@@ -43,28 +43,49 @@ impl Compiler {
                 operator,
                 right,
             })) => {
-                match self.compile(Node::Expression(*left)) {
-                    Ok(_) => {}
-                    Err(err) => return Err(err),
-                }
-                match self.compile(Node::Expression(*right)) {
-                    Ok(_) => {}
-                    Err(err) => return Err(err),
-                }
-                match &operator[..] {
-                    "+" => {
-                        self.emit(Opcode::OpAdd, Vec::new());
+                if operator == "<" {
+                    match self.compile(Node::Expression(*right)) {
+                        Ok(_) => {}
+                        Err(err) => return Err(err),
                     }
-                    "-" => {
-                        self.emit(Opcode::OpSub, Vec::new());
+                    match self.compile(Node::Expression(*left)) {
+                        Ok(_) => {}
+                        Err(err) => return Err(err),
                     }
-                    "*" => {
-                        self.emit(Opcode::OpMul, Vec::new());
+                    self.emit(Opcode::OpGreaterThan, Vec::new());
+                } else {
+                    match self.compile(Node::Expression(*left)) {
+                        Ok(_) => {}
+                        Err(err) => return Err(err),
                     }
-                    "/" => {
-                        self.emit(Opcode::OpDiv, Vec::new());
+                    match self.compile(Node::Expression(*right)) {
+                        Ok(_) => {}
+                        Err(err) => return Err(err),
                     }
-                    _ => return Err(format!("unknown operator {}", operator)),
+                    match &operator[..] {
+                        "+" => {
+                            self.emit(Opcode::OpAdd, Vec::new());
+                        }
+                        "-" => {
+                            self.emit(Opcode::OpSub, Vec::new());
+                        }
+                        "*" => {
+                            self.emit(Opcode::OpMul, Vec::new());
+                        }
+                        "/" => {
+                            self.emit(Opcode::OpDiv, Vec::new());
+                        }
+                        ">" => {
+                            self.emit(Opcode::OpGreaterThan, Vec::new());
+                        }
+                        "==" => {
+                            self.emit(Opcode::OpEqual, Vec::new());
+                        }
+                        "!=" => {
+                            self.emit(Opcode::OpNotEqual, Vec::new());
+                        }
+                        _ => return Err(format!("unknown operator {}", operator)),
+                    }
                 }
             }
             Node::Expression(Expression::IntegerLiteral(IntegerLiteral { token: _, value })) => {
