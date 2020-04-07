@@ -1,14 +1,14 @@
 // src/repl.rs
 
 use super::ast::*;
-use super::environment::*;
+// use super::environment::*;
 // use super::evaluator::*;
 use super::lexer::*;
 use super::object::*;
 use super::parser::*;
-use std::cell::*;
+// use std::cell::*;
 use std::io::*;
-use std::rc::*;
+// use std::rc::*;
 use super::compiler::*;
 use super::vm::*;
 
@@ -38,19 +38,19 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
                 let mut machine = Vm::new(comp.bytecode());
                 match machine.run() {
                     Ok(_) => {
-                        let stack_top = machine.stack_top();
-                        writeln!(output, "{}", stack_top.unwrap().inspect()).unwrap();
-                    },
+                        let last_popped = machine.last_popped_stack_elem();
+                        writeln!(output, "{}", last_popped.unwrap().inspect()).unwrap();
+                    }
                     Err(err) => {
                         writeln!(output, "Woops! Executing bytecode failed:\n {}", err).unwrap();
-                        continue;                        
+                        continue;
                     }
                 }
             }
             Err(err) => {
                 writeln!(output, "Woops! Compilation failed:\n {}", err).unwrap();
                 continue;
-            },
+            }
         }
     }
 }

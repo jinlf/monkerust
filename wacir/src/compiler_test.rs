@@ -16,15 +16,58 @@ struct CompilerTestCase<'a> {
 
 #[test]
 fn test_integer_arithmetic() {
-    let tests = vec![CompilerTestCase {
-        input: "1 + 2",
-        expected_constants: vec![Box::new(1 as i32), Box::new(2 as i32)],
-        expected_instructions: vec![
-            Instructions::from(make(Opcode::OpConstant, &vec![0])),
-            Instructions::from(make(Opcode::OpConstant, &vec![1])),
-            Instructions::from(make(Opcode::OpAdd, &Vec::new())),
-        ],
-    }];
+    let tests = vec![
+        CompilerTestCase {
+            input: "1 + 2",
+            expected_constants: vec![Box::new(1 as i32), Box::new(2 as i32)],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpAdd, &Vec::new()),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "1; 2",
+            expected_constants: vec![Box::new(1 as i32), Box::new(2 as i32)],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpPop, &Vec::new()),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "1 - 2",
+            expected_constants: vec![Box::new(1 as i32), Box::new(2 as i32)],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpSub, &Vec::new()),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "1 * 2",
+            expected_constants: vec![Box::new(1 as i32), Box::new(2 as i32)],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpMul, &Vec::new()),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "2 / 1",
+            expected_constants: vec![Box::new(2 as i32), Box::new(1 as i32)],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpDiv, &Vec::new()),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+    ];
     run_compiler_tests(tests);
 }
 
@@ -55,14 +98,14 @@ fn test_instructions(expected: &Vec<Instructions>, actual: &Instructions) {
     let concatted = concat_instructions(expected);
 
     assert!(
-        actual.content.len() == concatted.content.len(),
+        actual.0.len() == concatted.0.len(),
         "wrong instructions length. \nwant={:?}\ngot={:?}",
-        concatted.content.len(),
-        actual.content.len()
+        concatted.string(),
+        actual.string()
     );
-    for (i, ins) in concatted.content.iter().enumerate() {
+    for (i, ins) in concatted.0.iter().enumerate() {
         assert!(
-            actual.content[i] == *ins,
+            actual.0[i] == *ins,
             "wrong instruction at {}.\nwant={:?}\ngot={:?}",
             i,
             concatted,
@@ -74,7 +117,7 @@ fn test_instructions(expected: &Vec<Instructions>, actual: &Instructions) {
 fn concat_instructions(s: &Vec<Instructions>) -> Instructions {
     let mut out = Instructions::new();
     for ins in s.iter() {
-        out.content.extend_from_slice(&ins.content);
+        out.0.extend_from_slice(&ins.0);
     }
     out
 }

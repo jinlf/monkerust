@@ -30,11 +30,13 @@ impl Compiler {
             Node::Statement(Statement::ExpressionStatement(ExpressionStatement {
                 token: _,
                 expression,
-            })) => match self.compile(Node::Expression(expression)) {
-                Ok(_) => {}
-                Err(err) => return Err(err),
-            },
-
+            })) => {
+                match self.compile(Node::Expression(expression)) {
+                    Ok(_) => {}
+                    Err(err) => return Err(err),
+                }
+                self.emit(Opcode::OpPop, Vec::new());
+            }
             Node::Expression(Expression::InfixExpression(InfixExpression {
                 token: _,
                 left,
@@ -50,7 +52,18 @@ impl Compiler {
                     Err(err) => return Err(err),
                 }
                 match &operator[..] {
-                    "+" => {self.emit(Opcode::OpAdd, Vec::new());},
+                    "+" => {
+                        self.emit(Opcode::OpAdd, Vec::new());
+                    }
+                    "-" => {
+                        self.emit(Opcode::OpSub, Vec::new());
+                    }
+                    "*" => {
+                        self.emit(Opcode::OpMul, Vec::new());
+                    }
+                    "/" => {
+                        self.emit(Opcode::OpDiv, Vec::new());
+                    }
                     _ => return Err(format!("unknown operator {}", operator)),
                 }
             }
@@ -59,6 +72,7 @@ impl Compiler {
                 let v = vec![self.add_constant(Object::Integer(integer))];
                 self.emit(Opcode::OpConstant, v);
             }
+
             _ => {}
         }
         return Ok(String::new());
@@ -71,20 +85,20 @@ impl Compiler {
         }
     }
 
-    fn add_constant(&mut self, obj: Object) -> isize {
+    fn add_constant(&mut self, obj: Object) -> i64 {
         self.constants.push(obj);
-        self.constants.len() as isize - 1
+        self.constants.len() as i64 - 1
     }
 
-    fn emit(&mut self, op: Opcode, operands: Vec<isize>) -> usize {
+    fn emit(&mut self, op: Opcode, operands: Vec<i64>) -> usize {
         let ins = make(op, &operands);
-        let pos = self.add_instruction(ins.into());
+        let pos = self.add_instruction(ins.0);
         pos
     }
 
     fn add_instruction(&mut self, ins: Vec<u8>) -> usize {
-        let pos_new_instruction = self.instructions.content.len();
-        self.instructions.content.extend_from_slice(&ins);
+        let pos_new_instruction = self.instructions.0.len();
+        self.instructions.0.extend_from_slice(&ins);
         pos_new_instruction
     }
 }

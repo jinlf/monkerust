@@ -6,10 +6,10 @@ use super::object::*;
 
 const STACK_SIZE: usize = 2048;
 
-pub struct Vm{
+pub struct Vm {
     pub constants: Vec<Object>,
     pub instructions: Instructions,
-    pub stack: [Object;STACK_SIZE],
+    pub stack: [Option<Object>; STACK_SIZE],
     pub sp: usize, // Always points to the next value. Top of stack is stack[sp-1]
 }
 impl Vm {
@@ -19,12 +19,16 @@ impl Vm {
             constants: bytecode.constants,
 
             stack: {
-                let data: [std::mem::MaybeUninit<Object>; STACK_SIZE] = unsafe {
-                    std::mem::MaybeUninit::uninit().assume_init()
-                };            
-                unsafe { std::mem::transmute::<_, [Object; STACK_SIZE]>(data) }
+                let mut data: [std::mem::MaybeUninit<Option<Object>>; STACK_SIZE] =
+                    unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+                for elem in &mut data[..] {
+                    unsafe {
+                        std::ptr::write(elem.as_mut_ptr(), None);
+                    }
+                }
+                unsafe { std::mem::transmute::<_, [Option<Object>; STACK_SIZE]>(data) }
             },
-            sp: 0,// Always points to the next value. Top of stack is stack[sp-1]
+            sp: 0, // Always points to the next value. Top of stack is stack[sp-1]
         }
     }
 
@@ -32,40 +36,36 @@ impl Vm {
         if self.sp == 0 {
             None
         } else {
-            Some(self.stack[(self.sp - 1) as usize].clone())
+            self.stack[(self.sp - 1) as usize].clone()
         }
     }
 
     pub fn run(&mut self) -> Result<String, String> {
-        let mut ip =0;  
-        while ip < self.instructions.content.len() {
-            let op = Opcode::from(self.instructions.content[ip]);
+        let mut ip = 0;
+        while ip < self.instructions.0.len() {
+            let op = Opcode::from(self.instructions.0[ip]);
             match op {
                 Opcode::OpConstant => {
-                    let const_index = read_u16(&self.instructions.content[(ip+1)..(ip+3)]);
-                    ip +=2;
+                    let const_index = read_u16(&self.instructions.0[(ip + 1)..(ip + 3)]);
+                    ip += 2;
                     match self.push(self.constants[const_index as usize].clone()) {
-                        Ok(_) => {},
-                        Err(err) => return Err(err)
+                        Ok(_) => {}
+                        Err(err) => return Err(err),
                     }
                 }
-                Opcode::OpAdd => {
-                    let right = self.pop();
-                    let left= self.pop();
-                    if let Object::Integer(Integer{value}) = left {
-                        let left_value = value;
-                        if let Object::Integer(Integer{value}) = right {
-                            let right_value = value;
-
-                            let result = left_value + right_value;
-                            self.push(Object::Integer(Integer{value:result}));
-                        }
+                Opcode::OpAdd | Opcode::OpSub | Opcode::OpMul | Opcode::OpDiv => {
+                    match self.execute_binary_operation(op) {
+                        Ok(_) => {}
+                        Err(err) => return Err(err),
                     }
                 }
-                _=>{}
+                Opcode::OpPop => {
+                    self.pop();
+                }
+                _ => {}
             }
 
-            ip+=1;
+            ip += 1;
         }
         Ok(String::new())
     }
@@ -74,15 +74,54 @@ impl Vm {
         if self.sp >= STACK_SIZE {
             return Err(String::from("stack overflow"));
         }
-        self.stack[self.sp] = o;
-        self.sp+=1;
+        self.stack[self.sp] = Some(o);
+        self.sp += 1;
         Ok(String::new())
     }
 
-    pub fn pop(&mut self) -> Object {
+    pub fn pop(&mut self) -> Option<Object> {
         let o = self.stack[self.sp - 1].clone();
         self.sp -= 1;
         o
     }
-}
 
+    pub fn last_popped_stack_elem(&self) -> Option<Object> {
+        self.stack[self.sp].clone()
+    }
+
+    fn execute_binary_operation(&mut self, op: Opcode) -> Result<String, String> {
+        let right = self.pop();
+        let left = self.pop();
+        if let Some(Object::Integer(Integer { value })) = left {
+            let left_value = value;
+            if let Some(Object::Integer(Integer { value })) = right {
+                let right_value = value;
+                return self.execute_binary_integer_operation(op, left_value, right_value);
+            } else {
+                return Err(String::from("error"));
+            }
+        } else {
+            return Err(String::from("error"));
+        }
+    }
+
+    fn execute_binary_integer_operation(
+        &mut self,
+        op: Opcode,
+        left_value: i64,
+        right_value: i64,
+    ) -> Result<String, String> {
+        let result = match op {
+            Opcode::OpAdd => left_value + right_value,
+            Opcode::OpSub => left_value - right_value,
+            Opcode::OpMul => left_value * right_value,
+            Opcode::OpDiv => left_value / right_value,
+            _ => return Err(format!("unknown integer operator: {:?}", op)),
+        };
+        match self.push(Object::Integer(Integer { value: result })) {
+            Ok(_) => {}
+            Err(err) => return Err(err),
+        }
+        Ok(String::new())
+    }
+}

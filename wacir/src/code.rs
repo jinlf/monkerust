@@ -1,37 +1,27 @@
 // src/code.rs
 
-#[derive(Clone, Debug)]
-pub struct Instructions {
-    pub content: Vec<u8>,
-}
-impl From<Vec<u8>> for Instructions {
-    fn from(v: Vec<u8>) -> Self {
-        Instructions { content: v }
-    }
-}
-impl Into<Vec<u8>> for Instructions {
-    fn into(self) -> Vec<u8> {
-        self.content
+#[derive(Clone)]
+pub struct Instructions(pub Vec<u8>);
+impl std::fmt::Debug for Instructions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.string())
     }
 }
 impl Instructions {
+    pub fn new() -> Self {
+        Instructions(Vec::new())
+    }
     pub fn put_be_u16(&mut self, offset: usize, value: u16) {
         let bytes = value.to_be_bytes();
-        self.content[offset..offset + 2].copy_from_slice(&bytes)
-    }
-    pub fn new() -> Self {
-        Instructions {
-            content: Vec::new(),
-        }
+        self.0[offset..offset + 2].copy_from_slice(&bytes)
     }
     pub fn string(&self) -> String {
         let mut out = String::new();
         let mut i = 0;
-        while i < self.content.len() {
-            match lookup(self.content[i]) {
+        while i < self.0.len() {
+            match lookup(self.0[i]) {
                 Ok(def) => {
-                    let (operands, read) =
-                        read_operands(&def, Instructions::from(self.content[i + 1..].to_vec()));
+                    let (operands, read) = read_operands(&def, &self.0[i + 1..]);
                     out.push_str(&format!(
                         "{:04} {}\n",
                         i,
@@ -48,19 +38,18 @@ impl Instructions {
         out
     }
 
-    fn fmt_instruction(&self, def: &Definition, operands: Vec<isize>) -> String {
-        let operand_cound = def.operand_widths.len();
-        if operands.len() != operand_cound {
+    fn fmt_instruction(&self, def: &Definition, operands: Vec<i64>) -> String {
+        let operand_count = def.operand_widths.len();
+        if operands.len() != operand_count {
             return format!(
                 "ERROR: operand len {} does not match defined {}\n",
                 operands.len(),
-                operand_cound
+                operand_count
             );
         }
-        println!("operand_cound:{}", operand_cound);
-        match operand_cound {
-            0 => return def.name.clone(),
-            1 => return format!("{} {}", def.name, operands[0]),            
+        match operand_count {
+            0 => return String::from(def.name),
+            1 => return format!("{} {}", def.name, operands[0]),
             _ => {
                 return format!("ERROR: unhandled operand_count for {}\n", def.name);
             }
@@ -68,10 +57,14 @@ impl Instructions {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Opcode {
     OpConstant,
     OpAdd,
+    OpPop,
+    OpSub,
+    OpMul,
+    OpDiv,
     OpUnknown,
 }
 impl From<u8> for Opcode {
@@ -79,6 +72,10 @@ impl From<u8> for Opcode {
         match v {
             0 => Opcode::OpConstant,
             1 => Opcode::OpAdd,
+            2 => Opcode::OpPop,
+            3 => Opcode::OpSub,
+            4 => Opcode::OpMul,
+            5 => Opcode::OpDiv,
             _ => Opcode::OpUnknown,
         }
     }
@@ -88,31 +85,51 @@ impl Into<u8> for Opcode {
         match self {
             Opcode::OpConstant => 0,
             Opcode::OpAdd => 1,
+            Opcode::OpPop => 2,
+            Opcode::OpSub => 3,
+            Opcode::OpMul => 4,
+            Opcode::OpDiv => 5,
             _ => std::u8::MAX,
         }
     }
 }
 
-pub struct Definition {
-    pub name: String,
+pub struct Definition<'a> {
+    pub name: &'a str,
     pub operand_widths: Vec<usize>,
 }
 
-fn get_definition(opcode: Opcode) -> Option<Definition> {
+fn get_definition<'a>(opcode: Opcode) -> Option<Definition<'a>> {
     match opcode {
         Opcode::OpConstant => Some(Definition {
-            name: String::from("OpConstant"),
+            name: "OpConstant",
             operand_widths: vec![2],
         }),
-        Opcode::OpAdd => Some(Definition{
-            name:String::from("OpAdd"),
+        Opcode::OpAdd => Some(Definition {
+            name: "OpAdd",
+            operand_widths: Vec::new(),
+        }),
+        Opcode::OpPop => Some(Definition {
+            name: "OpPop",
+            operand_widths: Vec::new(),
+        }),
+        Opcode::OpSub => Some(Definition {
+            name: "OpSub",
+            operand_widths: Vec::new(),
+        }),
+        Opcode::OpMul => Some(Definition {
+            name: "OpMul",
+            operand_widths: Vec::new(),
+        }),
+        Opcode::OpDiv => Some(Definition {
+            name: "OpDiv",
             operand_widths: Vec::new(),
         }),
         _ => None,
     }
 }
 
-pub fn lookup(op: u8) -> Result<Definition, String> {
+pub fn lookup<'a>(op: u8) -> Result<Definition<'a>, String> {
     if let Some(def) = get_definition(Opcode::from(op)) {
         Ok(def)
     } else {
@@ -120,11 +137,11 @@ pub fn lookup(op: u8) -> Result<Definition, String> {
     }
 }
 
-pub fn make(op: Opcode, operands: &Vec<isize>) -> Vec<u8> {
+pub fn make(op: Opcode, operands: &Vec<i64>) -> Instructions {
     if let Some(def) = get_definition(op) {
         let instruction_len = def.operand_widths.iter().fold(1, |acc, w| acc + w);
-        let mut instruction = Instructions::from(vec![0; instruction_len]);
-        instruction.content[0] = op.into();
+        let mut instruction = Instructions(vec![0; instruction_len]);
+        instruction.0[0] = op.into();
         let mut offset = 1;
         for (i, o) in operands.iter().enumerate() {
             let width = def.operand_widths[i];
@@ -139,21 +156,19 @@ pub fn make(op: Opcode, operands: &Vec<isize>) -> Vec<u8> {
             }
             offset += width;
         }
-        instruction.into()
+        instruction
     } else {
-        Vec::new()
+        Instructions::new()
     }
 }
 
-pub fn read_operands(def: &Definition, ins: Instructions) -> (Vec<isize>, usize) {
+pub fn read_operands(def: &Definition, ins: &[u8]) -> (Vec<i64>, usize) {
     let mut operands = vec![0; def.operand_widths.len()];
     let mut offset = 0;
 
     for (i, width) in def.operand_widths.iter().enumerate() {
         match width {
-            2 => {
-                operands[i] = read_u16(&ins.content[offset..offset+2]) as isize
-            }
+            2 => operands[i] = read_u16(&ins[offset..offset + 2]) as i64,
             _ => {
                 // error
             }
