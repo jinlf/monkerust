@@ -149,3 +149,27 @@ fn test_integer_object(expected: i64, actual: Object) {
         assert!(false, "object is not Integer. got={:?}", actual);
     }
 }
+
+#[test]
+fn test_boolean_expressions() {
+    let tests = vec![
+        CompilerTestCase {
+            input: "true",
+            expected_constants: Vec::new(),
+            expected_instructions: vec![
+                make(Opcode::OpTrue, &Vec::new()),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "false",
+            expected_constants: Vec::new(),
+            expected_instructions: vec![
+                make(Opcode::OpFalse, &Vec::new()),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+    ];
+
+    run_compiler_tests(tests);
+}

@@ -14,17 +14,18 @@ fn parse(input: &str) -> Option<Program> {
     return p.parse_program();
 }
 
-fn test_integer_object(expected: i64, actual: Option<Object>) {
+fn test_integer_object(expected: i64, actual: Option<Object>) -> Result<String, String> {
     if let Some(Object::Integer(Integer { value })) = actual {
-        assert!(
-            value == expected,
-            "object has wrong value. got={}, want={}",
-            value,
-            expected
-        );
+        if value != expected {
+            return Err(format!(
+                "object has wrong value. got={}, want={}",
+                value, expected
+            ));
+        }
     } else {
-        assert!(false, "object is not Integer. got={:?}", actual);
+        return Err(format!("object is not Integer. got={:?}", actual));
     }
+    Ok(String::new())
 }
 
 struct VmTestCase<'a> {
@@ -58,7 +59,19 @@ fn run_vm_tests(tests: Vec<VmTestCase>) {
 
 fn test_expected_object(expectd: &Box<dyn Any>, actual: Option<Object>) {
     if let Some(v) = expectd.as_ref().downcast_ref::<i64>() {
-        test_integer_object(*v as i64, actual);
+        match test_integer_object(*v as i64, actual) {
+            Ok(_) => {}
+            Err(err) => {
+                assert!(false, "test_integer_object failed: {}", err);
+            }
+        }
+    } else if let Some(v) = expectd.as_ref().downcast_ref::<bool>() {
+        match test_boolean_object(*v, actual) {
+            Ok(_) => {}
+            Err(err) => {
+                assert!(false, "test_boolean_object failed: {}", err);
+            }
+        }
     }
 }
 
@@ -120,4 +133,34 @@ fn test_integer_arithmetic() {
     ];
 
     run_vm_tests(tests);
+}
+
+#[test]
+fn test_boolean_expressions() {
+    let tests = vec![
+        VmTestCase {
+            input: "true",
+            expected: Box::new(true),
+        },
+        VmTestCase {
+            input: "false",
+            expected: Box::new(false),
+        },
+    ];
+
+    run_vm_tests(tests);
+}
+
+fn test_boolean_object(expected: bool, actual: Option<Object>) -> Result<String, String> {
+    if let Some(Object::Boolean(Boolean { value })) = actual {
+        if value != expected {
+            return Err(format!(
+                "object has wrong value. got={}, want={}",
+                value, expected
+            ));
+        }
+    } else {
+        return Err(format!("object is not Boolean. got={:?}", actual));
+    }
+    Ok(String::new())
 }

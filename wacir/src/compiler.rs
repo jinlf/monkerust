@@ -72,7 +72,13 @@ impl Compiler {
                 let v = vec![self.add_constant(Object::Integer(integer))];
                 self.emit(Opcode::OpConstant, v);
             }
-
+            Node::Expression(Expression::BooleanLiteral(BooleanLiteral { token: _, value })) => {
+                if value {
+                    self.emit(Opcode::OpTrue, Vec::new());
+                } else {
+                    self.emit(Opcode::OpFalse, Vec::new());
+                }
+            }
             _ => {}
         }
         return Ok(String::new());

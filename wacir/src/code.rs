@@ -59,13 +59,14 @@ impl Instructions {
 
 #[derive(Copy, Clone, Debug)]
 pub enum Opcode {
-    OpConstant,
+    OpConstant = 0,
     OpAdd,
     OpPop,
     OpSub,
     OpMul,
     OpDiv,
-    OpUnknown,
+    OpTrue,
+    OpFalse,
 }
 impl From<u8> for Opcode {
     fn from(v: u8) -> Self {
@@ -76,20 +77,9 @@ impl From<u8> for Opcode {
             3 => Opcode::OpSub,
             4 => Opcode::OpMul,
             5 => Opcode::OpDiv,
-            _ => Opcode::OpUnknown,
-        }
-    }
-}
-impl Into<u8> for Opcode {
-    fn into(self) -> u8 {
-        match self {
-            Opcode::OpConstant => 0,
-            Opcode::OpAdd => 1,
-            Opcode::OpPop => 2,
-            Opcode::OpSub => 3,
-            Opcode::OpMul => 4,
-            Opcode::OpDiv => 5,
-            _ => std::u8::MAX,
+            6 => Opcode::OpTrue,
+            7 => Opcode::OpFalse,
+            _ => panic!("invalid Opcode"),
         }
     }
 }
@@ -125,7 +115,14 @@ fn get_definition<'a>(opcode: Opcode) -> Option<Definition<'a>> {
             name: "OpDiv",
             operand_widths: Vec::new(),
         }),
-        _ => None,
+        Opcode::OpTrue => Some(Definition {
+            name: "OpTrue",
+            operand_widths: Vec::new(),
+        }),
+        Opcode::OpFalse => Some(Definition {
+            name: "OpFalse",
+            operand_widths: Vec::new(),
+        }),
     }
 }
 
@@ -141,7 +138,7 @@ pub fn make(op: Opcode, operands: &Vec<i64>) -> Instructions {
     if let Some(def) = get_definition(op) {
         let instruction_len = def.operand_widths.iter().fold(1, |acc, w| acc + w);
         let mut instruction = Instructions(vec![0; instruction_len]);
-        instruction.0[0] = op.into();
+        instruction.0[0] = op as u8;
         let mut offset = 1;
         for (i, o) in operands.iter().enumerate() {
             let width = def.operand_widths[i];

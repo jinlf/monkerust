@@ -8,9 +8,9 @@ fn test_make() {
         (
             Opcode::OpConstant,
             vec![65534],
-            vec![Opcode::OpConstant.into(), 255, 254],
+            vec![Opcode::OpConstant as u8, 255, 254],
         ),
-        (Opcode::OpAdd, Vec::new(), vec![Opcode::OpAdd.into()]),
+        (Opcode::OpAdd, Vec::new(), vec![Opcode::OpAdd as u8]),
     ];
 
     for tt in tests.iter() {
@@ -65,7 +65,7 @@ fn test_read_operands() {
 
     for tt in tests.iter() {
         let instruction = make(tt.0, &tt.1);
-        match lookup(tt.0.into()) {
+        match lookup(tt.0 as u8) {
             Ok(def) => {
                 let (operands_read, n) = read_operands(&def, &instruction.0[1..]);
                 assert!(n == tt.2, "n wrong. want={}, got={}", tt.2, n);

@@ -62,6 +62,14 @@ impl Vm {
                 Opcode::OpPop => {
                     self.pop();
                 }
+                Opcode::OpTrue => match self.push(TRUE) {
+                    Ok(_) => {}
+                    Err(err) => return Err(err),
+                },
+                Opcode::OpFalse => match self.push(FALSE) {
+                    Ok(_) => {}
+                    Err(err) => return Err(err),
+                },
                 _ => {}
             }
 
@@ -125,3 +133,6 @@ impl Vm {
         Ok(String::new())
     }
 }
+
+const TRUE: Object = Object::Boolean(Boolean { value: true });
+const FALSE: Object = Object::Boolean(Boolean { value: false });
