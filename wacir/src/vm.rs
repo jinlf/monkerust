@@ -6,6 +6,7 @@ use super::object::*;
 use std::convert::TryInto;
 
 const STACK_SIZE: usize = 2048;
+const GLOBALS_SIZE: usize = 65536;
 pub const TRUE: Object = Object::Boolean(Boolean { value: true });
 pub const FALSE: Object = Object::Boolean(Boolean { value: false });
 pub const NULL: Object = Object::Null(Null {});
@@ -13,8 +14,9 @@ pub const NULL: Object = Object::Null(Null {});
 pub struct Vm {
     pub constants: Vec<Object>,
     pub instructions: Instructions,
-    pub stack: [Option<Object>; STACK_SIZE],
+    pub stack: Vec<Option<Object>>,
     pub sp: usize, // Always points to the next value. Top of stack is stack[sp-1]
+    globals: Vec<Option<Object>>,
 }
 impl Vm {
     pub fn new(bytecode: Bytecode) -> Vm {
@@ -22,17 +24,9 @@ impl Vm {
             instructions: bytecode.instuctions,
             constants: bytecode.constants,
 
-            stack: {
-                let mut data: [std::mem::MaybeUninit<Option<Object>>; STACK_SIZE] =
-                    unsafe { std::mem::MaybeUninit::uninit().assume_init() };
-                for elem in &mut data[..] {
-                    unsafe {
-                        std::ptr::write(elem.as_mut_ptr(), None);
-                    }
-                }
-                unsafe { std::mem::transmute::<_, [Option<Object>; STACK_SIZE]>(data) }
-            },
+            stack: vec![None; STACK_SIZE],
             sp: 0, // Always points to the next value. Top of stack is stack[sp-1]
+            globals: vec![None; GLOBALS_SIZE],
         }
     }
 
@@ -56,41 +50,49 @@ impl Vm {
                     let const_index = read_u16(src);
                     ip += 2;
                     match self.push(self.constants[const_index as usize].clone()) {
-                        Ok(_) => {}
                         Err(err) => return Err(err),
-                    }
+                        _ => {}
+                    };
                 }
                 Opcode::OpAdd | Opcode::OpSub | Opcode::OpMul | Opcode::OpDiv => {
                     match self.execute_binary_operation(op) {
-                        Ok(_) => {}
                         Err(err) => return Err(err),
-                    }
+                        _ => {}
+                    };
                 }
                 Opcode::OpPop => {
                     self.pop();
                 }
-                Opcode::OpTrue => match self.push(TRUE) {
-                    Ok(_) => {}
-                    Err(err) => return Err(err),
-                },
-                Opcode::OpFalse => match self.push(FALSE) {
-                    Ok(_) => {}
-                    Err(err) => return Err(err),
-                },
+                Opcode::OpTrue => {
+                    match self.push(TRUE) {
+                        Err(err) => return Err(err),
+                        _ => {}
+                    };
+                }
+                Opcode::OpFalse => {
+                    match self.push(FALSE) {
+                        Err(err) => return Err(err),
+                        _ => {}
+                    };
+                }
                 Opcode::OpEqual | Opcode::OpNotEqual | Opcode::OpGreaterThan => {
                     match self.execute_comparison(op) {
-                        Ok(_) => {}
                         Err(err) => return Err(err),
-                    }
+                        _ => {}
+                    };
                 }
-                Opcode::OpBang => match self.execute_bang_operator() {
-                    Ok(_) => {}
-                    Err(err) => return Err(err),
-                },
-                Opcode::OpMinus => match self.execute_minus_operator() {
-                    Ok(_) => {}
-                    Err(err) => return Err(err),
-                },
+                Opcode::OpBang => {
+                    match self.execute_bang_operator() {
+                        Err(err) => return Err(err),
+                        _ => {}
+                    };
+                }
+                Opcode::OpMinus => {
+                    match self.execute_minus_operator() {
+                        Err(err) => return Err(err),
+                        _ => {}
+                    };
+                }
                 Opcode::OpJump => {
                     let src = self.instructions.0[(ip + 1)..(ip + 3)]
                         .try_into()
@@ -109,13 +111,32 @@ impl Vm {
                         ip = pos - 1;
                     }
                 }
-                Opcode::OpNull => match self.push(NULL) {
-                    Ok(_) => {}
-                    Err(err) => return Err(err),
-                },
-                _ => {}
+                Opcode::OpNull => {
+                    match self.push(NULL) {
+                        Err(err) => return Err(err),
+                        _ => {}
+                    };
+                }
+                Opcode::OpSetGlobal => {
+                    let src = self.instructions.0[(ip + 1)..(ip + 3)]
+                        .try_into()
+                        .expect("wrong size");
+                    let global_index = read_u16(src) as usize;
+                    ip += 2;
+                    self.globals[global_index] = self.pop();
+                }
+                Opcode::OpGetGlobal => {
+                    let src = self.instructions.0[(ip + 1)..(ip + 3)]
+                        .try_into()
+                        .expect("wrong size");
+                    let global_index = read_u16(src) as usize;
+                    ip += 2;
+                    match self.push(self.globals[global_index].as_ref().unwrap().clone()) {
+                        Err(err) => return Err(err),
+                        _ => {}
+                    };
+                }
             }
-
             ip += 1;
         }
         Ok(String::new())
@@ -170,9 +191,9 @@ impl Vm {
             _ => return Err(format!("unknown integer operator: {:?}", op)),
         };
         match self.push(Object::Integer(Integer { value: result })) {
-            Ok(_) => {}
             Err(err) => return Err(err),
-        }
+            _ => {}
+        };
         Ok(String::new())
     }
 

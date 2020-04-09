@@ -3,6 +3,7 @@
 use super::ast::*;
 use super::code::*;
 use super::object::*;
+use super::symbol_table::*;
 
 pub struct Compiler {
     pub instructions: Instructions,
@@ -10,6 +11,7 @@ pub struct Compiler {
 
     pub last_instruction: Option<EmittedInstruction>,
     pub previous_instruction: Option<EmittedInstruction>,
+    pub symbol_table: SymbolTable,
 }
 
 impl Compiler {
@@ -19,6 +21,7 @@ impl Compiler {
             constants: Vec::new(),
             last_instruction: None,
             previous_instruction: None,
+            symbol_table: SymbolTable::new(),
         }
     }
 
@@ -27,8 +30,8 @@ impl Compiler {
             Node::Program(Program { statements }) => {
                 for s in statements.iter() {
                     match self.compile(Node::Statement(s.clone())) {
-                        Ok(_) => {}
                         Err(err) => return Err(err),
+                        _ => {}
                     }
                 }
             }
@@ -37,8 +40,8 @@ impl Compiler {
                 expression,
             })) => {
                 match self.compile(Node::Expression(expression)) {
-                    Ok(_) => {}
                     Err(err) => return Err(err),
+                    _ => {}
                 }
                 self.emit(Opcode::OpPop, Vec::new());
             }
@@ -50,23 +53,23 @@ impl Compiler {
             })) => {
                 if operator == "<" {
                     match self.compile(Node::Expression(*right)) {
-                        Ok(_) => {}
                         Err(err) => return Err(err),
-                    }
+                        _ => {}
+                    };
                     match self.compile(Node::Expression(*left)) {
-                        Ok(_) => {}
                         Err(err) => return Err(err),
-                    }
+                        _ => {}
+                    };
                     self.emit(Opcode::OpGreaterThan, Vec::new());
                 } else {
                     match self.compile(Node::Expression(*left)) {
-                        Ok(_) => {}
                         Err(err) => return Err(err),
-                    }
+                        _ => {}
+                    };
                     match self.compile(Node::Expression(*right)) {
-                        Ok(_) => {}
                         Err(err) => return Err(err),
-                    }
+                        _ => {}
+                    };
                     match &operator[..] {
                         "+" => {
                             self.emit(Opcode::OpAdd, Vec::new());
@@ -111,8 +114,8 @@ impl Compiler {
                 right,
             })) => {
                 match self.compile(Node::Expression(*right)) {
-                    Ok(_) => {}
                     Err(err) => return Err(err),
+                    _ => {}
                 };
                 match &operator[..] {
                     "!" => self.emit(Opcode::OpBang, Vec::new()),
@@ -127,14 +130,14 @@ impl Compiler {
                 alternative,
             })) => {
                 match self.compile(Node::Expression(*condition)) {
-                    Ok(_) => {}
                     Err(err) => return Err(err),
+                    _ => {}
                 };
                 let jump_not_truthy_pos = self.emit(Opcode::OpJumpNotTruthy, vec![9999]);
                 match self.compile(Node::Statement(Statement::BlockStatement(consequence))) {
-                    Ok(_) => {}
                     Err(err) => return Err(err),
-                }
+                    _ => {}
+                };
 
                 if self.last_instruction_is_pop() {
                     self.remove_last_pop();
@@ -147,12 +150,11 @@ impl Compiler {
 
                 if let Some(a) = alternative {
                     match self.compile(Node::Statement(Statement::BlockStatement(a))) {
-                        Ok(_) => {
-                            if self.last_instruction_is_pop() {
-                                self.remove_last_pop();
-                            }
-                        }
                         Err(err) => return Err(err),
+                        _ => {}
+                    };
+                    if self.last_instruction_is_pop() {
+                        self.remove_last_pop();
                     }
                 } else {
                     self.emit(Opcode::OpNull, Vec::new());
@@ -166,10 +168,29 @@ impl Compiler {
             })) => {
                 for s in statements.iter() {
                     match self.compile(Node::Statement(s.clone())) {
-                        Ok(_) => {}
                         Err(err) => return Err(err),
-                    }
+                        _ => {}
+                    };
                 }
+            }
+            Node::Statement(Statement::LetStatement(LetStatement {
+                token: _,
+                name,
+                value,
+            })) => {
+                match self.compile(Node::Expression(value)) {
+                    Err(err) => return Err(err),
+                    _ => {}
+                };
+                let symbol = self.symbol_table.define(&name.value);
+                self.emit(Opcode::OpSetGlobal, vec![symbol.index]);
+            }
+            Node::Expression(Expression::Identifier(Identifier { token: _, value })) => {
+                if let Some(symbol) = self.symbol_table.resolve(&value) {
+                    self.emit(Opcode::OpGetGlobal, vec![symbol.index]);
+                } else {
+                    return Err(format!("undefined variable {}", value));
+                };
             }
             _ => {}
         }

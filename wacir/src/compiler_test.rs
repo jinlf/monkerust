@@ -291,3 +291,47 @@ fn test_conditionals() {
 
     run_compiler_tests(tests);
 }
+
+#[test]
+fn test_global_let_statements() {
+    let tests = vec![
+        CompilerTestCase {
+            input: "let one = 1;
+            let two = 2;",
+            expected_constants: vec![Box::new(1 as i64), Box::new(2 as i64)],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpSetGlobal, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpSetGlobal, &vec![1]),
+            ],
+        },
+        CompilerTestCase {
+            input: "let one = 1;
+            one;",
+            expected_constants: vec![Box::new(1 as i64)],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpSetGlobal, &vec![0]),
+                make(Opcode::OpGetGlobal, &vec![0]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "let one = 1;
+            let two = one;
+            two;",
+            expected_constants: vec![Box::new(1 as i64)],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpSetGlobal, &vec![0]),
+                make(Opcode::OpGetGlobal, &vec![0]),
+                make(Opcode::OpSetGlobal, &vec![1]),
+                make(Opcode::OpGetGlobal, &vec![1]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+    ];
+
+    run_compiler_tests(tests);
+}

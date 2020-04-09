@@ -77,6 +77,8 @@ pub enum Opcode {
     OpJumpNotTruthy,
     OpJump,
     OpNull,
+    OpGetGlobal,
+    OpSetGlobal,
 }
 impl From<u8> for Opcode {
     fn from(v: u8) -> Self {
@@ -97,6 +99,8 @@ impl From<u8> for Opcode {
             13 => Opcode::OpJumpNotTruthy,
             14 => Opcode::OpJump,
             15 => Opcode::OpNull,
+            16 => Opcode::OpGetGlobal,
+            17 => Opcode::OpSetGlobal,
             _ => panic!("invalid Opcode"),
         }
     }
@@ -172,6 +176,14 @@ fn get_definition<'a>(opcode: Opcode) -> Option<Definition<'a>> {
         Opcode::OpNull => Some(Definition {
             name: "OpNull",
             operand_widths: Vec::new(),
+        }),
+        Opcode::OpGetGlobal => Some(Definition {
+            name: "OpGetGlobal",
+            operand_widths: vec![2],
+        }),
+        Opcode::OpSetGlobal => Some(Definition {
+            name: "OpSetGlobal",
+            operand_widths: vec![2],
         }),
     }
 }

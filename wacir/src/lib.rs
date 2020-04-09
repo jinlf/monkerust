@@ -10,6 +10,7 @@ pub mod lexer;
 pub mod object;
 pub mod parser;
 pub mod repl;
+pub mod symbol_table;
 pub mod token;
 pub mod vm;
 
@@ -27,5 +28,7 @@ mod code_test;
 // mod object_test;
 // #[cfg(test)]
 // mod parser_test;
+#[cfg(test)]
+mod symbol_table_test;
 #[cfg(test)]
 mod vm_test;
