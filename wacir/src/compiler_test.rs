@@ -67,6 +67,15 @@ fn test_integer_arithmetic() {
                 make(Opcode::OpPop, &Vec::new()),
             ],
         },
+        CompilerTestCase {
+            input: "-1",
+            expected_constants: vec![Box::new(1 as i32)],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpMinus, &Vec::new()),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
     ];
     run_compiler_tests(tests);
 }
@@ -226,6 +235,55 @@ fn test_boolean_expressions() {
                 make(Opcode::OpTrue, &Vec::new()),
                 make(Opcode::OpFalse, &Vec::new()),
                 make(Opcode::OpNotEqual, &Vec::new()),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "!true",
+            expected_constants: Vec::new(),
+            expected_instructions: vec![
+                make(Opcode::OpTrue, &Vec::new()),
+                make(Opcode::OpBang, &Vec::new()),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+    ];
+
+    run_compiler_tests(tests);
+}
+
+#[test]
+fn test_conditionals() {
+    let tests = vec![
+        CompilerTestCase {
+            input: "if (true) { 10 }; 3333;",
+            expected_constants: vec![Box::new(10 as i32), Box::new(3333 as i32)],
+            expected_instructions: vec![
+                make(Opcode::OpTrue, &Vec::new()),
+                make(Opcode::OpJumpNotTruthy, &vec![10]),
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpJump, &vec![11]),
+                make(Opcode::OpNull, &Vec::new()),
+                make(Opcode::OpPop, &Vec::new()),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "if (true) { 10 } else { 20 }; 3333;",
+            expected_constants: vec![
+                Box::new(10 as i32),
+                Box::new(20 as i32),
+                Box::new(3333 as i32),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpTrue, &Vec::new()),
+                make(Opcode::OpJumpNotTruthy, &vec![10]),
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpJump, &vec![13]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpPop, &Vec::new()),
+                make(Opcode::OpConstant, &vec![2]),
                 make(Opcode::OpPop, &Vec::new()),
             ],
         },

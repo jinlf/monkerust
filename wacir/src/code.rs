@@ -1,5 +1,7 @@
 // src/code.rs
 
+use std::convert::TryInto;
+
 #[derive(Clone)]
 pub struct Instructions(pub Vec<u8>);
 impl std::fmt::Debug for Instructions {
@@ -57,7 +59,7 @@ impl Instructions {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Opcode {
     OpConstant = 0,
     OpAdd,
@@ -70,6 +72,11 @@ pub enum Opcode {
     OpEqual,
     OpNotEqual,
     OpGreaterThan,
+    OpMinus,
+    OpBang,
+    OpJumpNotTruthy,
+    OpJump,
+    OpNull,
 }
 impl From<u8> for Opcode {
     fn from(v: u8) -> Self {
@@ -85,6 +92,11 @@ impl From<u8> for Opcode {
             8 => Opcode::OpEqual,
             9 => Opcode::OpNotEqual,
             10 => Opcode::OpGreaterThan,
+            11 => Opcode::OpMinus,
+            12 => Opcode::OpBang,
+            13 => Opcode::OpJumpNotTruthy,
+            14 => Opcode::OpJump,
+            15 => Opcode::OpNull,
             _ => panic!("invalid Opcode"),
         }
     }
@@ -141,6 +153,26 @@ fn get_definition<'a>(opcode: Opcode) -> Option<Definition<'a>> {
             name: "OpGreaterThan",
             operand_widths: Vec::new(),
         }),
+        Opcode::OpMinus => Some(Definition {
+            name: "OpMinus",
+            operand_widths: Vec::new(),
+        }),
+        Opcode::OpBang => Some(Definition {
+            name: "OpBang",
+            operand_widths: Vec::new(),
+        }),
+        Opcode::OpJumpNotTruthy => Some(Definition {
+            name: "OpJumpNotTruthy",
+            operand_widths: vec![2],
+        }),
+        Opcode::OpJump => Some(Definition {
+            name: "OpJump",
+            operand_widths: vec![2],
+        }),
+        Opcode::OpNull => Some(Definition {
+            name: "OpNull",
+            operand_widths: Vec::new(),
+        }),
     }
 }
 
@@ -183,7 +215,10 @@ pub fn read_operands(def: &Definition, ins: &[u8]) -> (Vec<i64>, usize) {
 
     for (i, width) in def.operand_widths.iter().enumerate() {
         match width {
-            2 => operands[i] = read_u16(&ins[offset..offset + 2]) as i64,
+            2 => {
+                let src = ins[offset..offset + 2].try_into().expect("wrong size");
+                operands[i] = read_u16(src) as i64
+            }
             _ => {
                 // error
             }
@@ -192,8 +227,8 @@ pub fn read_operands(def: &Definition, ins: &[u8]) -> (Vec<i64>, usize) {
     }
     (operands, offset)
 }
-pub fn read_u16(ins: &[u8]) -> u16 {
+pub fn read_u16(ins: [u8; 2]) -> u16 {
     let mut bytes: [u8; 2] = Default::default();
-    bytes.copy_from_slice(ins);
+    bytes.copy_from_slice(&ins);
     u16::from_be_bytes(bytes)
 }

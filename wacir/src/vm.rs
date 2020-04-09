@@ -3,10 +3,12 @@
 use super::code::*;
 use super::compiler::*;
 use super::object::*;
+use std::convert::TryInto;
 
 const STACK_SIZE: usize = 2048;
-const TRUE: Object = Object::Boolean(Boolean { value: true });
-const FALSE: Object = Object::Boolean(Boolean { value: false });
+pub const TRUE: Object = Object::Boolean(Boolean { value: true });
+pub const FALSE: Object = Object::Boolean(Boolean { value: false });
+pub const NULL: Object = Object::Null(Null {});
 
 pub struct Vm {
     pub constants: Vec<Object>,
@@ -48,7 +50,10 @@ impl Vm {
             let op = Opcode::from(self.instructions.0[ip]);
             match op {
                 Opcode::OpConstant => {
-                    let const_index = read_u16(&self.instructions.0[(ip + 1)..(ip + 3)]);
+                    let src = self.instructions.0[(ip + 1)..(ip + 3)]
+                        .try_into()
+                        .expect("wrong size");
+                    let const_index = read_u16(src);
                     ip += 2;
                     match self.push(self.constants[const_index as usize].clone()) {
                         Ok(_) => {}
@@ -78,6 +83,36 @@ impl Vm {
                         Err(err) => return Err(err),
                     }
                 }
+                Opcode::OpBang => match self.execute_bang_operator() {
+                    Ok(_) => {}
+                    Err(err) => return Err(err),
+                },
+                Opcode::OpMinus => match self.execute_minus_operator() {
+                    Ok(_) => {}
+                    Err(err) => return Err(err),
+                },
+                Opcode::OpJump => {
+                    let src = self.instructions.0[(ip + 1)..(ip + 3)]
+                        .try_into()
+                        .expect("wrong size");
+                    let pos = read_u16(src) as usize;
+                    ip = pos - 1;
+                }
+                Opcode::OpJumpNotTruthy => {
+                    let src = self.instructions.0[(ip + 1)..(ip + 3)]
+                        .try_into()
+                        .expect("wrong size");
+                    let pos = read_u16(src) as usize;
+                    ip += 2;
+                    let condition = self.pop();
+                    if !is_truthy(condition) {
+                        ip = pos - 1;
+                    }
+                }
+                Opcode::OpNull => match self.push(NULL) {
+                    Ok(_) => {}
+                    Err(err) => return Err(err),
+                },
                 _ => {}
             }
 
@@ -178,6 +213,30 @@ impl Vm {
             _ => return Err(format!("unknown operator: {:?}", op)),
         }
     }
+
+    fn execute_bang_operator(&mut self) -> Result<String, String> {
+        let operand = self.pop();
+        match operand {
+            Some(TRUE) => self.push(FALSE),
+            Some(FALSE) => self.push(TRUE),
+            Some(NULL) => self.push(TRUE),
+            _ => self.push(FALSE),
+        }
+    }
+    fn execute_minus_operator(&mut self) -> Result<String, String> {
+        let operand = self.pop();
+        match operand {
+            Some(Object::Integer(Integer { value })) => {
+                return self.push(Object::Integer(Integer { value: -value }));
+            }
+            _ => {
+                return Err(format!(
+                    "unsupported type for negation: {}",
+                    get_type(&operand)
+                ))
+            }
+        }
+    }
 }
 
 fn native_bool_to_boolean_object(input: bool) -> Object {
@@ -186,4 +245,21 @@ fn native_bool_to_boolean_object(input: bool) -> Object {
     } else {
         Object::Boolean(Boolean { value: false })
     }
+}
+
+pub fn get_type(obj: &Option<Object>) -> String {
+    if obj.is_some() {
+        obj.as_ref().unwrap().get_type()
+    } else {
+        String::from("None")
+    }
+}
+
+fn is_truthy(obj: Option<Object>) -> bool {
+    if let Some(Object::Boolean(Boolean { value })) = obj {
+        return value;
+    } else if let Some(NULL) = obj {
+        return false;
+    }
+    true
 }
