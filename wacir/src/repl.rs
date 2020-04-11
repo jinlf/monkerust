@@ -10,13 +10,19 @@ use super::parser::*;
 use std::io::*;
 // use std::rc::*;
 use super::compiler::*;
+use super::symbol_table::*;
 use super::vm::*;
+use std::cell::*;
+use std::rc::*;
 
 const PROMPT: &str = ">> ";
 
 pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
     let mut scanner = BufReader::new(input);
     // let env = Rc::new(RefCell::new(new_environment()));
+    let mut constants: Rc<RefCell<Vec<Object>>> = Rc::new(RefCell::new(Vec::new()));
+    let globals: Rc<RefCell<Vec<Option<Object>>>> = Rc::new(RefCell::new(vec![None; GLOBALS_SIZE]));
+    let symbol_table = Rc::new(RefCell::new(SymbolTable::new()));
 
     loop {
         write!(output, "{}", PROMPT).unwrap();
@@ -32,10 +38,12 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
             print_parser_errors(output, &p.errors);
             continue;
         }
-        let mut comp = Compiler::new();
+        let mut comp = Compiler::new_with_state(Rc::clone(&symbol_table), Rc::clone(&constants));
         match comp.compile(Node::Program(program.unwrap())) {
             Ok(_) => {
-                let mut machine = Vm::new(comp.bytecode());
+                let code = comp.bytecode();
+                constants = code.constants;
+                let mut machine = Vm::new_with_globals_store(comp.bytecode(), Rc::clone(&globals));
                 match machine.run() {
                     Ok(_) => {
                         let last_popped = machine.last_popped_stack_elem();

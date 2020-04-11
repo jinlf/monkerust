@@ -4,24 +4,28 @@ use super::ast::*;
 use super::code::*;
 use super::object::*;
 use super::symbol_table::*;
+use std::cell::*;
+use std::rc::*;
 
 pub struct Compiler {
     pub instructions: Instructions,
-    pub constants: Vec<Object>,
+    pub constants: Rc<RefCell<Vec<Object>>>,
 
     pub last_instruction: Option<EmittedInstruction>,
     pub previous_instruction: Option<EmittedInstruction>,
-    pub symbol_table: SymbolTable,
+    pub symbol_table: Rc<RefCell<SymbolTable>>,
 }
 
 impl Compiler {
     pub fn new() -> Compiler {
+        let constants = Rc::new(RefCell::new(Vec::new()));
+        let symbol_table = Rc::new(RefCell::new(SymbolTable::new()));
         Compiler {
             instructions: Instructions::new(),
-            constants: Vec::new(),
+            constants: Rc::clone(&constants),
             last_instruction: None,
             previous_instruction: None,
-            symbol_table: SymbolTable::new(),
+            symbol_table: Rc::clone(&symbol_table),
         }
     }
 
@@ -182,12 +186,18 @@ impl Compiler {
                     Err(err) => return Err(err),
                     _ => {}
                 };
-                let symbol = self.symbol_table.define(&name.value);
+                let symbol = self.symbol_table.borrow_mut().define(&name.value);
                 self.emit(Opcode::OpSetGlobal, vec![symbol.index]);
             }
             Node::Expression(Expression::Identifier(Identifier { token: _, value })) => {
-                if let Some(symbol) = self.symbol_table.resolve(&value) {
-                    self.emit(Opcode::OpGetGlobal, vec![symbol.index]);
+                let s = self.symbol_table.borrow().resolve(&value);
+                if let Some(Symbol {
+                    name: _,
+                    scope: _,
+                    index,
+                }) = s
+                {
+                    self.emit(Opcode::OpGetGlobal, vec![index]);
                 } else {
                     return Err(format!("undefined variable {}", value));
                 };
@@ -205,8 +215,8 @@ impl Compiler {
     }
 
     fn add_constant(&mut self, obj: Object) -> i64 {
-        self.constants.push(obj);
-        self.constants.len() as i64 - 1
+        self.constants.borrow_mut().push(obj);
+        self.constants.borrow().len() as i64 - 1
     }
 
     fn emit(&mut self, op: Opcode, operands: Vec<i64>) -> usize {
@@ -263,11 +273,24 @@ impl Compiler {
 
         self.replace_instruction(op_pos, new_instruction);
     }
+
+    pub fn new_with_state(
+        s: Rc<RefCell<SymbolTable>>,
+        constants: Rc<RefCell<Vec<Object>>>,
+    ) -> Compiler {
+        Compiler {
+            instructions: Instructions::new(),
+            constants: Rc::clone(&constants),
+            last_instruction: None,
+            previous_instruction: None,
+            symbol_table: Rc::clone(&s),
+        }
+    }
 }
 
 pub struct Bytecode {
     pub instuctions: Instructions,
-    pub constants: Vec<Object>,
+    pub constants: Rc<RefCell<Vec<Object>>>,
 }
 
 #[derive(Clone)]

@@ -3,30 +3,32 @@
 use super::code::*;
 use super::compiler::*;
 use super::object::*;
+use std::cell::*;
 use std::convert::TryInto;
+use std::rc::*;
 
 const STACK_SIZE: usize = 2048;
-const GLOBALS_SIZE: usize = 65536;
+pub const GLOBALS_SIZE: usize = 65536;
 pub const TRUE: Object = Object::Boolean(Boolean { value: true });
 pub const FALSE: Object = Object::Boolean(Boolean { value: false });
 pub const NULL: Object = Object::Null(Null {});
 
 pub struct Vm {
-    pub constants: Vec<Object>,
+    pub constants: Rc<RefCell<Vec<Object>>>,
     pub instructions: Instructions,
     pub stack: Vec<Option<Object>>,
     pub sp: usize, // Always points to the next value. Top of stack is stack[sp-1]
-    globals: Vec<Option<Object>>,
+    globals: Rc<RefCell<Vec<Option<Object>>>>,
 }
 impl Vm {
     pub fn new(bytecode: Bytecode) -> Vm {
+        let globals = Rc::new(RefCell::new(vec![None; GLOBALS_SIZE]));
         Vm {
             instructions: bytecode.instuctions,
-            constants: bytecode.constants,
-
+            constants: Rc::clone(&bytecode.constants),
             stack: vec![None; STACK_SIZE],
             sp: 0, // Always points to the next value. Top of stack is stack[sp-1]
-            globals: vec![None; GLOBALS_SIZE],
+            globals: Rc::clone(&globals),
         }
     }
 
@@ -49,7 +51,8 @@ impl Vm {
                         .expect("wrong size");
                     let const_index = read_u16(src);
                     ip += 2;
-                    match self.push(self.constants[const_index as usize].clone()) {
+                    let obj = self.constants.borrow()[const_index as usize].clone();
+                    match self.push(obj) {
                         Err(err) => return Err(err),
                         _ => {}
                     };
@@ -123,7 +126,7 @@ impl Vm {
                         .expect("wrong size");
                     let global_index = read_u16(src) as usize;
                     ip += 2;
-                    self.globals[global_index] = self.pop();
+                    self.globals.borrow_mut()[global_index] = self.pop();
                 }
                 Opcode::OpGetGlobal => {
                     let src = self.instructions.0[(ip + 1)..(ip + 3)]
@@ -131,7 +134,11 @@ impl Vm {
                         .expect("wrong size");
                     let global_index = read_u16(src) as usize;
                     ip += 2;
-                    match self.push(self.globals[global_index].as_ref().unwrap().clone()) {
+                    let obj = self.globals.borrow_mut()[global_index]
+                        .as_ref()
+                        .unwrap()
+                        .clone();
+                    match self.push(obj) {
                         Err(err) => return Err(err),
                         _ => {}
                     };
@@ -256,6 +263,17 @@ impl Vm {
                     get_type(&operand)
                 ))
             }
+        }
+    }
+
+    pub fn new_with_globals_store(bytecode: Bytecode, s: Rc<RefCell<Vec<Option<Object>>>>) -> Vm {
+        Vm {
+            instructions: bytecode.instuctions,
+            constants: bytecode.constants,
+
+            stack: vec![None; STACK_SIZE],
+            sp: 0, // Always points to the next value. Top of stack is stack[sp-1]
+            globals: Rc::clone(&s),
         }
     }
 }

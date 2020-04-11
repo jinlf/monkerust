@@ -7,6 +7,8 @@ use super::lexer::*;
 use super::object::*;
 use super::parser::*;
 use std::any::Any;
+use std::cell::*;
+use std::rc::*;
 
 struct CompilerTestCase<'a> {
     input: &'a str,
@@ -90,7 +92,7 @@ fn run_compiler_tests(tests: Vec<CompilerTestCase>) {
             Ok(_) => {
                 let bytecode = compiler.bytecode();
                 test_instructions(&tt.expected_instructions, &bytecode.instuctions);
-                test_constants(&tt.expected_constants, &bytecode.constants);
+                test_constants(&tt.expected_constants, Rc::clone(&bytecode.constants));
             }
             Err(e) => assert!(false, "compiler error: {}", e),
         }
@@ -131,17 +133,17 @@ fn concat_instructions(s: &Vec<Instructions>) -> Instructions {
     out
 }
 
-fn test_constants(expected: &Vec<Box<dyn Any>>, actual: &Vec<Object>) {
+fn test_constants(expected: &Vec<Box<dyn Any>>, actual: Rc<RefCell<Vec<Object>>>) {
     assert!(
-        expected.len() == actual.len(),
+        expected.len() == actual.borrow().len(),
         "wrong number of constants. got={:?}, want={:?}",
-        actual.len(),
+        actual.borrow().len(),
         expected.len(),
     );
 
     for (i, constant) in expected.iter().enumerate() {
         if let Some(iv) = (*constant).downcast_ref::<i32>() {
-            test_integer_object(*iv as i64, actual[i].clone());
+            test_integer_object(*iv as i64, actual.borrow()[i].clone());
         }
     }
 }
