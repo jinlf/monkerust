@@ -144,6 +144,8 @@ fn test_constants(expected: &Vec<Box<dyn Any>>, actual: Rc<RefCell<Vec<Object>>>
     for (i, constant) in expected.iter().enumerate() {
         if let Some(iv) = (*constant).downcast_ref::<i32>() {
             test_integer_object(*iv as i64, actual.borrow()[i].clone());
+        } else if let Some(sv) = (*constant).downcast_ref::<&str>() {
+            test_string_object(sv, actual.borrow()[i].clone());
         }
     }
 }
@@ -335,5 +337,154 @@ fn test_global_let_statements() {
         },
     ];
 
+    run_compiler_tests(tests);
+}
+
+#[test]
+fn test_string_expressions() {
+    let tests = vec![
+        CompilerTestCase {
+            input: "\"monkey\"",
+            expected_constants: vec![Box::new("monkey")],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "\"mon\" + \"key\"",
+            expected_constants: vec![Box::new("mon"), Box::new("key")],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpAdd, &Vec::new()),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+    ];
+
+    run_compiler_tests(tests);
+}
+
+fn test_string_object(expected: &str, actual: Object) {
+    if let Object::StringObj(StringObj { value }) = actual {
+        assert!(
+            value == expected,
+            "object has wrong value. got={}, want={}",
+            value,
+            expected
+        );
+    } else {
+        assert!(false, "object is not String. got={:?}", actual);
+    }
+}
+
+#[test]
+fn test_array_literal() {
+    let tests = vec![
+        CompilerTestCase {
+            input: "[]",
+            expected_constants: Vec::new(),
+            expected_instructions: vec![
+                make(Opcode::OpArray, &vec![0]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "[1, 2, 3]",
+            expected_constants: vec![Box::new(1 as i64), Box::new(2 as i64), Box::new(3 as i64)],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpConstant, &vec![2]),
+                make(Opcode::OpArray, &vec![3]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "[1 + 2, 3 - 4, 5 * 6]",
+            expected_constants: vec![
+                Box::new(1 as i64),
+                Box::new(2 as i64),
+                Box::new(3 as i64),
+                Box::new(4 as i64),
+                Box::new(5 as i64),
+                Box::new(6 as i64),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpAdd, &Vec::new()),
+                make(Opcode::OpConstant, &vec![2]),
+                make(Opcode::OpConstant, &vec![3]),
+                make(Opcode::OpSub, &Vec::new()),
+                make(Opcode::OpConstant, &vec![4]),
+                make(Opcode::OpConstant, &vec![5]),
+                make(Opcode::OpMul, &Vec::new()),
+                make(Opcode::OpArray, &vec![3]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+    ];
+
+    run_compiler_tests(tests);
+}
+
+#[test]
+fn test_hash_literals() {
+    let tests = vec![
+        CompilerTestCase {
+            input: "{}",
+            expected_constants: Vec::new(),
+            expected_instructions: vec![
+                make(Opcode::OpHash, &vec![0]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "{1: 2, 3: 4, 5: 6}",
+            expected_constants: vec![
+                Box::new(1 as i64),
+                Box::new(2 as i64),
+                Box::new(3 as i64),
+                Box::new(4 as i64),
+                Box::new(5 as i64),
+                Box::new(6 as i64),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpConstant, &vec![2]),
+                make(Opcode::OpConstant, &vec![3]),
+                make(Opcode::OpConstant, &vec![4]),
+                make(Opcode::OpConstant, &vec![5]),
+                make(Opcode::OpHash, &vec![6]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "{1: 2 + 3, 4: 5 * 6}",
+            expected_constants: vec![
+                Box::new(1 as i64),
+                Box::new(2 as i64),
+                Box::new(3 as i64),
+                Box::new(4 as i64),
+                Box::new(5 as i64),
+                Box::new(6 as i64),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpConstant, &vec![2]),
+                make(Opcode::OpAdd, &Vec::new()),
+                make(Opcode::OpConstant, &vec![3]),
+                make(Opcode::OpConstant, &vec![4]),
+                make(Opcode::OpConstant, &vec![5]),
+                make(Opcode::OpMul, &Vec::new()),
+                make(Opcode::OpHash, &vec![4]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+    ];
     run_compiler_tests(tests);
 }

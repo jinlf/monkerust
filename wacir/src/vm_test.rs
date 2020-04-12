@@ -56,25 +56,58 @@ fn run_vm_tests(tests: Vec<VmTestCase>) {
     }
 }
 
-fn test_expected_object(expectd: &Object, actual: Option<Object>) {
-    if let Object::Integer(Integer { value }) = expectd {
+fn test_expected_object(expected: &Object, actual: Option<Object>) {
+    if let Object::Integer(Integer { value }) = expected {
         match test_integer_object(*value, actual) {
             Ok(_) => {}
             Err(err) => {
                 assert!(false, "test_integer_object failed: {}", err);
             }
         }
-    } else if let Object::Boolean(Boolean { value }) = expectd {
+    } else if let Object::Boolean(Boolean { value }) = expected {
         match test_boolean_object(*value, actual) {
             Ok(_) => {}
             Err(err) => {
                 assert!(false, "test_boolean_object failed: {}", err);
             }
         }
-    } else if let Object::Null(_) = expectd {
+    } else if let Object::Null(_) = expected {
         if let Some(Object::Null(_)) = actual {
         } else {
             assert!(false, "object is not Null: {:?}", actual);
+        }
+    } else if let Object::StringObj(StringObj { value }) = expected {
+        match test_string_object(value, actual) {
+            Ok(_) => {}
+            Err(err) => {
+                assert!(false, "test_string_object failed: {}", err);
+            }
+        }
+    } else if let Object::Array(Array { elements }) = expected {
+        let expected_elements = elements;
+        if let Some(Object::Array(Array { elements })) = actual {
+            let actual_elements = elements;
+            assert!(
+                expected_elements.len() == actual_elements.len(),
+                "wrong num of elements. want={}, got={}",
+                expected_elements.len(),
+                actual_elements.len()
+            );
+
+            for (i, expected_elem) in expected_elements.iter().enumerate() {
+                if let Object::Integer(Integer { value }) = expected_elem {
+                    match test_integer_object(*value, Some(actual_elements[i].clone())) {
+                        Ok(_) => {}
+                        Err(err) => {
+                            assert!(false, "test_integer_object failed: {}", err);
+                        }
+                    }
+                } else {
+                    assert!(false, "error");
+                }
+            }
+        } else {
+            assert!(false, "object not Array: {:?}", actual);
         }
     }
 }
@@ -343,6 +376,80 @@ fn test_global_let_statements() {
         VmTestCase {
             input: "let one = 1; let two = one + one; one + two",
             expected: Object::Integer(Integer { value: 3 }),
+        },
+    ];
+
+    run_vm_tests(tests);
+}
+
+#[test]
+fn test_string_expressions() {
+    let tests = vec![
+        VmTestCase {
+            input: "\"monkey\"",
+            expected: Object::StringObj(StringObj {
+                value: String::from("monkey"),
+            }),
+        },
+        VmTestCase {
+            input: "\"mon\" + \"key\"",
+            expected: Object::StringObj(StringObj {
+                value: String::from("monkey"),
+            }),
+        },
+        VmTestCase {
+            input: "\"mon\" + \"key\" + \"banana\"",
+            expected: Object::StringObj(StringObj {
+                value: String::from("monkeybanana"),
+            }),
+        },
+    ];
+
+    run_vm_tests(tests);
+}
+
+fn test_string_object(expected: &str, actual: Option<Object>) -> Result<String, String> {
+    if let Some(Object::StringObj(StringObj { value })) = actual {
+        if value != expected {
+            return Err(format!(
+                "object has wrong value. got={}, want={}",
+                value, expected
+            ));
+        }
+    } else {
+        return Err(format!("object is not String. got={:?}", actual));
+    }
+    Ok(String::new())
+}
+
+#[test]
+fn test_array_literals() {
+    let tests = vec![
+        VmTestCase {
+            input: "[]",
+            expected: Object::Array(Array {
+                elements: Vec::new(),
+            }),
+        },
+        VmTestCase {
+            input: "[1, 2, 3]",
+            expected: Object::Array(Array {
+                elements: vec![
+                    Object::Integer(Integer { value: 1 }),
+                    Object::Integer(Integer { value: 2 }),
+                    Object::Integer(Integer { value: 3 }),
+                ],
+            }),
+        },
+        VmTestCase {
+            input: "[1 + 2, 3 * 4, 5 + 6]",
+            expected: Object::Array(Array {
+                elements: vec![
+                    Object::Integer(Integer { value: 3 }),
+                    Object::Integer(Integer { value: 12 }),
+                    Object::Integer(Integer { value: 11 }),
+                ],
+            }),
         },
     ];
 

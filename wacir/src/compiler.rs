@@ -202,6 +202,21 @@ impl Compiler {
                     return Err(format!("undefined variable {}", value));
                 };
             }
+            Node::Expression(Expression::StringLiteral(StringLiteral { token: _, value })) => {
+                let s = Object::StringObj(StringObj { value: value });
+                let index = self.add_constant(s);
+                self.emit(Opcode::OpConstant, vec![index]);
+            }
+            Node::Expression(Expression::ArrayLiteral(ArrayLiteral { token: _, elements })) => {
+                let len = elements.len() as i64;
+                for el in elements {
+                    match self.compile(Node::Expression(el)) {
+                        Err(err) => return Err(err),
+                        _ => {}
+                    }
+                }
+                self.emit(Opcode::OpArray, vec![len]);
+            }
             _ => {}
         }
         return Ok(String::new());

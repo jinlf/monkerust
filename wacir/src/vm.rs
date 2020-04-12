@@ -143,6 +143,23 @@ impl Vm {
                         _ => {}
                     };
                 }
+                Opcode::OpArray => {
+                    let src = self.instructions.0[(ip + 1)..(ip + 3)]
+                        .try_into()
+                        .expect("wrong size");
+                    let num_elements = read_u16(src) as usize;
+                    println!("num_elements: {}", num_elements);
+                    ip += 2;
+
+                    let array = self.build_array(self.sp - num_elements, self.sp);
+                    self.sp -= num_elements;
+
+                    match self.push(array) {
+                        Err(err) => return Err(err),
+                        _ => {}
+                    }
+                }
+                _ => {}
             }
             ip += 1;
         }
@@ -176,12 +193,19 @@ impl Vm {
             if let Some(Object::Integer(Integer { value })) = right {
                 let right_value = value;
                 return self.execute_binary_integer_operation(op, left_value, right_value);
-            } else {
-                return Err(String::from("error"));
             }
-        } else {
-            return Err(String::from("error"));
+        } else if let Some(Object::StringObj(StringObj { value })) = left.clone() {
+            let left_value = value;
+            if let Some(Object::StringObj(StringObj { value })) = right.clone() {
+                let right_value = value;
+                return self.execute_binary_string_operation(op, left_value, right_value);
+            }
         }
+        Err(format!(
+            "unsupported types for binary operation: {} {}",
+            get_type(&left),
+            get_type(&right),
+        ))
     }
 
     fn execute_binary_integer_operation(
@@ -275,6 +299,30 @@ impl Vm {
             sp: 0, // Always points to the next value. Top of stack is stack[sp-1]
             globals: Rc::clone(&s),
         }
+    }
+
+    fn execute_binary_string_operation(
+        &mut self,
+        op: Opcode,
+        left: String,
+        right: String,
+    ) -> Result<String, String> {
+        if op != Opcode::OpAdd {
+            return Err(format!("unknown string operator: {:?}", op));
+        }
+        self.push(Object::StringObj(StringObj {
+            value: format!("{}{}", left, right),
+        }))
+    }
+
+    fn build_array(&self, start_index: usize, end_index: usize) -> Object {
+        let mut elements: Vec<Object> = vec![NULL; end_index - start_index];
+        let mut i = start_index;
+        while i < end_index {
+            elements[i - start_index] = self.stack[i].as_ref().unwrap().clone();
+            i += 1;
+        }
+        Object::Array(Array { elements: elements })
     }
 }
 
