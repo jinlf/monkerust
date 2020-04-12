@@ -408,15 +408,12 @@ impl std::fmt::Debug for HashLiteral {
 impl Eq for Expression {}
 impl PartialEq for Expression {
     fn eq(&self, other: &Self) -> bool {
-        let addr = self as *const Expression as usize;
-        let other_addr = other as *const Expression as usize;
-        addr == other_addr
+        self.string() == other.string()
     }
 }
 impl StdHash for Expression {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let addr = self as *const Expression as usize;
-        state.write_usize(addr);
+        self.string().hash(state);
         state.finish();
     }
 }

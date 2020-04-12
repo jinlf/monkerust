@@ -217,9 +217,28 @@ impl Compiler {
                 }
                 self.emit(Opcode::OpArray, vec![len]);
             }
+            Node::Expression(Expression::HashLiteral(HashLiteral { token: _, pairs })) => {
+                let mut keys: Vec<Expression> =
+                    pairs.keys().into_iter().map(|x| x.clone()).collect();
+
+                keys.sort_by_key(|x| x.string());
+
+                for k in keys.iter() {
+                    let v = pairs[k].clone();
+                    match self.compile(Node::Expression((*k).clone())) {
+                        Err(err) => return Err(err),
+                        Ok(_) => match self.compile(Node::Expression(v)) {
+                            Err(err) => return Err(err),
+                            Ok(_) => {}
+                        },
+                    }
+                }
+
+                self.emit(Opcode::OpHash, vec![(pairs.len() * 2) as i64]);
+            }
             _ => {}
         }
-        return Ok(String::new());
+        Ok(String::new())
     }
 
     pub fn bytecode(&self) -> Bytecode {
