@@ -6,6 +6,7 @@ use super::lexer::*;
 use super::object::*;
 use super::parser::*;
 use super::vm::*;
+use std::collections::*;
 
 fn parse(input: &str) -> Option<Program> {
     let l = Lexer::new(input);
@@ -108,6 +109,42 @@ fn test_expected_object(expected: &Object, actual: Option<Object>) {
             }
         } else {
             assert!(false, "object not Array: {:?}", actual);
+        }
+    } else if let Object::Hash(Hash { pairs }) = expected {
+        let expected_pairs = pairs;
+        if let Some(Object::Hash(Hash { pairs })) = actual {
+            let actual_pairs = pairs;
+            assert!(
+                expected_pairs.len() == actual_pairs.len(),
+                "hash has wrong number of pairs. want={}, got={}",
+                expected_pairs.len(),
+                actual_pairs.len()
+            );
+            for (expected_key, expected_value) in expected_pairs.iter() {
+                if let HashKey::Integer(Integer { value: _ }) = *expected_key {
+                    if actual_pairs.contains_key(expected_key) {
+                        if let Object::Integer(Integer { value }) = *expected_value {
+                            match test_integer_object(
+                                value,
+                                Some(actual_pairs[expected_key].clone()),
+                            ) {
+                                Err(err) => {
+                                    assert!(false, "test_integer_object failed: {}", err);
+                                }
+                                _ => {}
+                            }
+                        } else {
+                            assert!(false, "error");
+                        }
+                    } else {
+                        assert!(false, "no pair for given key in pairs");
+                    }
+                } else {
+                    assert!(false, "error");
+                }
+            }
+        } else {
+            assert!(false, "object is not Hash. got={:?}", actual);
         }
     }
 }
@@ -451,6 +488,48 @@ fn test_array_literals() {
                 ],
             }),
         },
+    ];
+
+    run_vm_tests(tests);
+}
+
+#[test]
+fn test_hash_literals() {
+    let mut pairs2: HashMap<HashKey, Object> = HashMap::new();
+    pairs2.insert(
+        HashKey::Integer(Integer { value: 1 }),
+        Object::Integer(Integer { value: 2 }),
+    );
+    pairs2.insert(
+        HashKey::Integer(Integer { value: 2 }),
+        Object::Integer(Integer { value: 3 }),
+    );
+
+    let mut pairs3: HashMap<HashKey, Object> = HashMap::new();
+    pairs3.insert(
+        HashKey::Integer(Integer { value: 2 }),
+        Object::Integer(Integer { value: 4 }),
+    );
+    pairs3.insert(
+        HashKey::Integer(Integer { value: 6 }),
+        Object::Integer(Integer { value: 16 }),
+    );
+
+    let tests = vec![
+        // VmTestCase {
+        //     input: "{}",
+        //     expected: Object::Hash(Hash {
+        //         pairs: HashMap::new(),
+        //     }),
+        // },
+        VmTestCase {
+            input: "{1: 2, 2: 3}",
+            expected: Object::Hash(Hash { pairs: pairs2 }),
+        },
+        // VmTestCase {
+        //     input: "{1 + 1: 2 * 2, 3 + 3: 4 * 4}",
+        //     expected: Object::Hash(Hash { pairs: pairs3 }),
+        // },
     ];
 
     run_vm_tests(tests);

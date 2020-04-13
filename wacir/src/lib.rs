@@ -14,12 +14,12 @@ pub mod symbol_table;
 pub mod token;
 pub mod vm;
 
-#[cfg(test)]
-mod compiler_test;
 // #[cfg(test)]
-// mod ast_test;
+mod ast_test;
 #[cfg(test)]
 mod code_test;
+#[cfg(test)]
+mod compiler_test;
 // #[cfg(test)]
 // mod evaluator_test;
 // #[cfg(test)]

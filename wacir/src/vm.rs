@@ -4,6 +4,7 @@ use super::code::*;
 use super::compiler::*;
 use super::object::*;
 use std::cell::*;
+use std::collections::*;
 use std::convert::TryInto;
 use std::rc::*;
 
@@ -148,7 +149,6 @@ impl Vm {
                         .try_into()
                         .expect("wrong size");
                     let num_elements = read_u16(src) as usize;
-                    println!("num_elements: {}", num_elements);
                     ip += 2;
 
                     let array = self.build_array(self.sp - num_elements, self.sp);
@@ -158,6 +158,24 @@ impl Vm {
                         Err(err) => return Err(err),
                         _ => {}
                     }
+                }
+                Opcode::OpHash => {
+                    let src = self.instructions.0[(ip + 1)..(ip + 3)]
+                        .try_into()
+                        .expect("wrong size");
+                    let num_elements = read_u16(src) as usize;
+                    ip += 2;
+                    match self.build_hash(self.sp - num_elements, self.sp) {
+                        Err(err) => return Err(err),
+                        Ok(hash) => {
+                            self.sp -= num_elements;
+
+                            match self.push(hash) {
+                                Err(err) => return Err(err),
+                                _ => {}
+                            }
+                        }
+                    };
                 }
                 _ => {}
             }
@@ -323,6 +341,36 @@ impl Vm {
             i += 1;
         }
         Object::Array(Array { elements: elements })
+    }
+
+    fn build_hash(&self, start_index: usize, end_index: usize) -> Result<Object, String> {
+        let mut hashed_pairs: HashMap<HashKey, Object> = HashMap::new();
+        let mut i = start_index;
+        while i < end_index {
+            let key = &self.stack[i];
+            let value = &self.stack[i + 1];
+
+            if let Some(key_obj) = key {
+                if let Some(hashable) = key_obj.as_hashable() {
+                    let hash_key = hashable.hash_key();
+                    if let Some(value_obj) = value {
+                        hashed_pairs.insert(hash_key, value_obj.clone());
+                    } else {
+                        return Err(format!("uninitialized value"));
+                    }
+                } else {
+                    return Err(format!("unusable as hash key: {}", get_type(&key)));
+                }
+            } else {
+                return Err(format!("unusable as hash key: {}", get_type(&key)));
+            }
+
+            i += 2;
+        }
+
+        Ok(Object::Hash(Hash {
+            pairs: hashed_pairs,
+        }))
     }
 }
 
