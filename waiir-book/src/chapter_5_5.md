@@ -382,7 +382,7 @@ use std::collections::*;
         }))
     }
 ```
-这里需要将Expression加入HashMap，这需要为Expression支持PartialEq、Eq和Hash trait，这里我们考虑的实现方式是比较对象的地址，以对象的地址作为哈希值，代码如下：
+这里需要将Expression加入HashMap，这需要为Expression支持PartialEq、Eq和Hash trait，这里我们考虑的实现方式是比较对象字符串表示，以对象的字符串表示作为哈希值，代码如下：
 
 ```rust,noplaypen
 // src/ast.rs
@@ -393,15 +393,12 @@ use std::hash::Hasher;
 impl Eq for Expression {}
 impl PartialEq for Expression {
     fn eq(&self, other: &Self) -> bool {
-        let addr = self as *const Expression as usize;
-        let other_addr = other as *const Expression as usize;
-        addr == other_addr
+        self.string() == other.string()
     }
 }
 impl StdHash for Expression {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let addr = self as *const Expression as usize;
-        state.write_usize(addr);
+        self.string().hash(state);
         state.finish();
     }
 }
