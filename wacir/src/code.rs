@@ -81,6 +81,7 @@ pub enum Opcode {
     OpSetGlobal,
     OpArray,
     OpHash,
+    OpIndex,
 }
 impl From<u8> for Opcode {
     fn from(v: u8) -> Self {
@@ -105,6 +106,7 @@ impl From<u8> for Opcode {
             17 => Opcode::OpSetGlobal,
             18 => Opcode::OpArray,
             19 => Opcode::OpHash,
+            20 => Opcode::OpIndex,
             _ => panic!("invalid Opcode"),
         }
     }
@@ -196,6 +198,10 @@ fn get_definition<'a>(opcode: Opcode) -> Option<Definition<'a>> {
         Opcode::OpHash => Some(Definition {
             name: "OpHash",
             operand_widths: vec![2],
+        }),
+        Opcode::OpIndex => Some(Definition {
+            name: "OpIndex",
+            operand_widths: Vec::new(),
         }),
     }
 }

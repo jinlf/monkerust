@@ -488,3 +488,51 @@ fn test_hash_literals() {
     ];
     run_compiler_tests(tests);
 }
+
+#[test]
+fn test_index_expressions() {
+    let tests = vec![
+        CompilerTestCase {
+            input: "[1, 2, 3][1 + 1]",
+            expected_constants: vec![
+                Box::new(1 as i64),
+                Box::new(2 as i64),
+                Box::new(3 as i64),
+                Box::new(1 as i64),
+                Box::new(1 as i64),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpConstant, &vec![2]),
+                make(Opcode::OpArray, &vec![3]),
+                make(Opcode::OpConstant, &vec![3]),
+                make(Opcode::OpConstant, &vec![4]),
+                make(Opcode::OpAdd, &Vec::new()),
+                make(Opcode::OpIndex, &Vec::new()),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "{1: 2}[2 - 1]",
+            expected_constants: vec![
+                Box::new(1 as i64),
+                Box::new(2 as i64),
+                Box::new(2 as i64),
+                Box::new(1 as i64),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpHash, &vec![2]),
+                make(Opcode::OpConstant, &vec![2]),
+                make(Opcode::OpConstant, &vec![3]),
+                make(Opcode::OpSub, &Vec::new()),
+                make(Opcode::OpIndex, &Vec::new()),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+    ];
+
+    run_compiler_tests(tests);
+}

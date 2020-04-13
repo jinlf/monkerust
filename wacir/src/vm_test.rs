@@ -534,3 +534,51 @@ fn test_hash_literals() {
 
     run_vm_tests(tests);
 }
+
+#[test]
+fn test_index_expressions() {
+    let tests = vec![
+        VmTestCase {
+            input: "[1, 2, 3][1]",
+            expected: Object::Integer(Integer { value: 2 }),
+        },
+        VmTestCase {
+            input: "[1, 2, 3][0 + 2]",
+            expected: Object::Integer(Integer { value: 3 }),
+        },
+        VmTestCase {
+            input: "[[1, 1, 1]][0][0]",
+            expected: Object::Integer(Integer { value: 1 }),
+        },
+        VmTestCase {
+            input: "[][0]",
+            expected: NULL,
+        },
+        VmTestCase {
+            input: "[1, 2, 3][99]",
+            expected: NULL,
+        },
+        VmTestCase {
+            input: "[1][-1]",
+            expected: NULL,
+        },
+        VmTestCase {
+            input: "{1: 1, 2: 2}[1]",
+            expected: Object::Integer(Integer { value: 1 }),
+        },
+        VmTestCase {
+            input: "{1: 1, 2:2}[2]",
+            expected: Object::Integer(Integer { value: 2 }),
+        },
+        VmTestCase {
+            input: "{1: 1}[0]",
+            expected: NULL,
+        },
+        VmTestCase {
+            input: "{}[0]",
+            expected: NULL,
+        },
+    ];
+
+    run_vm_tests(tests);
+}

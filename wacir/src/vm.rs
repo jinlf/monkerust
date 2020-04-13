@@ -177,6 +177,14 @@ impl Vm {
                         }
                     };
                 }
+                Opcode::OpIndex => {
+                    let index = self.pop();
+                    let left = self.pop();
+                    match self.execute_index_expression(left, index) {
+                        Err(err) => return Err(err),
+                        _ => {}
+                    }
+                }
                 _ => {}
             }
             ip += 1;
@@ -371,6 +379,50 @@ impl Vm {
         Ok(Object::Hash(Hash {
             pairs: hashed_pairs,
         }))
+    }
+
+    fn execute_index_expression(
+        &mut self,
+        left: Option<Object>,
+        index: Option<Object>,
+    ) -> Result<String, String> {
+        if let Some(Object::Array(Array { elements })) = left.clone() {
+            if let Some(Object::Integer(Integer { value })) = index {
+                return self.execute_array_index(elements, value);
+            }
+        } else if let Some(Object::Hash(Hash { pairs })) = left {
+            return self.execute_hash_index(pairs, index);
+        }
+        Err(format!("index operator not supported: {}", get_type(&left)))
+    }
+
+    fn execute_array_index(&mut self, elements: Vec<Object>, index: i64) -> Result<String, String> {
+        let max = elements.len() as i64 - 1;
+        if index < 0 || index > max {
+            return self.push(NULL);
+        }
+
+        self.push(elements[index as usize].clone())
+    }
+
+    fn execute_hash_index(
+        &mut self,
+        pairs: HashMap<HashKey, Object>,
+        index: Option<Object>,
+    ) -> Result<String, String> {
+        if let Some(key) = index.clone() {
+            if let Some(hash_key) = key.as_hashable() {
+                if let Some(value) = pairs.get(&hash_key.hash_key()) {
+                    return self.push(value.clone());
+                } else {
+                    return self.push(NULL);
+                }
+            } else {
+                return Err(format!("unusable as hash key: {}", get_type(&index)));
+            }
+        } else {
+            return Err(format!("unusable as hash key: {}", get_type(&index)));
+        }
     }
 }
 

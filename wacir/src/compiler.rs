@@ -236,6 +236,22 @@ impl Compiler {
 
                 self.emit(Opcode::OpHash, vec![(pairs.len() * 2) as i64]);
             }
+            Node::Expression(Expression::IndexExpression(IndexExpression {
+                token: _,
+                left,
+                index,
+            })) => {
+                match self.compile(Node::Expression(*left)) {
+                    Err(err) => return Err(err),
+                    _ => {}
+                };
+                match self.compile(Node::Expression(*index)) {
+                    Err(err) => return Err(err),
+                    _ => {}
+                };
+
+                self.emit(Opcode::OpIndex, Vec::new());
+            }
             _ => {}
         }
         Ok(String::new())

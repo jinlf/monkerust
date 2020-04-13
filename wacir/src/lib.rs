@@ -15,7 +15,7 @@ pub mod token;
 pub mod vm;
 
 // #[cfg(test)]
-mod ast_test;
+// mod ast_test;
 #[cfg(test)]
 mod code_test;
 #[cfg(test)]
