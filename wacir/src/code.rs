@@ -2,7 +2,7 @@
 
 use std::convert::TryInto;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Instructions(pub Vec<u8>);
 impl std::fmt::Debug for Instructions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -82,6 +82,9 @@ pub enum Opcode {
     OpArray,
     OpHash,
     OpIndex,
+    OpCall,
+    OpReturnValue,
+    OpReturn,
 }
 impl From<u8> for Opcode {
     fn from(v: u8) -> Self {
@@ -107,6 +110,9 @@ impl From<u8> for Opcode {
             18 => Opcode::OpArray,
             19 => Opcode::OpHash,
             20 => Opcode::OpIndex,
+            21 => Opcode::OpCall,
+            22 => Opcode::OpReturnValue,
+            23 => Opcode::OpReturn,
             _ => panic!("invalid Opcode"),
         }
     }
@@ -201,6 +207,18 @@ fn get_definition<'a>(opcode: Opcode) -> Option<Definition<'a>> {
         }),
         Opcode::OpIndex => Some(Definition {
             name: "OpIndex",
+            operand_widths: Vec::new(),
+        }),
+        Opcode::OpCall => Some(Definition {
+            name: "OpCall",
+            operand_widths: Vec::new(),
+        }),
+        Opcode::OpReturnValue => Some(Definition {
+            name: "OpReturnValue",
+            operand_widths: Vec::new(),
+        }),
+        Opcode::OpReturn => Some(Definition {
+            name: "OpReturn",
             operand_widths: Vec::new(),
         }),
     }

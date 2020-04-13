@@ -146,6 +146,20 @@ fn test_constants(expected: &Vec<Box<dyn Any>>, actual: Rc<RefCell<Vec<Object>>>
             test_integer_object(*iv as i64, actual.borrow()[i].clone());
         } else if let Some(sv) = (*constant).downcast_ref::<&str>() {
             test_string_object(sv, actual.borrow()[i].clone());
+        } else if let Some(expected_instructions) = (*constant).downcast_ref::<Vec<Instructions>>()
+        {
+            if let Object::CompiledFunction(CompiledFunction { instructions }) =
+                actual.borrow()[i].clone()
+            {
+                test_instructions(expected_instructions, &instructions);
+            } else {
+                assert!(
+                    false,
+                    "constant {} - not a function: {:?}",
+                    i,
+                    actual.borrow()[i]
+                )
+            }
         }
     }
 }
@@ -535,4 +549,105 @@ fn test_index_expressions() {
     ];
 
     run_compiler_tests(tests);
+}
+
+#[test]
+fn test_functions() {
+    let tests = vec![CompilerTestCase {
+        input: "fn() { return 5 + 10 }",
+        expected_constants: vec![
+            Box::new(5 as i64),
+            Box::new(10 as i64),
+            Box::new(vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpAdd, &Vec::new()),
+                make(Opcode::OpReturnValue, &Vec::new()),
+            ]),
+        ],
+        expected_instructions: vec![
+            make(Opcode::OpConstant, &vec![2]),
+            make(Opcode::OpPop, &Vec::new()),
+        ],
+    }];
+
+    run_compiler_tests(tests);
+}
+
+#[test]
+fn test_compiler_scopes() {
+    let mut compiler = Compiler::new();
+    assert!(
+        compiler.scope_index == 0,
+        "scope_index wrong. got={}, want={}",
+        compiler.scope_index,
+        0
+    );
+
+    compiler.emit(Opcode::OpMul, Vec::new());
+
+    compiler.enter_scope();
+    assert!(
+        compiler.scope_index == 1,
+        "scope_index wrong. got={}, want={}",
+        compiler.scope_index,
+        1
+    );
+
+    compiler.emit(Opcode::OpSub, Vec::new());
+
+    assert!(
+        compiler.scopes[compiler.scope_index].instructions.0.len() == 1,
+        "instructions length wrong. got={}",
+        compiler.scopes[compiler.scope_index].instructions.0.len()
+    );
+
+    let mut last = compiler.scopes[compiler.scope_index]
+        .last_instruction
+        .clone()
+        .expect("error");
+    assert!(
+        last.opcode == Opcode::OpSub,
+        "last_instruction.opcode wrong. got={:?}, want={:?}",
+        last.opcode,
+        Opcode::OpSub
+    );
+
+    compiler.leave_scope();
+    assert!(
+        compiler.scope_index == 0,
+        "scope_index wrong. got={}, want={}",
+        compiler.scope_index,
+        0
+    );
+
+    compiler.emit(Opcode::OpAdd, Vec::new());
+
+    assert!(
+        compiler.scopes[compiler.scope_index].instructions.0.len() == 2,
+        "instructions length wrong. got={}",
+        compiler.scopes[compiler.scope_index].instructions.0.len()
+    );
+
+    last = compiler.scopes[compiler.scope_index]
+        .last_instruction
+        .clone()
+        .expect("error");
+    assert!(
+        last.opcode == Opcode::OpAdd,
+        "last_instruction.opcode wrong. got={:?}, want={:?}",
+        last.opcode,
+        Opcode::OpAdd
+    );
+
+    let previous = compiler.scopes[compiler.scope_index]
+        .previous_instruction
+        .clone()
+        .expect("error");
+    assert!(
+        previous.opcode == Opcode::OpMul,
+        "previous_instruction.opcode wrong. got={:?}, want={:?}",
+        previous.opcode,
+        Opcode::OpMul
+    );
 }

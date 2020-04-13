@@ -1,6 +1,7 @@
 // src/object.rs
 
 use super::ast::*;
+use super::code::*;
 use super::environment::*;
 use std::cell::*;
 use std::collections::hash_map::*;
@@ -26,6 +27,7 @@ pub enum Object {
     Builtin(Builtin),
     Array(Array),
     Hash(Hash),
+    CompiledFunction(CompiledFunction),
 }
 impl ObjectTrait for Object {
     fn get_type(&self) -> String {
@@ -40,6 +42,7 @@ impl ObjectTrait for Object {
             Object::Builtin(b) => b.get_type(),
             Object::Array(a) => a.get_type(),
             Object::Hash(h) => h.get_type(),
+            Object::CompiledFunction(cf) => cf.get_type(),
         }
     }
     fn inspect(&self) -> String {
@@ -54,6 +57,7 @@ impl ObjectTrait for Object {
             Object::Builtin(b) => b.inspect(),
             Object::Array(a) => a.inspect(),
             Object::Hash(h) => h.inspect(),
+            Object::CompiledFunction(cf) => cf.inspect(),
         }
     }
 }
@@ -324,5 +328,21 @@ impl Hashable for Integer {
 impl Hashable for StringObj {
     fn hash_key(&self) -> HashKey {
         HashKey::StringObj(self.clone())
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct CompiledFunction {
+    pub instructions: Instructions,
+}
+impl ObjectTrait for CompiledFunction {
+    fn get_type(&self) -> String {
+        String::from("COMPILED_FUNCTION")
+    }
+    fn inspect(&self) -> String {
+        format!(
+            "CompiledFunction[{}]",
+            self as *const CompiledFunction as usize
+        )
     }
 }
