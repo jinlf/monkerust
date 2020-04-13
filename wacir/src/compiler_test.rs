@@ -585,6 +585,7 @@ fn test_compiler_scopes() {
     );
 
     compiler.emit(Opcode::OpMul, Vec::new());
+    println!("0: {:#?}", compiler.scopes[compiler.scope_index]);
 
     compiler.enter_scope();
     assert!(
@@ -593,8 +594,17 @@ fn test_compiler_scopes() {
         compiler.scope_index,
         1
     );
+    println!(
+        "1: {:#?} {:#?}",
+        compiler.scopes[compiler.scope_index], compiler.scopes[0]
+    );
 
     compiler.emit(Opcode::OpSub, Vec::new());
+
+    println!(
+        "2: {:#?} {:#?}",
+        compiler.scopes[compiler.scope_index], compiler.scopes[0]
+    );
 
     assert!(
         compiler.scopes[compiler.scope_index].instructions.0.len() == 1,

@@ -8,11 +8,7 @@ use std::cell::*;
 use std::rc::*;
 
 pub struct Compiler {
-    pub instructions: Instructions,
     pub constants: Rc<RefCell<Vec<Object>>>,
-
-    pub last_instruction: Option<EmittedInstruction>,
-    pub previous_instruction: Option<EmittedInstruction>,
     pub symbol_table: Rc<RefCell<SymbolTable>>,
     pub scopes: Vec<CompilationScope>,
     pub scope_index: usize,
@@ -28,10 +24,7 @@ impl Compiler {
             previous_instruction: None,
         };
         Compiler {
-            instructions: Instructions::new(),
             constants: Rc::clone(&constants),
-            last_instruction: None,
-            previous_instruction: None,
             symbol_table: Rc::clone(&symbol_table),
             scopes: vec![main_scope],
             scope_index: 0,
@@ -298,7 +291,7 @@ impl Compiler {
     pub fn bytecode(&mut self) -> Bytecode {
         Bytecode {
             instuctions: self.current_instructions().clone(),
-            constants: self.constants.clone(),
+            constants: Rc::clone(&self.constants),
         }
     }
 
@@ -334,8 +327,8 @@ impl Compiler {
             position: pos,
         };
 
-        self.previous_instruction = previous;
-        self.last_instruction = Some(last);
+        self.scopes[self.scope_index].previous_instruction = previous;
+        self.scopes[self.scope_index].last_instruction = Some(last);
     }
 
     fn last_instruction_is_pop(&self) -> bool {
@@ -359,7 +352,7 @@ impl Compiler {
         let mut new_ins = Instructions::new();
         new_ins
             .0
-            .extend_from_slice(&old_ins.0[..(last.unwrap().position)]);
+            .extend_from_slice(&old_ins.0[..(last.unwrap().position)]); // TODO: can unwrap?
         self.scopes[self.scope_index].instructions = new_ins;
         self.scopes[self.scope_index].last_instruction = previous;
     }
@@ -381,13 +374,15 @@ impl Compiler {
         s: Rc<RefCell<SymbolTable>>,
         constants: Rc<RefCell<Vec<Object>>>,
     ) -> Compiler {
-        Compiler {
+        let main_scope = CompilationScope {
             instructions: Instructions::new(),
-            constants: Rc::clone(&constants),
             last_instruction: None,
             previous_instruction: None,
+        };
+        Compiler {
+            constants: Rc::clone(&constants),
             symbol_table: Rc::clone(&s),
-            scopes: Vec::new(),
+            scopes: vec![main_scope],
             scope_index: 0,
         }
     }
@@ -407,11 +402,9 @@ impl Compiler {
     }
 
     pub fn leave_scope(&mut self) -> Instructions {
-        let instructions = self.current_instructions();
-
-        self.scopes.pop();
+        let scope = self.scopes.pop();
         self.scope_index -= 1;
-        *instructions
+        scope.unwrap().instructions //TODO: can unwrap?
     }
 }
 
@@ -426,6 +419,7 @@ pub struct EmittedInstruction {
     pub position: usize,
 }
 
+#[derive(Debug)]
 pub struct CompilationScope {
     pub instructions: Instructions,
     pub last_instruction: Option<EmittedInstruction>,
