@@ -145,7 +145,7 @@ impl Compiler {
                     _ => {}
                 };
 
-                if self.last_instruction_is_pop() {
+                if self.last_instruction_is(Opcode::OpPop) {
                     self.remove_last_pop();
                 }
 
@@ -159,7 +159,7 @@ impl Compiler {
                         Err(err) => return Err(err),
                         _ => {}
                     };
-                    if self.last_instruction_is_pop() {
+                    if self.last_instruction_is(Opcode::OpPop) {
                         self.remove_last_pop();
                     }
                 } else {
@@ -266,6 +266,13 @@ impl Compiler {
                     _ => {}
                 }
 
+                if self.last_instruction_is(Opcode::OpPop) {
+                    self.replace_last_pop_with_return();
+                }
+                if !self.last_instruction_is(Opcode::OpReturnValue) {
+                    self.emit(Opcode::OpReturn, Vec::new());
+                }
+
                 let instructions = self.leave_scope();
                 let compiled_fn = CompiledFunction {
                     instructions: instructions,
@@ -283,6 +290,18 @@ impl Compiler {
                 }
                 self.emit(Opcode::OpReturnValue, Vec::new());
             }
+            Node::Expression(Expression::CallExpression(CallExpression {
+                token: _,
+                function,
+                arguments,
+            })) => {
+                match self.compile(Node::Expression(*function)) {
+                    Err(err) => return Err(err),
+                    _ => {}
+                }
+                self.emit(Opcode::OpCall, Vec::new());
+            }
+
             _ => {}
         }
         Ok(String::new())
@@ -331,18 +350,18 @@ impl Compiler {
         self.scopes[self.scope_index].last_instruction = Some(last);
     }
 
-    fn last_instruction_is_pop(&self) -> bool {
-        if let Some(EmittedInstruction {
-            opcode,
-            position: _,
-        }) = self.scopes[self.scope_index].last_instruction
-        {
-            if opcode == Opcode::OpPop {
-                return true;
-            }
-        }
-        false
-    }
+    // fn last_instruction_is_pop(&self) -> bool {
+    //     if let Some(EmittedInstruction {
+    //         opcode,
+    //         position: _,
+    //     }) = self.scopes[self.scope_index].last_instruction
+    //     {
+    //         if opcode == Opcode::OpPop {
+    //             return true;
+    //         }
+    //     }
+    //     false
+    // }
 
     fn remove_last_pop(&mut self) {
         let last = self.scopes[self.scope_index].last_instruction.clone();
@@ -405,6 +424,29 @@ impl Compiler {
         let scope = self.scopes.pop();
         self.scope_index -= 1;
         scope.unwrap().instructions //TODO: can unwrap?
+    }
+
+    fn last_instruction_is(&mut self, op: Opcode) -> bool {
+        if self.current_instructions().0.len() == 0 {
+            return false;
+        }
+        self.scopes[self.scope_index]
+            .last_instruction
+            .clone()
+            .unwrap()
+            .opcode
+            == op //TODO: can unwrap?
+    }
+
+    fn replace_last_pop_with_return(&mut self) {
+        let mut last = self.scopes[self.scope_index]
+            .last_instruction
+            .clone()
+            .unwrap();
+        self.replace_instruction(last.position, make(Opcode::OpReturnValue, &Vec::new()));
+
+        last.opcode = Opcode::OpReturnValue;
+        self.scopes[self.scope_index].last_instruction = Some(last);
     }
 }
 

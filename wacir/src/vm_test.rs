@@ -582,3 +582,87 @@ fn test_index_expressions() {
 
     run_vm_tests(tests);
 }
+
+#[test]
+fn test_calling_functions_without_arguments() {
+    let tests = vec![
+        VmTestCase {
+            input: "let fivePlusTen = fn() { 5 + 10; };
+            fivePlusTen();
+            ",
+            expected: Object::Integer(Integer { value: 15 }),
+        },
+        VmTestCase {
+            input: "let one = fn() { 1; };
+            let two = fn() { 2; };
+            one() + two();
+            ",
+            expected: Object::Integer(Integer { value: 3 }),
+        },
+        VmTestCase {
+            input: "let a = fn() { 1 };
+            let b = fn() { a() + 1 };
+            let c = fn() { b() + 1 };
+            c();
+            ",
+            expected: Object::Integer(Integer { value: 3 }),
+        },
+    ];
+
+    run_vm_tests(tests);
+}
+
+#[test]
+fn test_functions_with_return_statement() {
+    let tests = vec![
+        VmTestCase {
+            input: "let earlyExit = fn() { return 99; 100; };
+            earlyExit();
+            ",
+            expected: Object::Integer(Integer { value: 99 }),
+        },
+        VmTestCase {
+            input: "let earlyExit = fn() { return 99; return 100; };
+            earlyExit();
+            ",
+            expected: Object::Integer(Integer { value: 99 }),
+        },
+    ];
+
+    run_vm_tests(tests);
+}
+
+#[test]
+fn test_functions_without_return_value() {
+    let tests = vec![
+        VmTestCase {
+            input: "let noReturn = fn() { };
+            noReturn();
+            ",
+            expected: NULL,
+        },
+        VmTestCase {
+            input: "let noReturn = fn() { };
+            let noReturnTwo = fn() { noReturn(); };
+            noReturn();
+            noReturnTwo();
+            ",
+            expected: NULL,
+        },
+    ];
+
+    run_vm_tests(tests);
+}
+
+#[test]
+fn test_first_class_functions() {
+    let tests = vec![VmTestCase {
+        input: "
+            let returnsOne = fn() { 1; };
+            let returnsOneReturner = fn() { returnsOne; };
+            returnsOneReturner()();
+            ",
+        expected: Object::Integer(Integer { value: 1 }),
+    }];
+    run_vm_tests(tests);
+}

@@ -553,23 +553,50 @@ fn test_index_expressions() {
 
 #[test]
 fn test_functions() {
-    let tests = vec![CompilerTestCase {
-        input: "fn() { return 5 + 10 }",
-        expected_constants: vec![
-            Box::new(5 as i64),
-            Box::new(10 as i64),
-            Box::new(vec![
+    let tests = vec![
+        CompilerTestCase {
+            input: "fn() { return 5 + 10 }",
+            expected_constants: vec![
+                Box::new(5 as i64),
+                Box::new(10 as i64),
+                Box::new(vec![
+                    make(Opcode::OpConstant, &vec![0]),
+                    make(Opcode::OpConstant, &vec![1]),
+                    make(Opcode::OpAdd, &Vec::new()),
+                    make(Opcode::OpReturnValue, &Vec::new()),
+                ]),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![2]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "fn() { 1; 2 }",
+            expected_constants: vec![
+                Box::new(1 as i64),
+                Box::new(2 as i64),
+                Box::new(vec![
+                    make(Opcode::OpConstant, &vec![0]),
+                    make(Opcode::OpPop, &Vec::new()),
+                    make(Opcode::OpConstant, &vec![1]),
+                    make(Opcode::OpReturnValue, &Vec::new()),
+                ]),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![2]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "fn() { }",
+            expected_constants: vec![Box::new(vec![make(Opcode::OpReturn, &Vec::new())])],
+            expected_instructions: vec![
                 make(Opcode::OpConstant, &vec![0]),
-                make(Opcode::OpConstant, &vec![1]),
-                make(Opcode::OpAdd, &Vec::new()),
-                make(Opcode::OpReturnValue, &Vec::new()),
-            ]),
-        ],
-        expected_instructions: vec![
-            make(Opcode::OpConstant, &vec![2]),
-            make(Opcode::OpPop, &Vec::new()),
-        ],
-    }];
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+    ];
 
     run_compiler_tests(tests);
 }
@@ -660,4 +687,44 @@ fn test_compiler_scopes() {
         previous.opcode,
         Opcode::OpMul
     );
+}
+
+#[test]
+fn test_function_calls() {
+    let tests = vec![
+        CompilerTestCase {
+            input: "fn() { 24 }();",
+            expected_constants: vec![
+                Box::new(24 as i64),
+                Box::new(vec![
+                    make(Opcode::OpConstant, &vec![0]),
+                    make(Opcode::OpReturnValue, &Vec::new()),
+                ]),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpCall, &Vec::new()),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "let noArg = fn() { 24 };
+        noArg();",
+            expected_constants: vec![
+                Box::new(24 as i64),
+                Box::new(vec![
+                    make(Opcode::OpConstant, &vec![0]),
+                    make(Opcode::OpReturnValue, &Vec::new()),
+                ]),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpSetGlobal, &vec![0]),
+                make(Opcode::OpGetGlobal, &vec![0]),
+                make(Opcode::OpCall, &Vec::new()),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+    ];
+    run_compiler_tests(tests);
 }

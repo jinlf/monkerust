@@ -2,6 +2,7 @@
 
 use super::code::*;
 use super::compiler::*;
+use super::frame::*;
 use super::object::*;
 use std::cell::*;
 use std::collections::*;
@@ -10,26 +11,41 @@ use std::rc::*;
 
 const STACK_SIZE: usize = 2048;
 pub const GLOBALS_SIZE: usize = 65536;
+const MAX_FRAMES: usize = 1024;
 pub const TRUE: Object = Object::Boolean(Boolean { value: true });
 pub const FALSE: Object = Object::Boolean(Boolean { value: false });
 pub const NULL: Object = Object::Null(Null {});
 
 pub struct Vm {
     pub constants: Rc<RefCell<Vec<Object>>>,
-    pub instructions: Instructions,
     pub stack: Vec<Option<Object>>,
     pub sp: usize, // Always points to the next value. Top of stack is stack[sp-1]
     globals: Rc<RefCell<Vec<Option<Object>>>>,
+    frames: Vec<Frame>,
+    frame_index: usize,
 }
 impl Vm {
     pub fn new(bytecode: Bytecode) -> Vm {
+        let main_fn = CompiledFunction {
+            instructions: bytecode.instuctions,
+        };
+        let main_frame = Frame::new(main_fn);
+        let mut frames: Vec<Frame> = vec![
+            Frame::new(CompiledFunction {
+                instructions: Instructions::new()
+            },);
+            MAX_FRAMES
+        ];
+        frames[0] = main_frame;
+
         let globals = Rc::new(RefCell::new(vec![None; GLOBALS_SIZE]));
         Vm {
-            instructions: bytecode.instuctions,
             constants: Rc::clone(&bytecode.constants),
             stack: vec![None; STACK_SIZE],
             sp: 0, // Always points to the next value. Top of stack is stack[sp-1]
             globals: Rc::clone(&globals),
+            frames: frames,
+            frame_index: 1,
         }
     }
 
@@ -42,16 +58,21 @@ impl Vm {
     }
 
     pub fn run(&mut self) -> Result<String, String> {
-        let mut ip = 0;
-        while ip < self.instructions.0.len() {
-            let op = Opcode::from(self.instructions.0[ip]);
+        let mut ip: usize;
+        let mut ins: &Instructions;
+        let mut op: Opcode;
+        while self.current_frame().ip < self.current_frame().instructions().0.len() as i64 - 1 {
+            self.current_frame().ip += 1;
+
+            ip = self.current_frame().ip as usize;
+            ins = self.current_frame().instructions();
+            op = Opcode::from(ins.0[ip]);
+
             match op {
                 Opcode::OpConstant => {
-                    let src = self.instructions.0[(ip + 1)..(ip + 3)]
-                        .try_into()
-                        .expect("wrong size");
+                    let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
                     let const_index = read_u16(src);
-                    ip += 2;
+                    self.current_frame().ip += 2;
                     let obj = self.constants.borrow()[const_index as usize].clone();
                     match self.push(obj) {
                         Err(err) => return Err(err),
@@ -98,21 +119,17 @@ impl Vm {
                     };
                 }
                 Opcode::OpJump => {
-                    let src = self.instructions.0[(ip + 1)..(ip + 3)]
-                        .try_into()
-                        .expect("wrong size");
-                    let pos = read_u16(src) as usize;
-                    ip = pos - 1;
+                    let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
+                    let pos = read_u16(src) as i64;
+                    self.current_frame().ip = pos - 1;
                 }
                 Opcode::OpJumpNotTruthy => {
-                    let src = self.instructions.0[(ip + 1)..(ip + 3)]
-                        .try_into()
-                        .expect("wrong size");
-                    let pos = read_u16(src) as usize;
-                    ip += 2;
+                    let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
+                    let pos = read_u16(src) as i64;
+                    self.current_frame().ip += 2;
                     let condition = self.pop();
                     if !is_truthy(condition) {
-                        ip = pos - 1;
+                        self.current_frame().ip = pos - 1;
                     }
                 }
                 Opcode::OpNull => {
@@ -122,19 +139,15 @@ impl Vm {
                     };
                 }
                 Opcode::OpSetGlobal => {
-                    let src = self.instructions.0[(ip + 1)..(ip + 3)]
-                        .try_into()
-                        .expect("wrong size");
+                    let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
                     let global_index = read_u16(src) as usize;
-                    ip += 2;
+                    self.current_frame().ip += 2;
                     self.globals.borrow_mut()[global_index] = self.pop();
                 }
                 Opcode::OpGetGlobal => {
-                    let src = self.instructions.0[(ip + 1)..(ip + 3)]
-                        .try_into()
-                        .expect("wrong size");
+                    let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
                     let global_index = read_u16(src) as usize;
-                    ip += 2;
+                    self.current_frame().ip += 2;
                     let obj = self.globals.borrow_mut()[global_index]
                         .as_ref()
                         .unwrap()
@@ -145,11 +158,9 @@ impl Vm {
                     };
                 }
                 Opcode::OpArray => {
-                    let src = self.instructions.0[(ip + 1)..(ip + 3)]
-                        .try_into()
-                        .expect("wrong size");
+                    let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
                     let num_elements = read_u16(src) as usize;
-                    ip += 2;
+                    self.current_frame().ip += 2;
 
                     let array = self.build_array(self.sp - num_elements, self.sp);
                     self.sp -= num_elements;
@@ -160,11 +171,9 @@ impl Vm {
                     }
                 }
                 Opcode::OpHash => {
-                    let src = self.instructions.0[(ip + 1)..(ip + 3)]
-                        .try_into()
-                        .expect("wrong size");
+                    let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
                     let num_elements = read_u16(src) as usize;
-                    ip += 2;
+                    self.current_frame().ip += 2;
                     match self.build_hash(self.sp - num_elements, self.sp) {
                         Err(err) => return Err(err),
                         Ok(hash) => {
@@ -185,9 +194,37 @@ impl Vm {
                         _ => {}
                     }
                 }
+                Opcode::OpCall => {
+                    if let Some(Object::CompiledFunction(CompiledFunction { instructions })) =
+                        self.stack[self.sp - 1].clone()
+                    {
+                        self.push_frame(Frame::new(CompiledFunction { instructions }));
+                    } else {
+                        return Err(format!("calling non-function"));
+                    }
+                }
+                Opcode::OpReturnValue => {
+                    let return_value = self.pop();
+                    self.pop_frame();
+                    self.pop();
+
+                    match self.push(return_value.unwrap()) {
+                        // TODO: can unwrap?
+                        Err(err) => return Err(err),
+                        _ => {}
+                    }
+                }
+                Opcode::OpReturn => {
+                    self.pop_frame();
+                    self.pop();
+
+                    match self.push(NULL) {
+                        Err(err) => return Err(err),
+                        _ => {}
+                    }
+                }
                 _ => {}
             }
-            ip += 1;
         }
         Ok(String::new())
     }
@@ -317,13 +354,26 @@ impl Vm {
     }
 
     pub fn new_with_globals_store(bytecode: Bytecode, s: Rc<RefCell<Vec<Option<Object>>>>) -> Vm {
-        Vm {
+        let main_fn = CompiledFunction {
             instructions: bytecode.instuctions,
+        };
+        let main_frame = Frame::new(main_fn);
+        let mut frames: Vec<Frame> = vec![
+            Frame::new(CompiledFunction {
+                instructions: Instructions::new(),
+            });
+            MAX_FRAMES
+        ];
+        frames[0] = main_frame;
+
+        Vm {
             constants: bytecode.constants,
 
             stack: vec![None; STACK_SIZE],
             sp: 0, // Always points to the next value. Top of stack is stack[sp-1]
             globals: Rc::clone(&s),
+            frames: frames,
+            frame_index: 1,
         }
     }
 
@@ -423,6 +473,20 @@ impl Vm {
         } else {
             return Err(format!("unusable as hash key: {}", get_type(&index)));
         }
+    }
+
+    fn current_frame(&mut self) -> &mut Frame {
+        &mut self.frames[self.frame_index - 1]
+    }
+
+    fn push_frame(&mut self, f: Frame) {
+        self.frames[self.frame_index] = f;
+        self.frame_index += 1;
+    }
+
+    fn pop_frame(&mut self) -> &Frame {
+        self.frame_index -= 1;
+        &self.frames[self.frame_index]
     }
 }
 
