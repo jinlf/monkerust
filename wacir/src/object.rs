@@ -334,6 +334,7 @@ impl Hashable for StringObj {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CompiledFunction {
     pub instructions: Instructions,
+    pub num_locals: usize,
 }
 impl ObjectTrait for CompiledFunction {
     fn get_type(&self) -> String {

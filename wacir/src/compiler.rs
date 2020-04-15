@@ -189,17 +189,25 @@ impl Compiler {
                     _ => {}
                 };
                 let symbol = self.symbol_table.borrow_mut().define(&name.value);
-                self.emit(Opcode::OpSetGlobal, vec![symbol.index]);
+                if symbol.scope == SymbolScope::GlobalScope {
+                    self.emit(Opcode::OpSetGlobal, vec![symbol.index]);
+                } else {
+                    self.emit(Opcode::OpSetLocal, vec![symbol.index]);
+                }
             }
             Node::Expression(Expression::Identifier(Identifier { token: _, value })) => {
                 let s = self.symbol_table.borrow().resolve(&value);
                 if let Some(Symbol {
                     name: _,
-                    scope: _,
+                    scope,
                     index,
                 }) = s
                 {
-                    self.emit(Opcode::OpGetGlobal, vec![index]);
+                    if scope == SymbolScope::GlobalScope {
+                        self.emit(Opcode::OpGetGlobal, vec![index]);
+                    } else {
+                        self.emit(Opcode::OpGetLocal, vec![index]);
+                    }
                 } else {
                     return Err(format!("undefined variable {}", value));
                 };
@@ -273,9 +281,11 @@ impl Compiler {
                     self.emit(Opcode::OpReturn, Vec::new());
                 }
 
+                let num_locals = self.symbol_table.borrow().num_definitions;
                 let instructions = self.leave_scope();
                 let compiled_fn = CompiledFunction {
                     instructions: instructions,
+                    num_locals: num_locals,
                 };
                 let v = self.add_constant(Object::CompiledFunction(compiled_fn));
                 self.emit(Opcode::OpConstant, vec![v]);
@@ -418,11 +428,19 @@ impl Compiler {
         };
         self.scopes.push(scope);
         self.scope_index += 1;
+
+        self.symbol_table = Rc::new(RefCell::new(SymbolTable::new_enclosed_symbol_table(
+            Rc::clone(&self.symbol_table),
+        )));
     }
 
     pub fn leave_scope(&mut self) -> Instructions {
         let scope = self.scopes.pop();
         self.scope_index -= 1;
+
+        let outer = self.symbol_table.borrow().outer.clone();
+        self.symbol_table = Rc::clone(&outer.unwrap()); // TODO: can unwrap?
+
         scope.unwrap().instructions //TODO: can unwrap?
     }
 

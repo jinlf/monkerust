@@ -666,3 +666,50 @@ fn test_first_class_functions() {
     }];
     run_vm_tests(tests);
 }
+
+#[test]
+fn test_calling_functions_with_bindings() {
+    let tests = vec![
+        VmTestCase {
+            input: "let one = fn() { let one = 1; one };
+            one();
+            ",
+            expected: Object::Integer(Integer { value: 1 }),
+        },
+        VmTestCase {
+            input: "let oneAndTwo = fn() { let one = 1; let two = 2; one + two; };
+            oneAndTwo();
+            ",
+            expected: Object::Integer(Integer { value: 3 }),
+        },
+        VmTestCase {
+            input: "let oneAndTwo = fn() { let one = 1; let two = 2; one + two; };
+            let threeAndFour = fn () { let three = 3; let four = 4; three + four; };
+            oneAndTwo() + threeAndFour();
+            ",
+            expected: Object::Integer(Integer { value: 10 }),
+        },
+        VmTestCase {
+            input: "let firstFoobar = fn() { let foobar = 50; foobar; };
+            let secondFoobar = fn() { let foobar = 100; foobar; };
+            firstFoobar() + secondFoobar();
+                ",
+            expected: Object::Integer(Integer { value: 150 }),
+        },
+        VmTestCase {
+            input: "let globalSeed = 50;
+            let minusOne = fn() { 
+                let num = 1;
+                globalSeed - num;
+            };
+            let minusTwo = fn() {
+                let num = 2;
+                globalSeed - num;                
+            }
+            minusOne() + minusTwo();            
+            ",
+            expected: Object::Integer(Integer { value: 97 }),
+        },
+    ];
+    run_vm_tests(tests);
+}

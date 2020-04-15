@@ -28,12 +28,17 @@ impl Vm {
     pub fn new(bytecode: Bytecode) -> Vm {
         let main_fn = CompiledFunction {
             instructions: bytecode.instuctions,
+            num_locals: 0,
         };
-        let main_frame = Frame::new(main_fn);
+        let main_frame = Frame::new(main_fn, 0);
         let mut frames: Vec<Frame> = vec![
-            Frame::new(CompiledFunction {
-                instructions: Instructions::new()
-            },);
+            Frame::new(
+                CompiledFunction {
+                    instructions: Instructions::new(),
+                    num_locals: 0,
+                },
+                0
+            );
             MAX_FRAMES
         ];
         frames[0] = main_frame;
@@ -195,18 +200,28 @@ impl Vm {
                     }
                 }
                 Opcode::OpCall => {
-                    if let Some(Object::CompiledFunction(CompiledFunction { instructions })) =
-                        self.stack[self.sp - 1].clone()
+                    if let Some(Object::CompiledFunction(CompiledFunction {
+                        instructions,
+                        num_locals,
+                    })) = self.stack[self.sp - 1].clone()
                     {
-                        self.push_frame(Frame::new(CompiledFunction { instructions }));
+                        let frame = Frame::new(
+                            CompiledFunction {
+                                instructions,
+                                num_locals,
+                            },
+                            self.sp,
+                        );
+                        self.sp = frame.base_pointer + num_locals;
+                        self.push_frame(frame);
                     } else {
                         return Err(format!("calling non-function"));
                     }
                 }
                 Opcode::OpReturnValue => {
                     let return_value = self.pop();
-                    self.pop_frame();
-                    self.pop();
+                    let base_pointer = self.pop_frame().base_pointer;
+                    self.sp = base_pointer - 1;
 
                     match self.push(return_value.unwrap()) {
                         // TODO: can unwrap?
@@ -215,10 +230,30 @@ impl Vm {
                     }
                 }
                 Opcode::OpReturn => {
-                    self.pop_frame();
-                    self.pop();
+                    let base_pointer = self.pop_frame().base_pointer;
+                    self.sp = base_pointer - 1;
 
                     match self.push(NULL) {
+                        Err(err) => return Err(err),
+                        _ => {}
+                    }
+                }
+                Opcode::OpSetLocal => {
+                    let local_index = ins.0[ip + 1] as usize;
+                    self.current_frame().ip += 1;
+
+                    let base_pointer = self.current_frame().base_pointer;
+                    self.stack[base_pointer + local_index] = self.pop();
+                }
+                Opcode::OpGetLocal => {
+                    let local_index = ins.0[ip + 1] as usize;
+                    self.current_frame().ip += 1;
+                    let base_pointer = self.current_frame().base_pointer;
+                    let obj = self.stack[base_pointer + local_index]
+                        .as_ref()
+                        .unwrap()
+                        .clone(); // TODO: can unwrap?
+                    match self.push(obj) {
                         Err(err) => return Err(err),
                         _ => {}
                     }
@@ -356,12 +391,17 @@ impl Vm {
     pub fn new_with_globals_store(bytecode: Bytecode, s: Rc<RefCell<Vec<Option<Object>>>>) -> Vm {
         let main_fn = CompiledFunction {
             instructions: bytecode.instuctions,
+            num_locals: 0,
         };
-        let main_frame = Frame::new(main_fn);
+        let main_frame = Frame::new(main_fn, 0);
         let mut frames: Vec<Frame> = vec![
-            Frame::new(CompiledFunction {
-                instructions: Instructions::new(),
-            });
+            Frame::new(
+                CompiledFunction {
+                    instructions: Instructions::new(),
+                    num_locals: 0,
+                },
+                0
+            );
             MAX_FRAMES
         ];
         frames[0] = main_frame;

@@ -85,6 +85,8 @@ pub enum Opcode {
     OpCall,
     OpReturnValue,
     OpReturn,
+    OpGetLocal,
+    OpSetLocal,
 }
 impl From<u8> for Opcode {
     fn from(v: u8) -> Self {
@@ -113,6 +115,8 @@ impl From<u8> for Opcode {
             21 => Opcode::OpCall,
             22 => Opcode::OpReturnValue,
             23 => Opcode::OpReturn,
+            24 => Opcode::OpGetLocal,
+            25 => Opcode::OpSetLocal,
             _ => panic!("invalid Opcode"),
         }
     }
@@ -221,6 +225,14 @@ fn get_definition<'a>(opcode: Opcode) -> Option<Definition<'a>> {
             name: "OpReturn",
             operand_widths: Vec::new(),
         }),
+        Opcode::OpGetLocal => Some(Definition {
+            name: "OpGetLocal",
+            operand_widths: vec![1],
+        }),
+        Opcode::OpSetLocal => Some(Definition {
+            name: "OpSetLocal",
+            operand_widths: vec![1],
+        }),
     }
 }
 
@@ -245,6 +257,9 @@ pub fn make(op: Opcode, operands: &Vec<i64>) -> Instructions {
                     let two = *o as u16;
                     instruction.put_be_u16(offset, two);
                 }
+                1 => {
+                    instruction.0[offset] = (*o) as u8;
+                }
                 _ => {
                     // error
                 }
@@ -266,6 +281,9 @@ pub fn read_operands(def: &Definition, ins: &[u8]) -> (Vec<i64>, usize) {
             2 => {
                 let src = ins[offset..offset + 2].try_into().expect("wrong size");
                 operands[i] = read_u16(src) as i64
+            }
+            1 => {
+                operands[i] = ins[offset] as i64;
             }
             _ => {
                 // error

@@ -148,8 +148,10 @@ fn test_constants(expected: &Vec<Box<dyn Any>>, actual: Rc<RefCell<Vec<Object>>>
             test_string_object(sv, actual.borrow()[i].clone());
         } else if let Some(expected_instructions) = (*constant).downcast_ref::<Vec<Instructions>>()
         {
-            if let Object::CompiledFunction(CompiledFunction { instructions }) =
-                actual.borrow()[i].clone()
+            if let Object::CompiledFunction(CompiledFunction {
+                instructions,
+                num_locals: _,
+            }) = actual.borrow()[i].clone()
             {
                 test_instructions(expected_instructions, &instructions);
             } else {
@@ -601,6 +603,14 @@ fn test_functions() {
     run_compiler_tests(tests);
 }
 
+impl PartialEq for super::symbol_table::SymbolTable {
+    fn eq(&self, other: &Self) -> bool {
+        let addr = self as *const Self as usize;
+        let other_addr = other as *const Self as usize;
+        addr == other_addr
+    }
+}
+
 #[test]
 fn test_compiler_scopes() {
     let mut compiler = Compiler::new();
@@ -611,8 +621,9 @@ fn test_compiler_scopes() {
         0
     );
 
+    let global_symbol_table = Rc::clone(&compiler.symbol_table);
+
     compiler.emit(Opcode::OpMul, Vec::new());
-    println!("0: {:#?}", compiler.scopes[compiler.scope_index]);
 
     compiler.enter_scope();
     assert!(
@@ -621,17 +632,8 @@ fn test_compiler_scopes() {
         compiler.scope_index,
         1
     );
-    println!(
-        "1: {:#?} {:#?}",
-        compiler.scopes[compiler.scope_index], compiler.scopes[0]
-    );
 
     compiler.emit(Opcode::OpSub, Vec::new());
-
-    println!(
-        "2: {:#?} {:#?}",
-        compiler.scopes[compiler.scope_index], compiler.scopes[0]
-    );
 
     assert!(
         compiler.scopes[compiler.scope_index].instructions.0.len() == 1,
@@ -650,12 +652,30 @@ fn test_compiler_scopes() {
         Opcode::OpSub
     );
 
+    {
+        let outer = &compiler.symbol_table.borrow().outer;
+        assert!(
+            outer.is_some() && (outer.as_ref().unwrap() == &global_symbol_table),
+            "compiler did not enclose symble_table"
+        );
+    }
+
     compiler.leave_scope();
     assert!(
         compiler.scope_index == 0,
         "scope_index wrong. got={}, want={}",
         compiler.scope_index,
         0
+    );
+
+    assert!(
+        compiler.symbol_table == global_symbol_table,
+        "compiler did not restore global symbol table"
+    );
+
+    assert!(
+        compiler.symbol_table.borrow().outer.is_none(),
+        "compiler modified global symbol table incorrectly"
     );
 
     compiler.emit(Opcode::OpAdd, Vec::new());
@@ -722,6 +742,75 @@ fn test_function_calls() {
                 make(Opcode::OpSetGlobal, &vec![0]),
                 make(Opcode::OpGetGlobal, &vec![0]),
                 make(Opcode::OpCall, &Vec::new()),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+    ];
+    run_compiler_tests(tests);
+}
+
+#[test]
+fn test_let_statement_scopes() {
+    let tests = vec![
+        CompilerTestCase {
+            input: "let num = 55;
+            fn() { num }
+            ",
+            expected_constants: vec![
+                Box::new(55 as i64),
+                Box::new(vec![
+                    make(Opcode::OpGetGlobal, &vec![0]),
+                    make(Opcode::OpReturnValue, &Vec::new()),
+                ]),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpSetGlobal, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "fn() {
+                        let num = 55;
+                        num
+            }",
+            expected_constants: vec![
+                Box::new(55 as i64),
+                Box::new(vec![
+                    make(Opcode::OpConstant, &vec![0]),
+                    make(Opcode::OpSetLocal, &vec![0]),
+                    make(Opcode::OpGetLocal, &vec![0]),
+                    make(Opcode::OpReturnValue, &Vec::new()),
+                ]),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "fn() {
+                        let a = 55;
+                        let b = 77;
+                        a + b
+            }",
+            expected_constants: vec![
+                Box::new(55 as i64),
+                Box::new(77 as i64),
+                Box::new(vec![
+                    make(Opcode::OpConstant, &vec![0]),
+                    make(Opcode::OpSetLocal, &vec![0]),
+                    make(Opcode::OpConstant, &vec![1]),
+                    make(Opcode::OpSetLocal, &vec![1]),
+                    make(Opcode::OpGetLocal, &vec![0]),
+                    make(Opcode::OpGetLocal, &vec![1]),
+                    make(Opcode::OpAdd, &Vec::new()),
+                    make(Opcode::OpReturnValue, &Vec::new()),
+                ]),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![2]),
                 make(Opcode::OpPop, &Vec::new()),
             ],
         },
