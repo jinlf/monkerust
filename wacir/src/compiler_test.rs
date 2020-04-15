@@ -151,6 +151,7 @@ fn test_constants(expected: &Vec<Box<dyn Any>>, actual: Rc<RefCell<Vec<Object>>>
             if let Object::CompiledFunction(CompiledFunction {
                 instructions,
                 num_locals: _,
+                num_parameters: _,
             }) = actual.borrow()[i].clone()
             {
                 test_instructions(expected_instructions, &instructions);
@@ -723,7 +724,7 @@ fn test_function_calls() {
             ],
             expected_instructions: vec![
                 make(Opcode::OpConstant, &vec![1]),
-                make(Opcode::OpCall, &Vec::new()),
+                make(Opcode::OpCall, &vec![0]),
                 make(Opcode::OpPop, &Vec::new()),
             ],
         },
@@ -741,7 +742,89 @@ fn test_function_calls() {
                 make(Opcode::OpConstant, &vec![1]),
                 make(Opcode::OpSetGlobal, &vec![0]),
                 make(Opcode::OpGetGlobal, &vec![0]),
-                make(Opcode::OpCall, &Vec::new()),
+                make(Opcode::OpCall, &vec![0]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "let oneArg = fn(a) {};
+            oneArg(24);",
+            expected_constants: vec![
+                Box::new(vec![make(Opcode::OpReturn, &Vec::new())]),
+                Box::new(24 as i64),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpSetGlobal, &vec![0]),
+                make(Opcode::OpGetGlobal, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpCall, &vec![1]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "let manyArg = fn(a, b, c) {};
+            manyArg(24, 25, 26);",
+            expected_constants: vec![
+                Box::new(vec![make(Opcode::OpReturn, &Vec::new())]),
+                Box::new(24 as i64),
+                Box::new(25 as i64),
+                Box::new(26 as i64),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpSetGlobal, &vec![0]),
+                make(Opcode::OpGetGlobal, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpConstant, &vec![2]),
+                make(Opcode::OpConstant, &vec![3]),
+                make(Opcode::OpCall, &vec![3]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "let oneArg = fn(a) { a };
+            oneArg(24);",
+            expected_constants: vec![
+                Box::new(vec![
+                    make(Opcode::OpGetLocal, &vec![0]),
+                    make(Opcode::OpReturnValue, &Vec::new()),
+                ]),
+                Box::new(24 as i64),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpSetGlobal, &vec![0]),
+                make(Opcode::OpGetGlobal, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpCall, &vec![1]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "let manyArg = fn(a, b, c) { a; b; c };
+            manyArg(24, 25, 26);",
+            expected_constants: vec![
+                Box::new(vec![
+                    make(Opcode::OpGetLocal, &vec![0]),
+                    make(Opcode::OpPop, &Vec::new()),
+                    make(Opcode::OpGetLocal, &vec![1]),
+                    make(Opcode::OpPop, &Vec::new()),
+                    make(Opcode::OpGetLocal, &vec![2]),
+                    make(Opcode::OpReturnValue, &Vec::new()),
+                ]),
+                Box::new(24 as i64),
+                Box::new(25 as i64),
+                Box::new(26 as i64),
+            ],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpSetGlobal, &vec![0]),
+                make(Opcode::OpGetGlobal, &vec![0]),
+                make(Opcode::OpConstant, &vec![1]),
+                make(Opcode::OpConstant, &vec![2]),
+                make(Opcode::OpConstant, &vec![3]),
+                make(Opcode::OpCall, &vec![3]),
                 make(Opcode::OpPop, &Vec::new()),
             ],
         },

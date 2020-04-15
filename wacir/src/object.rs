@@ -335,15 +335,13 @@ impl Hashable for StringObj {
 pub struct CompiledFunction {
     pub instructions: Instructions,
     pub num_locals: usize,
+    pub num_parameters: usize,
 }
 impl ObjectTrait for CompiledFunction {
     fn get_type(&self) -> String {
         String::from("COMPILED_FUNCTION")
     }
     fn inspect(&self) -> String {
-        format!(
-            "CompiledFunction[{}]",
-            self as *const CompiledFunction as usize
-        )
+        format!("CompiledFunction[{:p}]", &self)
     }
 }

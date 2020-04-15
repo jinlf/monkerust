@@ -29,6 +29,7 @@ impl Vm {
         let main_fn = CompiledFunction {
             instructions: bytecode.instuctions,
             num_locals: 0,
+            num_parameters: 0,
         };
         let main_frame = Frame::new(main_fn, 0);
         let mut frames: Vec<Frame> = vec![
@@ -36,6 +37,7 @@ impl Vm {
                 CompiledFunction {
                     instructions: Instructions::new(),
                     num_locals: 0,
+                    num_parameters: 0,
                 },
                 0
             );
@@ -200,22 +202,12 @@ impl Vm {
                     }
                 }
                 Opcode::OpCall => {
-                    if let Some(Object::CompiledFunction(CompiledFunction {
-                        instructions,
-                        num_locals,
-                    })) = self.stack[self.sp - 1].clone()
-                    {
-                        let frame = Frame::new(
-                            CompiledFunction {
-                                instructions,
-                                num_locals,
-                            },
-                            self.sp,
-                        );
-                        self.sp = frame.base_pointer + num_locals;
-                        self.push_frame(frame);
-                    } else {
-                        return Err(format!("calling non-function"));
+                    let num_args = ins.0[ip + 1] as usize;
+                    self.current_frame().ip += 1;
+
+                    match self.call_function(num_args) {
+                        Err(err) => return Err(err),
+                        _ => {}
                     }
                 }
                 Opcode::OpReturnValue => {
@@ -392,6 +384,7 @@ impl Vm {
         let main_fn = CompiledFunction {
             instructions: bytecode.instuctions,
             num_locals: 0,
+            num_parameters: 0,
         };
         let main_frame = Frame::new(main_fn, 0);
         let mut frames: Vec<Frame> = vec![
@@ -399,6 +392,7 @@ impl Vm {
                 CompiledFunction {
                     instructions: Instructions::new(),
                     num_locals: 0,
+                    num_parameters: 0,
                 },
                 0
             );
@@ -527,6 +521,36 @@ impl Vm {
     fn pop_frame(&mut self) -> &Frame {
         self.frame_index -= 1;
         &self.frames[self.frame_index]
+    }
+
+    fn call_function(&mut self, num_args: usize) -> Result<String, String> {
+        if let Some(Object::CompiledFunction(CompiledFunction {
+            instructions,
+            num_locals,
+            num_parameters,
+        })) = self.stack[self.sp - 1 - num_args].clone()
+        {
+            if num_args != num_parameters {
+                return Err(format!(
+                    "wrong number of arguments: want={}, got={}",
+                    num_parameters, num_args
+                ));
+            }
+
+            let frame = Frame::new(
+                CompiledFunction {
+                    instructions,
+                    num_locals,
+                    num_parameters,
+                },
+                self.sp - num_args,
+            );
+            self.sp = frame.base_pointer + num_locals;
+            self.push_frame(frame);
+            return Ok(String::new());
+        } else {
+            return Err(format!("calling non-function"));
+        }
     }
 }
 

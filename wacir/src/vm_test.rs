@@ -713,3 +713,117 @@ fn test_calling_functions_with_bindings() {
     ];
     run_vm_tests(tests);
 }
+
+#[test]
+fn test_calling_functions_with_arguments_and_bindings() {
+    let tests = vec![
+        VmTestCase {
+            input: "let identity = fn(a) { a; };
+            identity(4);",
+            expected: Object::Integer(Integer { value: 4 }),
+        },
+        VmTestCase {
+            input: "let sum = fn(a, b) { a + b; };
+            sum(1, 2);",
+            expected: Object::Integer(Integer { value: 3 }),
+        },
+        VmTestCase {
+            input: "let sum = fn(a, b) {
+                let c = a + b;
+                c;
+            };
+            sum(1, 2);",
+            expected: Object::Integer(Integer { value: 3 }),
+        },
+        VmTestCase {
+            input: "let sum = fn(a, b) {
+                let c = a + b;
+                c;
+            };
+            sum(1, 2) + sum(3, 4);",
+            expected: Object::Integer(Integer { value: 10 }),
+        },
+        VmTestCase {
+            input: "let sum = fn(a, b) {
+                let c = a + b;
+                c;
+            };
+            let outer = fn() {
+                sum(1, 2) + sum(3, 4);
+            };
+            outer();
+            ",
+            expected: Object::Integer(Integer { value: 10 }),
+        },
+        VmTestCase {
+            input: "let globalNum = 10;
+            
+            let sum = fn(a, b) {
+                let c = a + b;
+                c + globalNum;
+            };
+            
+            let outer = fn() {
+                sum(1, 2) + sum(3, 4) + globalNum;
+            };
+            
+            outer() + globalNum;
+            ",
+            expected: Object::Integer(Integer { value: 50 }),
+        },
+    ];
+    run_vm_tests(tests);
+}
+
+#[test]
+fn test_calling_functions_with_wrong_arguments() {
+    let tests = vec![
+        VmTestCase {
+            input: "fn() { 1; } (1);",
+            expected: Object::ErrorObj(ErrorObj {
+                message: String::from("wrong number of arguments: want=0, got=1"),
+            }),
+        },
+        VmTestCase {
+            input: "fn(a) { a; }();",
+            expected: Object::ErrorObj(ErrorObj {
+                message: String::from("wrong number of arguments: want=1, got=0"),
+            }),
+        },
+        VmTestCase {
+            input: "fn(a, b) { a + b; }(1);",
+            expected: Object::ErrorObj(ErrorObj {
+                message: String::from("wrong number of arguments: want=2, got=1"),
+            }),
+        },
+    ];
+
+    for tt in tests.iter() {
+        let program = parse(tt.input);
+
+        let mut comp = Compiler::new();
+        match comp.compile(Node::Program(program.unwrap())) {
+            Err(err) => {
+                assert!(false, "compiler error: {}", err);
+            }
+            _ => {}
+        }
+
+        let mut vm = Vm::new(comp.bytecode());
+        match vm.run() {
+            Err(err) => {
+                assert!(
+                    Object::ErrorObj(ErrorObj {
+                        message: err.clone()
+                    }) == tt.expected,
+                    "wrong Vm error: want={:?}, got={}",
+                    tt.expected,
+                    err
+                );
+            }
+            _ => {
+                assert!(false, "expected VM error but resulted in none.");
+            }
+        }
+    }
+}

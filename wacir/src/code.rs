@@ -215,7 +215,7 @@ fn get_definition<'a>(opcode: Opcode) -> Option<Definition<'a>> {
         }),
         Opcode::OpCall => Some(Definition {
             name: "OpCall",
-            operand_widths: Vec::new(),
+            operand_widths: vec![1],
         }),
         Opcode::OpReturnValue => Some(Definition {
             name: "OpReturnValue",

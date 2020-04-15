@@ -269,6 +269,10 @@ impl Compiler {
             })) => {
                 self.enter_scope();
 
+                for p in parameters.iter() {
+                    self.symbol_table.borrow_mut().define(&p.value);
+                }
+
                 match self.compile(Node::Statement(Statement::BlockStatement(body))) {
                     Err(err) => return Err(err),
                     _ => {}
@@ -286,6 +290,7 @@ impl Compiler {
                 let compiled_fn = CompiledFunction {
                     instructions: instructions,
                     num_locals: num_locals,
+                    num_parameters: parameters.len(),
                 };
                 let v = self.add_constant(Object::CompiledFunction(compiled_fn));
                 self.emit(Opcode::OpConstant, vec![v]);
@@ -309,7 +314,14 @@ impl Compiler {
                     Err(err) => return Err(err),
                     _ => {}
                 }
-                self.emit(Opcode::OpCall, Vec::new());
+                let len = arguments.len();
+                for a in arguments {
+                    match self.compile(Node::Expression(a)) {
+                        Err(err) => return Err(err),
+                        _ => {}
+                    }
+                }
+                self.emit(Opcode::OpCall, vec![len as i64]);
             }
 
             _ => {}
