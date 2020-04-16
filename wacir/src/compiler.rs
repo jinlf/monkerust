@@ -36,7 +36,7 @@ impl Compiler {
         }
     }
 
-    pub fn compile(&mut self, node: Node) -> Result<String, String> {
+    pub fn compile(&mut self, node: Node) -> Result<(), String> {
         match node {
             Node::Program(Program { statements }) => {
                 for s in statements.iter() {
@@ -326,7 +326,7 @@ impl Compiler {
                 self.emit(Opcode::OpCall, vec![len as i64]);
             }
         }
-        Ok(String::new())
+        Ok(())
     }
 
     pub fn bytecode(&mut self) -> Bytecode {

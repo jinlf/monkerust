@@ -72,7 +72,7 @@ impl Vm {
         }
     }
 
-    pub fn run(&mut self) -> Result<String, String> {
+    pub fn run(&mut self) -> Result<(), String> {
         let mut ip: usize;
         let mut ins: &Instructions;
         let mut op: Opcode;
@@ -294,16 +294,16 @@ impl Vm {
                 }
             }
         }
-        Ok(String::new())
+        Ok(())
     }
 
-    pub fn push(&mut self, o: Object) -> Result<String, String> {
+    pub fn push(&mut self, o: Object) -> Result<(), String> {
         if self.sp >= STACK_SIZE {
             return Err(String::from("stack overflow"));
         }
         self.stack[self.sp] = Some(o);
         self.sp += 1;
-        Ok(String::new())
+        Ok(())
     }
 
     pub fn pop(&mut self) -> Option<Object> {
@@ -316,7 +316,7 @@ impl Vm {
         self.stack[self.sp].clone()
     }
 
-    fn execute_binary_operation(&mut self, op: Opcode) -> Result<String, String> {
+    fn execute_binary_operation(&mut self, op: Opcode) -> Result<(), String> {
         let right = self.pop();
         let left = self.pop();
         if let Some(Object::Integer(Integer { value })) = left {
@@ -344,7 +344,7 @@ impl Vm {
         op: Opcode,
         left_value: i64,
         right_value: i64,
-    ) -> Result<String, String> {
+    ) -> Result<(), String> {
         let result = match op {
             Opcode::OpAdd => left_value + right_value,
             Opcode::OpSub => left_value - right_value,
@@ -356,10 +356,10 @@ impl Vm {
             Err(err) => return Err(err),
             _ => {}
         };
-        Ok(String::new())
+        Ok(())
     }
 
-    fn execute_comparison(&mut self, op: Opcode) -> Result<String, String> {
+    fn execute_comparison(&mut self, op: Opcode) -> Result<(), String> {
         let right = self.pop();
         let left = self.pop();
 
@@ -388,7 +388,7 @@ impl Vm {
         op: Opcode,
         left: i64,
         right: i64,
-    ) -> Result<String, String> {
+    ) -> Result<(), String> {
         match op {
             Opcode::OpEqual => self.push(native_bool_to_boolean_object(right == left)),
             Opcode::OpNotEqual => self.push(native_bool_to_boolean_object(right != left)),
@@ -397,7 +397,7 @@ impl Vm {
         }
     }
 
-    fn execute_bang_operator(&mut self) -> Result<String, String> {
+    fn execute_bang_operator(&mut self) -> Result<(), String> {
         let operand = self.pop();
         match operand {
             Some(TRUE) => self.push(FALSE),
@@ -406,7 +406,7 @@ impl Vm {
             _ => self.push(FALSE),
         }
     }
-    fn execute_minus_operator(&mut self) -> Result<String, String> {
+    fn execute_minus_operator(&mut self) -> Result<(), String> {
         let operand = self.pop();
         match operand {
             Some(Object::Integer(Integer { value })) => {
@@ -464,7 +464,7 @@ impl Vm {
         op: Opcode,
         left: String,
         right: String,
-    ) -> Result<String, String> {
+    ) -> Result<(), String> {
         if op != Opcode::OpAdd {
             return Err(format!("unknown string operator: {:?}", op));
         }
@@ -517,7 +517,7 @@ impl Vm {
         &mut self,
         left: Option<Object>,
         index: Option<Object>,
-    ) -> Result<String, String> {
+    ) -> Result<(), String> {
         if let Some(Object::Array(Array { elements })) = left.clone() {
             if let Some(Object::Integer(Integer { value })) = index {
                 return self.execute_array_index(elements, value);
@@ -528,7 +528,7 @@ impl Vm {
         Err(format!("index operator not supported: {}", get_type(&left)))
     }
 
-    fn execute_array_index(&mut self, elements: Vec<Object>, index: i64) -> Result<String, String> {
+    fn execute_array_index(&mut self, elements: Vec<Object>, index: i64) -> Result<(), String> {
         let max = elements.len() as i64 - 1;
         if index < 0 || index > max {
             return self.push(NULL);
@@ -541,7 +541,7 @@ impl Vm {
         &mut self,
         pairs: HashMap<HashKey, Object>,
         index: Option<Object>,
-    ) -> Result<String, String> {
+    ) -> Result<(), String> {
         if let Some(key) = index.clone() {
             if let Some(hash_key) = key.as_hashable() {
                 if let Some(value) = pairs.get(&hash_key.hash_key()) {
@@ -571,7 +571,7 @@ impl Vm {
         &self.frames[self.frame_index]
     }
 
-    // fn call_function(&mut self, func: CompiledFunction, num_args: usize) -> Result<String, String> {
+    // fn call_function(&mut self, func: CompiledFunction, num_args: usize) -> Result<(), String> {
     //     if num_args != func.num_parameters {
     //         return Err(format!(
     //             "wrong number of arguments: want={}, got={}",
@@ -585,7 +585,7 @@ impl Vm {
     //     return Ok(String::new());
     // }
 
-    fn execute_call(&mut self, num_args: usize) -> Result<String, String> {
+    fn execute_call(&mut self, num_args: usize) -> Result<(), String> {
         let callee = self.stack[self.sp - 1 - num_args].clone();
         if let Some(Object::Closure(cl)) = callee {
             return self.call_closure(cl, num_args);
@@ -596,7 +596,7 @@ impl Vm {
         }
     }
 
-    fn call_builtin(&mut self, builtin: Builtin, num_args: usize) -> Result<String, String> {
+    fn call_builtin(&mut self, builtin: Builtin, num_args: usize) -> Result<(), String> {
         let args = &self.stack[(self.sp - num_args)..self.sp];
         let mut v: Vec<Option<Object>> = Vec::new();
         for arg in args.iter() {
@@ -616,10 +616,10 @@ impl Vm {
                 _ => {}
             }
         }
-        Ok(String::new())
+        Ok(())
     }
 
-    fn call_closure(&mut self, cl: Closure, num_args: usize) -> Result<String, String> {
+    fn call_closure(&mut self, cl: Closure, num_args: usize) -> Result<(), String> {
         if num_args != cl.func.num_parameters {
             return Err(format!(
                 "wrong number of arguments: want={}, got={}",
@@ -632,10 +632,10 @@ impl Vm {
         let base_pointer = frame.base_pointer;
         self.push_frame(frame);
         self.sp = base_pointer + num_locals;
-        Ok(String::new())
+        Ok(())
     }
 
-    fn push_closure(&mut self, const_index: usize, num_free: usize) -> Result<String, String> {
+    fn push_closure(&mut self, const_index: usize, num_free: usize) -> Result<(), String> {
         let constant = self.constants.borrow()[const_index].clone();
         if let Object::CompiledFunction(function) = constant {
             let mut free: Vec<Option<Object>> = vec![None; num_free];

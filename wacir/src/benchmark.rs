@@ -21,7 +21,7 @@ fn main() {
     }
     match &args[1][..] {
         "-engine" => match &args[2][..] {
-            "vm" | "eval" => engine = args[2].clone(),
+            "vm" | "eval" => engine = String::from(&args[2]),
             _ => {
                 println!("use 'vm or 'eval'");
                 return;

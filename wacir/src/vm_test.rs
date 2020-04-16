@@ -14,7 +14,7 @@ fn parse(input: &str) -> Option<Program> {
     return p.parse_program();
 }
 
-fn test_integer_object(expected: i64, actual: Option<Object>) -> Result<String, String> {
+fn test_integer_object(expected: i64, actual: Option<Object>) -> Result<(), String> {
     if let Some(Object::Integer(Integer { value })) = actual {
         if value != expected {
             return Err(format!(
@@ -25,7 +25,7 @@ fn test_integer_object(expected: i64, actual: Option<Object>) -> Result<String, 
     } else {
         return Err(format!("object is not Integer. got={:?}", actual));
     }
-    Ok(String::new())
+    Ok(())
 }
 
 struct VmTestCase<'a> {
@@ -349,7 +349,7 @@ fn test_boolean_expressions() {
     run_vm_tests(tests);
 }
 
-fn test_boolean_object(expected: bool, actual: Option<Object>) -> Result<String, String> {
+fn test_boolean_object(expected: bool, actual: Option<Object>) -> Result<(), String> {
     if let Some(Object::Boolean(Boolean { value })) = actual {
         if value != expected {
             return Err(format!(
@@ -360,7 +360,7 @@ fn test_boolean_object(expected: bool, actual: Option<Object>) -> Result<String,
     } else {
         return Err(format!("object is not Boolean. got={:?}", actual));
     }
-    Ok(String::new())
+    Ok(())
 }
 
 #[test]
@@ -457,7 +457,7 @@ fn test_string_expressions() {
     run_vm_tests(tests);
 }
 
-fn test_string_object(expected: &str, actual: Option<Object>) -> Result<String, String> {
+fn test_string_object(expected: &str, actual: Option<Object>) -> Result<(), String> {
     if let Some(Object::StringObj(StringObj { value })) = actual {
         if value != expected {
             return Err(format!(
@@ -468,7 +468,7 @@ fn test_string_object(expected: &str, actual: Option<Object>) -> Result<String, 
     } else {
         return Err(format!("object is not String. got={:?}", actual));
     }
-    Ok(String::new())
+    Ok(())
 }
 
 #[test]
