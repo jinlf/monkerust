@@ -9,6 +9,7 @@ use super::parser::*;
 // use std::cell::*;
 use std::io::*;
 // use std::rc::*;
+use super::builtins::*;
 use super::compiler::*;
 use super::symbol_table::*;
 use super::vm::*;
@@ -22,7 +23,11 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
     // let env = Rc::new(RefCell::new(new_environment()));
     let mut constants: Rc<RefCell<Vec<Object>>> = Rc::new(RefCell::new(Vec::new()));
     let globals: Rc<RefCell<Vec<Option<Object>>>> = Rc::new(RefCell::new(vec![None; GLOBALS_SIZE]));
-    let symbol_table = Rc::new(RefCell::new(SymbolTable::new()));
+    let mut st = SymbolTable::new();
+    for (i, v) in get_builtin_names().iter().enumerate() {
+        st.define_builtin(i, v);
+    }
+    let symbol_table = Rc::new(RefCell::new(st));
 
     loop {
         write!(output, "{}", PROMPT).unwrap();

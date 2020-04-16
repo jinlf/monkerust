@@ -135,3 +135,22 @@ pub fn get_builtin(name: &str) -> Option<Object> {
         _ => None,
     }
 }
+
+pub fn get_builtin_by_name(name: &str) -> Option<Builtin> {
+    if let Some(Object::Builtin(bi)) = get_builtin(name) {
+        Some(bi)
+    } else {
+        None
+    }
+}
+
+pub fn get_builtin_names() -> Vec<String> {
+    return vec![
+        String::from("len"),
+        String::from("puts"),
+        String::from("first"),
+        String::from("last"),
+        String::from("rest"),
+        String::from("push"),
+    ];
+}

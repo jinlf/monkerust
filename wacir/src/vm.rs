@@ -1,5 +1,6 @@
 // src/vm.rs
 
+use super::builtins::*;
 use super::code::*;
 use super::compiler::*;
 use super::frame::*;
@@ -205,7 +206,7 @@ impl Vm {
                     let num_args = ins.0[ip + 1] as usize;
                     self.current_frame().ip += 1;
 
-                    match self.call_function(num_args) {
+                    match self.execute_call(num_args) {
                         Err(err) => return Err(err),
                         _ => {}
                     }
@@ -246,6 +247,18 @@ impl Vm {
                         .unwrap()
                         .clone(); // TODO: can unwrap?
                     match self.push(obj) {
+                        Err(err) => return Err(err),
+                        _ => {}
+                    }
+                }
+                Opcode::OpGetBuiltin => {
+                    let builtin_index = ins.0[ip + 1] as usize;
+                    self.current_frame().ip += 1;
+
+                    let definition =
+                        get_builtin_by_name(&get_builtin_names()[builtin_index]).unwrap(); //TODO: can unwrap?
+
+                    match self.push(Object::Builtin(definition)) {
                         Err(err) => return Err(err),
                         _ => {}
                     }
@@ -523,34 +536,46 @@ impl Vm {
         &self.frames[self.frame_index]
     }
 
-    fn call_function(&mut self, num_args: usize) -> Result<String, String> {
-        if let Some(Object::CompiledFunction(CompiledFunction {
-            instructions,
-            num_locals,
-            num_parameters,
-        })) = self.stack[self.sp - 1 - num_args].clone()
-        {
-            if num_args != num_parameters {
-                return Err(format!(
-                    "wrong number of arguments: want={}, got={}",
-                    num_parameters, num_args
-                ));
-            }
-
-            let frame = Frame::new(
-                CompiledFunction {
-                    instructions,
-                    num_locals,
-                    num_parameters,
-                },
-                self.sp - num_args,
-            );
-            self.sp = frame.base_pointer + num_locals;
-            self.push_frame(frame);
-            return Ok(String::new());
-        } else {
-            return Err(format!("calling non-function"));
+    fn call_function(&mut self, func: CompiledFunction, num_args: usize) -> Result<String, String> {
+        if num_args != func.num_parameters {
+            return Err(format!(
+                "wrong number of arguments: want={}, got={}",
+                func.num_parameters, num_args
+            ));
         }
+
+        let frame = Frame::new(func.clone(), self.sp - num_args);
+        self.sp = frame.base_pointer + func.num_locals;
+        self.push_frame(frame);
+        return Ok(String::new());
+    }
+
+    fn execute_call(&mut self, num_args: usize) -> Result<String, String> {
+        let callee = self.stack[self.sp - 1 - num_args].clone();
+        if let Some(Object::CompiledFunction(func)) = callee {
+            return self.call_function(func, num_args);
+        } else if let Some(Object::Builtin(builtin)) = callee {
+            return self.call_builtin(builtin, num_args);
+        } else {
+            return Err(format!("calling non-function and no-built-in"));
+        }
+    }
+
+    fn call_builtin(&mut self, builtin: Builtin, num_args: usize) -> Result<String, String> {
+        let args = &self.stack[(self.sp - num_args)..self.sp];
+        let mut v: Vec<Option<Object>> = Vec::new();
+        for arg in args.iter() {
+            v.push(arg.clone());
+        }
+        let func = builtin.func;
+        let result = func(&v);
+        self.sp = self.sp - num_args - 1;
+        if let Some(r) = result {
+            self.push(r);
+        } else {
+            self.push(NULL);
+        }
+        Ok(String::new())
     }
 }
 

@@ -143,6 +143,18 @@ fn test_expected_object(expected: &Object, actual: Option<Object>) {
                     assert!(false, "error");
                 }
             }
+        } else if let Object::ErrorObj(ErrorObj { message }) = expected {
+            let expected_message = message;
+            if let Some(Object::ErrorObj(ErrorObj { message })) = actual {
+                assert!(
+                    expected_message == &message,
+                    "wrong error message. expected={:?}, got={:?}",
+                    expected_message,
+                    message
+                );
+            } else {
+                assert!(false, "object is not Error: {:?}", actual);
+            }
         } else {
             assert!(false, "object is not Hash. got={:?}", actual);
         }
@@ -826,4 +838,100 @@ fn test_calling_functions_with_wrong_arguments() {
             }
         }
     }
+}
+
+#[test]
+fn test_builtin_functions() {
+    let tests = vec![
+        VmTestCase {
+            input: r#"len("")"#,
+            expected: Object::Integer(Integer { value: 0 }),
+        },
+        VmTestCase {
+            input: r#"len("four")"#,
+            expected: Object::Integer(Integer { value: 4 }),
+        },
+        VmTestCase {
+            input: r#"len("hello world")"#,
+            expected: Object::Integer(Integer { value: 11 }),
+        },
+        VmTestCase {
+            input: r#"len(1)"#,
+            expected: Object::ErrorObj(ErrorObj {
+                message: String::from("argument to `len` not supported, got INTEGER"),
+            }),
+        },
+        VmTestCase {
+            input: r#"len("one", "two")"#,
+            expected: Object::ErrorObj(ErrorObj {
+                message: String::from("wrong number of arguments. got=2, want=1"),
+            }),
+        },
+        VmTestCase {
+            input: r#"len([1, 2, 3])"#,
+            expected: Object::Integer(Integer { value: 3 }),
+        },
+        VmTestCase {
+            input: r#"len([])"#,
+            expected: Object::Integer(Integer { value: 0 }),
+        },
+        VmTestCase {
+            input: r#"puts("hello", "wrold!")"#,
+            expected: NULL,
+        },
+        VmTestCase {
+            input: r#"first([1, 2, 3])"#,
+            expected: Object::Integer(Integer { value: 1 }),
+        },
+        VmTestCase {
+            input: r#"first([])"#,
+            expected: NULL,
+        },
+        VmTestCase {
+            input: r#"first(1)"#,
+            expected: Object::ErrorObj(ErrorObj {
+                message: String::from("argument to `first` must be ARRAY, got INTEGER"),
+            }),
+        },
+        VmTestCase {
+            input: r#"last([1, 2, 3])"#,
+            expected: Object::Integer(Integer { value: 3 }),
+        },
+        VmTestCase {
+            input: r#"last([])"#,
+            expected: NULL,
+        },
+        VmTestCase {
+            input: r#"last(1)"#,
+            expected: Object::ErrorObj(ErrorObj {
+                message: String::from("argument to `last` must be ARRAY, got INTEGER"),
+            }),
+        },
+        VmTestCase {
+            input: r#"rest([1, 2, 3])"#,
+            expected: Object::Array(Array {
+                elements: vec![
+                    Object::Integer(Integer { value: 2 }),
+                    Object::Integer(Integer { value: 3 }),
+                ],
+            }),
+        },
+        VmTestCase {
+            input: r#"rest([])"#,
+            expected: NULL,
+        },
+        VmTestCase {
+            input: r#"push([], 1)"#,
+            expected: Object::Array(Array {
+                elements: vec![Object::Integer(Integer { value: 1 })],
+            }),
+        },
+        VmTestCase {
+            input: r#"push(1, 1)"#,
+            expected: Object::ErrorObj(ErrorObj {
+                message: String::from("argument to `push` must be ARRAY, got INTEGER"),
+            }),
+        },
+    ];
+    run_vm_tests(tests);
 }

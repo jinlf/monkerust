@@ -8,6 +8,7 @@ use std::rc::*;
 pub enum SymbolScope {
     GlobalScope,
     LocalScope,
+    BuiltinScope,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -64,5 +65,15 @@ impl SymbolTable {
             store: HashMap::new(),
             num_definitions: 0,
         }
+    }
+
+    pub fn define_builtin(&mut self, index: usize, name: &str) -> Symbol {
+        let symbol = Symbol {
+            name: String::from(name),
+            scope: SymbolScope::BuiltinScope,
+            index: index as i64,
+        };
+        self.store.insert(String::from(name), symbol.clone());
+        symbol
     }
 }

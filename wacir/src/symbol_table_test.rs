@@ -282,3 +282,57 @@ fn test_resolve_nested_local() {
         }
     }
 }
+
+#[test]
+fn test_define_resolve_builtins() {
+    let global = Rc::new(RefCell::new(SymbolTable::new()));
+    let first_local = Rc::new(RefCell::new(SymbolTable::new_enclosed_symbol_table(
+        Rc::clone(&global),
+    )));
+    let second_local = Rc::new(RefCell::new(SymbolTable::new_enclosed_symbol_table(
+        Rc::clone(&first_local),
+    )));
+
+    let expected = vec![
+        Symbol {
+            name: String::from("a"),
+            scope: SymbolScope::BuiltinScope,
+            index: 0,
+        },
+        Symbol {
+            name: String::from("c"),
+            scope: SymbolScope::BuiltinScope,
+            index: 1,
+        },
+        Symbol {
+            name: String::from("e"),
+            scope: SymbolScope::BuiltinScope,
+            index: 2,
+        },
+        Symbol {
+            name: String::from("f"),
+            scope: SymbolScope::BuiltinScope,
+            index: 3,
+        },
+    ];
+
+    for (i, v) in expected.iter().enumerate() {
+        global.borrow_mut().define_builtin(i, &v.name);
+    }
+
+    for table in [global, first_local, second_local].iter() {
+        for sym in expected.iter() {
+            if let Some(result) = table.borrow().resolve(&sym.name) {
+                assert!(
+                    &result == sym,
+                    "expected {} to resolve to {:?}, got={:?}",
+                    sym.name,
+                    sym,
+                    result
+                );
+            } else {
+                assert!(false, "name {} not resolvable", sym.name);
+            }
+        }
+    }
+}

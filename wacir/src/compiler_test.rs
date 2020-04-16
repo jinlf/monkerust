@@ -900,3 +900,38 @@ fn test_let_statement_scopes() {
     ];
     run_compiler_tests(tests);
 }
+
+#[test]
+fn test_builltins() {
+    let tests = vec![
+        CompilerTestCase {
+            input: "len([]); push([], 1);",
+            expected_constants: vec![Box::new(1 as i64)],
+            expected_instructions: vec![
+                make(Opcode::OpGetBuiltin, &vec![0]),
+                make(Opcode::OpArray, &vec![0]),
+                make(Opcode::OpCall, &vec![1]),
+                make(Opcode::OpPop, &Vec::new()),
+                make(Opcode::OpGetBuiltin, &vec![5]),
+                make(Opcode::OpArray, &vec![0]),
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpCall, &vec![2]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+        CompilerTestCase {
+            input: "fn() { len([]) }",
+            expected_constants: vec![Box::new(vec![
+                make(Opcode::OpGetBuiltin, &vec![0]),
+                make(Opcode::OpArray, &vec![0]),
+                make(Opcode::OpCall, &vec![1]),
+                make(Opcode::OpReturnValue, &Vec::new()),
+            ])],
+            expected_instructions: vec![
+                make(Opcode::OpConstant, &vec![0]),
+                make(Opcode::OpPop, &Vec::new()),
+            ],
+        },
+    ];
+    run_compiler_tests(tests);
+}

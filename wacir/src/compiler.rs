@@ -1,6 +1,7 @@
 // src/compiler.rs
 
 use super::ast::*;
+use super::builtins::*;
 use super::code::*;
 use super::object::*;
 use super::symbol_table::*;
@@ -16,8 +17,12 @@ pub struct Compiler {
 
 impl Compiler {
     pub fn new() -> Compiler {
+        let mut symbol_table = SymbolTable::new();
+        for (i, v) in get_builtin_names().iter().enumerate() {
+            symbol_table.define_builtin(i, &v);
+        }
         let constants = Rc::new(RefCell::new(Vec::new()));
-        let symbol_table = Rc::new(RefCell::new(SymbolTable::new()));
+        let symbol_table = Rc::new(RefCell::new(symbol_table));
         let main_scope = CompilationScope {
             instructions: Instructions::new(),
             last_instruction: None,
@@ -197,17 +202,8 @@ impl Compiler {
             }
             Node::Expression(Expression::Identifier(Identifier { token: _, value })) => {
                 let s = self.symbol_table.borrow().resolve(&value);
-                if let Some(Symbol {
-                    name: _,
-                    scope,
-                    index,
-                }) = s
-                {
-                    if scope == SymbolScope::GlobalScope {
-                        self.emit(Opcode::OpGetGlobal, vec![index]);
-                    } else {
-                        self.emit(Opcode::OpGetLocal, vec![index]);
-                    }
+                if let Some(symbol) = s {
+                    self.load_symbol(symbol);
                 } else {
                     return Err(format!("undefined variable {}", value));
                 };
@@ -477,6 +473,20 @@ impl Compiler {
 
         last.opcode = Opcode::OpReturnValue;
         self.scopes[self.scope_index].last_instruction = Some(last);
+    }
+
+    fn load_symbol(&mut self, s: Symbol) {
+        match s.scope {
+            SymbolScope::GlobalScope => {
+                self.emit(Opcode::OpGetGlobal, vec![s.index as i64]);
+            }
+            SymbolScope::LocalScope => {
+                self.emit(Opcode::OpGetLocal, vec![s.index as i64]);
+            }
+            SymbolScope::BuiltinScope => {
+                self.emit(Opcode::OpGetBuiltin, vec![s.index as i64]);
+            }
+        }
     }
 }
 
