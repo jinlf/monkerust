@@ -45,7 +45,7 @@ fn main() {
             }
         } 
     };
-    fibonacci(26);
+    fibonacci(35);
     ";
 
     let result: Option<Object>;
