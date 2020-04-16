@@ -9,6 +9,7 @@ pub enum SymbolScope {
     GlobalScope,
     LocalScope,
     BuiltinScope,
+    FreeScope,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -22,6 +23,7 @@ pub struct SymbolTable {
     pub outer: Option<Rc<RefCell<SymbolTable>>>,
     pub store: HashMap<String, Symbol>,
     pub num_definitions: usize,
+    pub free_symbols: Vec<Symbol>,
 }
 impl SymbolTable {
     pub fn new() -> SymbolTable {
@@ -29,6 +31,7 @@ impl SymbolTable {
             outer: None,
             store: HashMap::new(),
             num_definitions: 0,
+            free_symbols: Vec::new(),
         }
     }
 
@@ -47,16 +50,33 @@ impl SymbolTable {
         symbol
     }
 
-    pub fn resolve(&self, name: &str) -> Option<Symbol> {
+    pub fn resolve(&mut self, name: &str) -> Option<Symbol> {
         match self.store.get(name) {
-            Some(s) => Some(s.clone()),
-            None => {
-                if let Some(outer) = &self.outer {
-                    return outer.borrow().resolve(name);
+            Some(s) => return Some(s.clone()),
+            None => {}
+        };
+        let mut need_define_free = false;
+        let mut saved_obj: Option<Symbol> = None;
+        {
+            if let Some(outer) = self.outer.as_ref() {
+                if let Some(obj) = outer.borrow_mut().resolve(name) {
+                    match obj.scope {
+                        SymbolScope::GlobalScope | SymbolScope::BuiltinScope => {
+                            return Some(obj);
+                        }
+                        _ => {
+                            need_define_free = true;
+                            saved_obj = Some(obj);
+                        }
+                    }
                 }
-                None
             }
         }
+        if need_define_free {
+            return Some(self.define_free(saved_obj.unwrap()));
+        }
+
+        return None;
     }
 
     pub fn new_enclosed_symbol_table(outer: Rc<RefCell<SymbolTable>>) -> SymbolTable {
@@ -64,6 +84,7 @@ impl SymbolTable {
             outer: Some(Rc::clone(&outer)),
             store: HashMap::new(),
             num_definitions: 0,
+            free_symbols: Vec::new(),
         }
     }
 
@@ -74,6 +95,19 @@ impl SymbolTable {
             index: index as i64,
         };
         self.store.insert(String::from(name), symbol.clone());
+        symbol
+    }
+
+    pub fn define_free(&mut self, original: Symbol) -> Symbol {
+        let original_name = original.name.clone();
+        self.free_symbols.push(original);
+
+        let symbol = Symbol {
+            name: original_name.clone(),
+            scope: SymbolScope::FreeScope,
+            index: self.free_symbols.len() as i64 - 1,
+        };
+        self.store.insert(original_name, symbol.clone());
         symbol
     }
 }

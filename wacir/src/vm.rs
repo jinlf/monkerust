@@ -32,13 +32,20 @@ impl Vm {
             num_locals: 0,
             num_parameters: 0,
         };
-        let main_frame = Frame::new(main_fn, 0);
+        let main_closure = Closure {
+            func: main_fn,
+            free: Vec::new(),
+        };
+        let main_frame = Frame::new(main_closure, 0);
         let mut frames: Vec<Frame> = vec![
             Frame::new(
-                CompiledFunction {
-                    instructions: Instructions::new(),
-                    num_locals: 0,
-                    num_parameters: 0,
+                Closure {
+                    func: CompiledFunction {
+                        instructions: Instructions::new(),
+                        num_locals: 0,
+                        num_parameters: 0,
+                    },
+                    free: Vec::new(),
                 },
                 0
             );
@@ -263,7 +270,28 @@ impl Vm {
                         _ => {}
                     }
                 }
-                _ => {}
+                Opcode::OpClosure => {
+                    let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
+                    let const_index = read_u16(src) as usize;
+                    let num_free = ins.0[ip + 3] as usize;
+                    self.current_frame().ip += 3;
+
+                    match self.push_closure(const_index, num_free) {
+                        Err(err) => return Err(err),
+                        _ => {}
+                    }
+                }
+                Opcode::OpGetFree => {
+                    let free_index = ins.0[ip + 1] as usize;
+                    self.current_frame().ip += 1;
+
+                    let current_closure = &self.current_frame().cl;
+                    let free = current_closure.free[free_index].as_ref().unwrap().clone();
+                    match self.push(free) {
+                        Err(err) => return Err(err),
+                        _ => {}
+                    }
+                }
             }
         }
         Ok(String::new())
@@ -399,13 +427,20 @@ impl Vm {
             num_locals: 0,
             num_parameters: 0,
         };
-        let main_frame = Frame::new(main_fn, 0);
+        let main_closure = Closure {
+            func: main_fn,
+            free: Vec::new(),
+        };
+        let main_frame = Frame::new(main_closure, 0);
         let mut frames: Vec<Frame> = vec![
             Frame::new(
-                CompiledFunction {
-                    instructions: Instructions::new(),
-                    num_locals: 0,
-                    num_parameters: 0,
+                Closure {
+                    func: CompiledFunction {
+                        instructions: Instructions::new(),
+                        num_locals: 0,
+                        num_parameters: 0,
+                    },
+                    free: Vec::new()
                 },
                 0
             );
@@ -536,24 +571,24 @@ impl Vm {
         &self.frames[self.frame_index]
     }
 
-    fn call_function(&mut self, func: CompiledFunction, num_args: usize) -> Result<String, String> {
-        if num_args != func.num_parameters {
-            return Err(format!(
-                "wrong number of arguments: want={}, got={}",
-                func.num_parameters, num_args
-            ));
-        }
+    // fn call_function(&mut self, func: CompiledFunction, num_args: usize) -> Result<String, String> {
+    //     if num_args != func.num_parameters {
+    //         return Err(format!(
+    //             "wrong number of arguments: want={}, got={}",
+    //             func.num_parameters, num_args
+    //         ));
+    //     }
 
-        let frame = Frame::new(func.clone(), self.sp - num_args);
-        self.sp = frame.base_pointer + func.num_locals;
-        self.push_frame(frame);
-        return Ok(String::new());
-    }
+    //     let frame = Frame::new(func.clone(), self.sp - num_args);
+    //     self.sp = frame.base_pointer + func.num_locals;
+    //     self.push_frame(frame);
+    //     return Ok(String::new());
+    // }
 
     fn execute_call(&mut self, num_args: usize) -> Result<String, String> {
         let callee = self.stack[self.sp - 1 - num_args].clone();
-        if let Some(Object::CompiledFunction(func)) = callee {
-            return self.call_function(func, num_args);
+        if let Some(Object::Closure(cl)) = callee {
+            return self.call_closure(cl, num_args);
         } else if let Some(Object::Builtin(builtin)) = callee {
             return self.call_builtin(builtin, num_args);
         } else {
@@ -571,11 +606,54 @@ impl Vm {
         let result = func(&v);
         self.sp = self.sp - num_args - 1;
         if let Some(r) = result {
-            self.push(r);
+            match self.push(r) {
+                Err(err) => return Err(err),
+                _ => {}
+            }
         } else {
-            self.push(NULL);
+            match self.push(NULL) {
+                Err(err) => return Err(err),
+                _ => {}
+            }
         }
         Ok(String::new())
+    }
+
+    fn call_closure(&mut self, cl: Closure, num_args: usize) -> Result<String, String> {
+        if num_args != cl.func.num_parameters {
+            return Err(format!(
+                "wrong number of arguments: want={}, got={}",
+                cl.func.num_parameters, num_args
+            ));
+        }
+
+        let num_locals = cl.func.num_locals;
+        let frame = Frame::new(cl, self.sp - num_args);
+        let base_pointer = frame.base_pointer;
+        self.push_frame(frame);
+        self.sp = base_pointer + num_locals;
+        Ok(String::new())
+    }
+
+    fn push_closure(&mut self, const_index: usize, num_free: usize) -> Result<String, String> {
+        let constant = self.constants.borrow()[const_index].clone();
+        if let Object::CompiledFunction(function) = constant {
+            let mut free: Vec<Option<Object>> = vec![None; num_free];
+            let mut i = 0;
+            while i < num_free {
+                free[i] = self.stack[self.sp - num_free + i].clone();
+                i += 1;
+            }
+            self.sp -= num_free;
+
+            let closure = Closure {
+                func: function,
+                free: free,
+            };
+            self.push(Object::Closure(closure))
+        } else {
+            Err(format!("not a function: {:?}", constant))
+        }
     }
 }
 

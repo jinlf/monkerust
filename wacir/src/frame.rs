@@ -5,20 +5,20 @@ use super::object::*;
 
 #[derive(Clone)]
 pub struct Frame {
-    pub func: CompiledFunction,
+    pub cl: Closure,
     pub ip: i64,
     pub base_pointer: usize,
 }
 impl Frame {
-    pub fn new(func: CompiledFunction, base_pointer: usize) -> Frame {
+    pub fn new(cl: Closure, base_pointer: usize) -> Frame {
         Frame {
-            func: func,
+            cl: cl,
             ip: -1,
             base_pointer: base_pointer,
         }
     }
 
     pub fn instructions(&self) -> &Instructions {
-        &self.func.instructions
+        &self.cl.func.instructions
     }
 }

@@ -3,7 +3,12 @@ name = "wacir"
 version = "0.1.0"
 authors = ["阿飞 <jinlongfei@sina.com>"]
 edition = "2018"
+default-run = "wacir"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+
+[[bin]]
+name = "benchmark"
+path = "src/benchmark.rs"

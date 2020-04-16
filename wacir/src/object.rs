@@ -28,6 +28,7 @@ pub enum Object {
     Array(Array),
     Hash(Hash),
     CompiledFunction(CompiledFunction),
+    Closure(Closure),
 }
 impl ObjectTrait for Object {
     fn get_type(&self) -> String {
@@ -43,6 +44,7 @@ impl ObjectTrait for Object {
             Object::Array(a) => a.get_type(),
             Object::Hash(h) => h.get_type(),
             Object::CompiledFunction(cf) => cf.get_type(),
+            Object::Closure(c) => c.get_type(),
         }
     }
     fn inspect(&self) -> String {
@@ -58,6 +60,7 @@ impl ObjectTrait for Object {
             Object::Array(a) => a.inspect(),
             Object::Hash(h) => h.inspect(),
             Object::CompiledFunction(cf) => cf.inspect(),
+            Object::Closure(c) => c.inspect(),
         }
     }
 }
@@ -343,5 +346,19 @@ impl ObjectTrait for CompiledFunction {
     }
     fn inspect(&self) -> String {
         format!("CompiledFunction[{:p}]", &self)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Closure {
+    pub func: CompiledFunction,
+    pub free: Vec<Option<Object>>,
+}
+impl ObjectTrait for Closure {
+    fn get_type(&self) -> String {
+        String::from("CLOSURE")
+    }
+    fn inspect(&self) -> String {
+        format!("Closure[{:p}]", &self)
     }
 }

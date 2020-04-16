@@ -52,6 +52,7 @@ impl Instructions {
         match operand_count {
             0 => return String::from(def.name),
             1 => return format!("{} {}", def.name, operands[0]),
+            2 => return format!("{} {} {}", def.name, operands[0], operands[1]),
             _ => {
                 return format!("ERROR: unhandled operand_count for {}\n", def.name);
             }
@@ -88,6 +89,8 @@ pub enum Opcode {
     OpGetLocal,
     OpSetLocal,
     OpGetBuiltin,
+    OpClosure,
+    OpGetFree,
 }
 impl From<u8> for Opcode {
     fn from(v: u8) -> Self {
@@ -119,6 +122,8 @@ impl From<u8> for Opcode {
             24 => Opcode::OpGetLocal,
             25 => Opcode::OpSetLocal,
             26 => Opcode::OpGetBuiltin,
+            27 => Opcode::OpClosure,
+            28 => Opcode::OpGetFree,
             _ => panic!("invalid Opcode"),
         }
     }
@@ -237,6 +242,14 @@ fn get_definition<'a>(opcode: Opcode) -> Option<Definition<'a>> {
         }),
         Opcode::OpGetBuiltin => Some(Definition {
             name: "OpGetBuiltin",
+            operand_widths: vec![1],
+        }),
+        Opcode::OpClosure => Some(Definition {
+            name: "OpClosure",
+            operand_widths: vec![2, 1],
+        }),
+        Opcode::OpGetFree => Some(Definition {
+            name: "OpGetFree",
             operand_widths: vec![1],
         }),
     }

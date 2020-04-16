@@ -189,11 +189,11 @@ impl Compiler {
                 name,
                 value,
             })) => {
+                let symbol = self.symbol_table.borrow_mut().define(&name.value);
                 match self.compile(Node::Expression(value)) {
                     Err(err) => return Err(err),
                     _ => {}
                 };
-                let symbol = self.symbol_table.borrow_mut().define(&name.value);
                 if symbol.scope == SymbolScope::GlobalScope {
                     self.emit(Opcode::OpSetGlobal, vec![symbol.index]);
                 } else {
@@ -201,7 +201,7 @@ impl Compiler {
                 }
             }
             Node::Expression(Expression::Identifier(Identifier { token: _, value })) => {
-                let s = self.symbol_table.borrow().resolve(&value);
+                let s = self.symbol_table.borrow_mut().resolve(&value);
                 if let Some(symbol) = s {
                     self.load_symbol(symbol);
                 } else {
@@ -281,15 +281,21 @@ impl Compiler {
                     self.emit(Opcode::OpReturn, Vec::new());
                 }
 
+                let free_symbols = self.symbol_table.borrow().free_symbols.clone();
                 let num_locals = self.symbol_table.borrow().num_definitions;
                 let instructions = self.leave_scope();
+
+                for s in free_symbols.iter() {
+                    self.load_symbol(s.clone());
+                }
+
                 let compiled_fn = CompiledFunction {
                     instructions: instructions,
                     num_locals: num_locals,
                     num_parameters: parameters.len(),
                 };
-                let v = self.add_constant(Object::CompiledFunction(compiled_fn));
-                self.emit(Opcode::OpConstant, vec![v]);
+                let fn_index = self.add_constant(Object::CompiledFunction(compiled_fn));
+                self.emit(Opcode::OpClosure, vec![fn_index, free_symbols.len() as i64]);
             }
             Node::Statement(Statement::ReturnStatement(ReturnStatement {
                 token: _,
@@ -319,8 +325,6 @@ impl Compiler {
                 }
                 self.emit(Opcode::OpCall, vec![len as i64]);
             }
-
-            _ => {}
         }
         Ok(String::new())
     }
@@ -485,6 +489,9 @@ impl Compiler {
             }
             SymbolScope::BuiltinScope => {
                 self.emit(Opcode::OpGetBuiltin, vec![s.index as i64]);
+            }
+            SymbolScope::FreeScope => {
+                self.emit(Opcode::OpGetFree, vec![s.index as i64]);
             }
         }
     }
