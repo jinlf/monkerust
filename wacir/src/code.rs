@@ -1,5 +1,6 @@
 // src/code.rs
 
+use std::collections::*;
 use std::convert::TryInto;
 
 #[derive(Clone, PartialEq, Eq)]
@@ -60,7 +61,7 @@ impl Instructions {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Hash, Eq)]
 pub enum Opcode {
     OpConstant = 0,
     OpAdd,
@@ -134,129 +135,218 @@ pub struct Definition<'a> {
     pub operand_widths: Vec<usize>,
 }
 
-fn get_definition<'a>(opcode: Opcode) -> Option<Definition<'a>> {
-    match opcode {
-        Opcode::OpConstant => Some(Definition {
-            name: "OpConstant",
-            operand_widths: vec![2],
-        }),
-        Opcode::OpAdd => Some(Definition {
-            name: "OpAdd",
-            operand_widths: Vec::new(),
-        }),
-        Opcode::OpPop => Some(Definition {
-            name: "OpPop",
-            operand_widths: Vec::new(),
-        }),
-        Opcode::OpSub => Some(Definition {
-            name: "OpSub",
-            operand_widths: Vec::new(),
-        }),
-        Opcode::OpMul => Some(Definition {
-            name: "OpMul",
-            operand_widths: Vec::new(),
-        }),
-        Opcode::OpDiv => Some(Definition {
-            name: "OpDiv",
-            operand_widths: Vec::new(),
-        }),
-        Opcode::OpTrue => Some(Definition {
-            name: "OpTrue",
-            operand_widths: Vec::new(),
-        }),
-        Opcode::OpFalse => Some(Definition {
-            name: "OpFalse",
-            operand_widths: Vec::new(),
-        }),
-        Opcode::OpEqual => Some(Definition {
-            name: "OpEqual",
-            operand_widths: Vec::new(),
-        }),
-        Opcode::OpNotEqual => Some(Definition {
-            name: "OpNotEqual",
-            operand_widths: Vec::new(),
-        }),
-        Opcode::OpGreaterThan => Some(Definition {
-            name: "OpGreaterThan",
-            operand_widths: Vec::new(),
-        }),
-        Opcode::OpMinus => Some(Definition {
-            name: "OpMinus",
-            operand_widths: Vec::new(),
-        }),
-        Opcode::OpBang => Some(Definition {
-            name: "OpBang",
-            operand_widths: Vec::new(),
-        }),
-        Opcode::OpJumpNotTruthy => Some(Definition {
-            name: "OpJumpNotTruthy",
-            operand_widths: vec![2],
-        }),
-        Opcode::OpJump => Some(Definition {
-            name: "OpJump",
-            operand_widths: vec![2],
-        }),
-        Opcode::OpNull => Some(Definition {
-            name: "OpNull",
-            operand_widths: Vec::new(),
-        }),
-        Opcode::OpGetGlobal => Some(Definition {
-            name: "OpGetGlobal",
-            operand_widths: vec![2],
-        }),
-        Opcode::OpSetGlobal => Some(Definition {
-            name: "OpSetGlobal",
-            operand_widths: vec![2],
-        }),
-        Opcode::OpArray => Some(Definition {
-            name: "OpArray",
-            operand_widths: vec![2],
-        }),
-        Opcode::OpHash => Some(Definition {
-            name: "OpHash",
-            operand_widths: vec![2],
-        }),
-        Opcode::OpIndex => Some(Definition {
-            name: "OpIndex",
-            operand_widths: Vec::new(),
-        }),
-        Opcode::OpCall => Some(Definition {
-            name: "OpCall",
-            operand_widths: vec![1],
-        }),
-        Opcode::OpReturnValue => Some(Definition {
-            name: "OpReturnValue",
-            operand_widths: Vec::new(),
-        }),
-        Opcode::OpReturn => Some(Definition {
-            name: "OpReturn",
-            operand_widths: Vec::new(),
-        }),
-        Opcode::OpGetLocal => Some(Definition {
-            name: "OpGetLocal",
-            operand_widths: vec![1],
-        }),
-        Opcode::OpSetLocal => Some(Definition {
-            name: "OpSetLocal",
-            operand_widths: vec![1],
-        }),
-        Opcode::OpGetBuiltin => Some(Definition {
-            name: "OpGetBuiltin",
-            operand_widths: vec![1],
-        }),
-        Opcode::OpClosure => Some(Definition {
-            name: "OpClosure",
-            operand_widths: vec![2, 1],
-        }),
-        Opcode::OpGetFree => Some(Definition {
-            name: "OpGetFree",
-            operand_widths: vec![1],
-        }),
-    }
+lazy_static! {
+    pub static ref DEFINITIONS: HashMap<Opcode, Definition<'static>> = {
+        let mut map = HashMap::new();
+        map.insert(
+            Opcode::OpConstant,
+            Definition {
+                name: "OpConstant",
+                operand_widths: vec![2],
+            },
+        );
+        map.insert(
+            Opcode::OpAdd,
+            Definition {
+                name: "OpAdd",
+                operand_widths: Vec::new(),
+            },
+        );
+        map.insert(
+            Opcode::OpPop,
+            Definition {
+                name: "OpPop",
+                operand_widths: Vec::new(),
+            },
+        );
+        map.insert(
+            Opcode::OpSub,
+            Definition {
+                name: "OpSub",
+                operand_widths: Vec::new(),
+            },
+        );
+        map.insert(
+            Opcode::OpMul,
+            Definition {
+                name: "OpMul",
+                operand_widths: Vec::new(),
+            },
+        );
+        map.insert(
+            Opcode::OpDiv,
+            Definition {
+                name: "OpDiv",
+                operand_widths: Vec::new(),
+            },
+        );
+        map.insert(
+            Opcode::OpTrue,
+            Definition {
+                name: "OpTrue",
+                operand_widths: Vec::new(),
+            },
+        );
+        map.insert(
+            Opcode::OpFalse,
+            Definition {
+                name: "OpFalse",
+                operand_widths: Vec::new(),
+            },
+        );
+        map.insert(
+            Opcode::OpEqual,
+            Definition {
+                name: "OpEqual",
+                operand_widths: Vec::new(),
+            },
+        );
+        map.insert(
+            Opcode::OpNotEqual,
+            Definition {
+                name: "OpNotEqual",
+                operand_widths: Vec::new(),
+            },
+        );
+        map.insert(
+            Opcode::OpGreaterThan,
+            Definition {
+                name: "OpGreaterThan",
+                operand_widths: Vec::new(),
+            },
+        );
+        map.insert(
+            Opcode::OpMinus,
+            Definition {
+                name: "OpMinus",
+                operand_widths: Vec::new(),
+            },
+        );
+        map.insert(
+            Opcode::OpBang,
+            Definition {
+                name: "OpBang",
+                operand_widths: Vec::new(),
+            },
+        );
+        map.insert(
+            Opcode::OpJumpNotTruthy,
+            Definition {
+                name: "OpJumpNotTruthy",
+                operand_widths: vec![2],
+            },
+        );
+        map.insert(
+            Opcode::OpJump,
+            Definition {
+                name: "OpJump",
+                operand_widths: vec![2],
+            },
+        );
+        map.insert(
+            Opcode::OpNull,
+            Definition {
+                name: "OpNull",
+                operand_widths: Vec::new(),
+            },
+        );
+        map.insert(
+            Opcode::OpGetGlobal,
+            Definition {
+                name: "OpGetGlobal",
+                operand_widths: vec![2],
+            },
+        );
+        map.insert(
+            Opcode::OpSetGlobal,
+            Definition {
+                name: "OpSetGlobal",
+                operand_widths: vec![2],
+            },
+        );
+        map.insert(
+            Opcode::OpArray,
+            Definition {
+                name: "OpArray",
+                operand_widths: vec![2],
+            },
+        );
+        map.insert(
+            Opcode::OpHash,
+            Definition {
+                name: "OpHash",
+                operand_widths: vec![2],
+            },
+        );
+        map.insert(
+            Opcode::OpIndex,
+            Definition {
+                name: "OpIndex",
+                operand_widths: Vec::new(),
+            },
+        );
+        map.insert(
+            Opcode::OpCall,
+            Definition {
+                name: "OpCall",
+                operand_widths: vec![1],
+            },
+        );
+        map.insert(
+            Opcode::OpReturnValue,
+            Definition {
+                name: "OpReturnValue",
+                operand_widths: Vec::new(),
+            },
+        );
+        map.insert(
+            Opcode::OpReturn,
+            Definition {
+                name: "OpReturn",
+                operand_widths: Vec::new(),
+            },
+        );
+        map.insert(
+            Opcode::OpGetLocal,
+            Definition {
+                name: "OpGetLocal",
+                operand_widths: vec![1],
+            },
+        );
+        map.insert(
+            Opcode::OpSetLocal,
+            Definition {
+                name: "OpSetLocal",
+                operand_widths: vec![1],
+            },
+        );
+        map.insert(
+            Opcode::OpGetBuiltin,
+            Definition {
+                name: "OpGetBuiltin",
+                operand_widths: vec![1],
+            },
+        );
+        map.insert(
+            Opcode::OpClosure,
+            Definition {
+                name: "OpClosure",
+                operand_widths: vec![2, 1],
+            },
+        );
+        map.insert(
+            Opcode::OpGetFree,
+            Definition {
+                name: "OpGetFree",
+                operand_widths: vec![1],
+            },
+        );
+        map
+    };
 }
 
-pub fn lookup<'a>(op: u8) -> Result<Definition<'a>, String> {
-    if let Some(def) = get_definition(Opcode::from(op)) {
+pub fn lookup<'a>(op: u8) -> Result<&'a Definition<'a>, String> {
+    if let Some(def) = DEFINITIONS.get(&Opcode::from(op)) {
         Ok(def)
     } else {
         Err(format!("opcode {} undefined", op))
@@ -264,7 +354,7 @@ pub fn lookup<'a>(op: u8) -> Result<Definition<'a>, String> {
 }
 
 pub fn make(op: Opcode, operands: &Vec<i64>) -> Instructions {
-    if let Some(def) = get_definition(op) {
+    if let Some(def) = DEFINITIONS.get(&op) {
         let instruction_len = def.operand_widths.iter().fold(1, |acc, w| acc + w);
         let mut instruction = Instructions(vec![0; instruction_len]);
         instruction.0[0] = op as u8;

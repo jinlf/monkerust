@@ -1,14 +1,14 @@
 // src/vm.rs
 
-use super::object::*;
-use super::code::*;
-use super::frame::*;
-use super::compiler::*;
 use super::builtins::*;
+use super::code::*;
+use super::compiler::*;
+use super::frame::*;
+use super::object::*;
 
-use std::convert::TryInto;
 use std::cell::*;
 use std::collections::*;
+use std::convert::TryInto;
 use std::rc::*;
 
 const STACK_SIZE: usize = 2048;
@@ -250,9 +250,7 @@ impl Vm {
                     let local_index = ins.0[ip + 1] as usize;
                     self.current_frame().ip += 1;
                     let base_pointer = self.current_frame().base_pointer;
-                    let obj = self.stack[base_pointer + local_index]
-                        .as_ref()
-                        .unwrap(); // TODO: can unwrap?
+                    let obj = self.stack[base_pointer + local_index].as_ref().unwrap(); // TODO: can unwrap?
                     match self.push(obj.clone()) {
                         Err(err) => return Err(err),
                         _ => {}
@@ -423,7 +421,7 @@ impl Vm {
 
     pub fn new_with_globals_store(bytecode: Bytecode, s: Rc<RefCell<Vec<Option<Object>>>>) -> Vm {
         let main_fn = CompiledFunction {
-            instructions: bytecode.instuctions,
+            instructions: bytecode.instuctions.clone(),
             num_locals: 0,
             num_parameters: 0,
         };

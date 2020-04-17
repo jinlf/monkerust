@@ -209,7 +209,9 @@ impl Compiler {
                 };
             }
             Node::Expression(Expression::StringLiteral(StringLiteral { token: _, value })) => {
-                let s = Object::StringObj(StringObj { value: value });
+                let s = Object::StringObj(StringObj {
+                    value: value.to_owned(),
+                });
                 let index = self.add_constant(s);
                 self.emit(Opcode::OpConstant, vec![index]);
             }
@@ -230,10 +232,10 @@ impl Compiler {
                 keys.sort_by_key(|x| x.string());
 
                 for k in keys.iter() {
-                    let v = pairs[k].clone();
-                    match self.compile(Node::Expression((*k).clone())) {
+                    let v = &pairs[k];
+                    match self.compile(Node::Expression(k.clone())) {
                         Err(err) => return Err(err),
-                        Ok(_) => match self.compile(Node::Expression(v)) {
+                        Ok(_) => match self.compile(Node::Expression(v.clone())) {
                             Err(err) => return Err(err),
                             Ok(_) => {}
                         },

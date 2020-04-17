@@ -45,9 +45,9 @@ impl SymbolTable {
             scope: scope,
             index: self.num_definitions as i64,
         };
-        self.store.insert(String::from(name), symbol.clone());
+        self.store.insert(String::from(name), symbol);
         self.num_definitions += 1;
-        symbol
+        self.store[name].clone()
     }
 
     pub fn resolve(&mut self, name: &str) -> Option<Symbol> {

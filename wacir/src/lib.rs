@@ -1,7 +1,11 @@
 #![feature(test)]
 
+#[macro_use]
+extern crate lazy_static;
+
 pub mod ast;
 pub mod builtins;
+#[macro_use]
 pub mod code;
 pub mod compiler;
 pub mod environment;
@@ -16,12 +20,13 @@ pub mod token;
 pub mod vm;
 
 #[cfg(test)]
-mod ast_test;
-mod code_test;
-mod compiler_test;
-mod evaluator_test;
-mod lexer_test;
-mod object_test;
-mod parser_test;
-mod symbol_table_test;
-mod vm_test;
+mod benchmark_test;
+// mod ast_test;
+// mod code_test;
+// mod compiler_test;
+// mod evaluator_test;
+// mod lexer_test;
+// mod object_test;
+// mod parser_test;
+// mod symbol_table_test;
+// mod vm_test;

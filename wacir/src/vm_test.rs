@@ -2,7 +2,6 @@
 
 extern crate test;
 
-use test::Bencher;
 use super::ast::*;
 use super::compiler::*;
 use super::lexer::*;
@@ -10,6 +9,7 @@ use super::object::*;
 use super::parser::*;
 use super::vm::*;
 use std::collections::*;
+use test::Bencher;
 
 fn parse(input: &str) -> Option<Program> {
     let l = Lexer::new(input);
@@ -165,7 +165,7 @@ fn test_expected_object(expected: &Object, actual: &Option<Object>) {
 }
 
 #[bench]
-fn bench_integer_arithmetic(b:&mut Bencher) {
+fn bench_integer_arithmetic(b: &mut Bencher) {
     b.iter(|| test_integer_arithmetic());
 }
 
@@ -246,7 +246,7 @@ fn test_integer_arithmetic() {
 }
 
 #[bench]
-fn bench_boolean_expressions(b:&mut Bencher) {
+fn bench_boolean_expressions(b: &mut Bencher) {
     b.iter(|| test_boolean_expressions());
 }
 
@@ -377,7 +377,7 @@ fn test_boolean_object(expected: bool, actual: &Option<Object>) -> Result<(), St
 }
 
 #[bench]
-fn bench_conditionals(b:&mut Bencher) {
+fn bench_conditionals(b: &mut Bencher) {
     b.iter(|| test_conditionals());
 }
 
@@ -455,7 +455,7 @@ fn test_global_let_statements() {
 }
 
 #[bench]
-fn bench_string_expressions(b:&mut Bencher) {
+fn bench_string_expressions(b: &mut Bencher) {
     b.iter(|| test_string_expressions());
 }
 
@@ -500,7 +500,7 @@ fn test_string_object(expected: &str, actual: &Option<Object>) -> Result<(), Str
 }
 
 #[bench]
-fn bench_array_literal(b:&mut Bencher) {
+fn bench_array_literal(b: &mut Bencher) {
     b.iter(|| test_array_literals());
 }
 
@@ -539,7 +539,7 @@ fn test_array_literals() {
 }
 
 #[bench]
-fn bench_hash_literals(b:&mut Bencher) {
+fn bench_hash_literals(b: &mut Bencher) {
     b.iter(|| test_hash_literals());
 }
 
@@ -586,7 +586,7 @@ fn test_hash_literals() {
 }
 
 #[bench]
-fn bench_index_expressions(b:&mut Bencher) {
+fn bench_index_expressions(b: &mut Bencher) {
     b.iter(|| test_index_expressions());
 }
 
@@ -639,7 +639,7 @@ fn test_index_expressions() {
 }
 
 #[bench]
-fn bench_calling_functions_without_arguments(b:&mut Bencher) {
+fn bench_calling_functions_without_arguments(b: &mut Bencher) {
     b.iter(|| test_calling_functions_without_arguments());
 }
 
@@ -673,7 +673,7 @@ fn test_calling_functions_without_arguments() {
 }
 
 #[bench]
-fn bench_functions_with_return_statement(b:&mut Bencher) {
+fn bench_functions_with_return_statement(b: &mut Bencher) {
     b.iter(|| test_functions_with_return_statement());
 }
 
@@ -698,7 +698,7 @@ fn test_functions_with_return_statement() {
 }
 
 #[bench]
-fn bench_functions_without_return_value(b:&mut Bencher) {
+fn bench_functions_without_return_value(b: &mut Bencher) {
     b.iter(|| test_functions_without_return_value());
 }
 
@@ -725,7 +725,7 @@ fn test_functions_without_return_value() {
 }
 
 #[bench]
-fn bench_first_class_functions(b:&mut Bencher) {
+fn bench_first_class_functions(b: &mut Bencher) {
     b.iter(|| test_first_class_functions());
 }
 
@@ -743,7 +743,7 @@ fn test_first_class_functions() {
 }
 
 #[bench]
-fn bench_calling_functions_with_bindings(b:&mut Bencher) {
+fn bench_calling_functions_with_bindings(b: &mut Bencher) {
     b.iter(|| test_calling_functions_with_bindings());
 }
 
@@ -795,7 +795,7 @@ fn test_calling_functions_with_bindings() {
 }
 
 #[bench]
-fn bench_calling_functions_with_arguments_and_bindings(b:&mut Bencher) {
+fn bench_calling_functions_with_arguments_and_bindings(b: &mut Bencher) {
     b.iter(|| test_calling_functions_with_arguments_and_bindings());
 }
 
@@ -861,7 +861,7 @@ fn test_calling_functions_with_arguments_and_bindings() {
 }
 
 #[bench]
-fn bench_calling_functions_with_wrong_arguments(b:&mut Bencher) {
+fn bench_calling_functions_with_wrong_arguments(b: &mut Bencher) {
     b.iter(|| test_calling_functions_with_wrong_arguments());
 }
 
@@ -919,7 +919,7 @@ fn test_calling_functions_with_wrong_arguments() {
 }
 
 #[bench]
-fn bench_builtin_functions(b:&mut Bencher) {
+fn bench_builtin_functions(b: &mut Bencher) {
     b.iter(|| test_builtin_functions());
 }
 
@@ -1020,7 +1020,7 @@ fn test_builtin_functions() {
 }
 
 #[bench]
-fn bench_closures(b:&mut Bencher) {
+fn bench_closures(b: &mut Bencher) {
     b.iter(|| test_closures());
 }
 
@@ -1106,7 +1106,7 @@ fn test_closures() {
 }
 
 #[bench]
-fn bench_recursive_fibonacci(b:&mut Bencher) {
+fn bench_recursive_fibonacci(b: &mut Bencher) {
     b.iter(|| test_recursive_fibonacci());
 }
 

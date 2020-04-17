@@ -1,36 +1,24 @@
-#[macro_use]
-extern crate lazy_static;
-
-mod ast;
-mod builtins;
-#[macro_use]
-mod code;
-mod compiler;
-mod environment;
-mod evaluator;
-mod frame;
-mod lexer;
-mod object;
-mod parser;
-mod repl;
-mod symbol_table;
-mod token;
-mod vm;
+extern crate test;
 
 use std::cell::*;
 use std::rc::*;
 use std::time::*;
 
-use ast::*;
-use compiler::*;
-use environment::*;
-use evaluator::*;
-use lexer::*;
-use object::*;
-use parser::*;
-use vm::*;
+use super::ast::*;
+use super::compiler::*;
+use super::environment::*;
+use super::evaluator::*;
+use super::lexer::*;
+use super::object::*;
+use super::parser::*;
+use super::vm::*;
+use test::Bencher;
 
-fn main() {
+#[bench]
+fn bench_main_fn(b: &mut Bencher) {
+    b.iter(|| main_fn());
+}
+fn main_fn() {
     let args: Vec<String> = std::env::args().collect();
     let engine: String;
     if args.len() != 3 {
@@ -63,7 +51,7 @@ fn main() {
             }
         } 
     };
-    fibonacci(35);
+    fibonacci(25);
     ";
 
     let result: Option<Object>;
