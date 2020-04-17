@@ -52,7 +52,7 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
                 match machine.run() {
                     Ok(_) => {
                         let last_popped = machine.last_popped_stack_elem();
-                        writeln!(output, "{}", last_popped.unwrap().inspect()).unwrap();
+                        writeln!(output, "{}", last_popped.as_ref().unwrap().inspect()).unwrap();
                     }
                     Err(err) => {
                         writeln!(output, "Woops! Executing bytecode failed:\n {}", err).unwrap();

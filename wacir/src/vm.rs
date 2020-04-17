@@ -65,13 +65,13 @@ impl Vm {
         }
     }
 
-    pub fn stack_top(&self) -> Option<Object> {
-        if self.sp == 0 {
-            None
-        } else {
-            self.stack[(self.sp - 1) as usize].clone()
-        }
-    }
+    // pub fn stack_top(&self) -> Option<Object> {
+    //     if self.sp == 0 {
+    //         None
+    //     } else {
+    //         self.stack[(self.sp - 1) as usize].clone()
+    //     }
+    // }
 
     pub fn run(&mut self) -> Result<(), String> {
         let mut ip: usize;
@@ -158,7 +158,7 @@ impl Vm {
                     let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
                     let global_index = read_u16(src) as usize;
                     self.current_frame().ip += 2;
-                    self.globals.borrow_mut()[global_index] = self.pop();
+                    self.globals.borrow_mut()[global_index] = self.pop().clone();
                 }
                 Opcode::OpGetGlobal => {
                     let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
@@ -167,7 +167,7 @@ impl Vm {
                     let obj = self.globals.borrow_mut()[global_index]
                         .as_ref()
                         .unwrap()
-                        .clone();
+                        .clone(); // TODO: can unwrap?
                     match self.push(obj) {
                         Err(err) => return Err(err),
                         _ => {}
@@ -203,9 +203,9 @@ impl Vm {
                     };
                 }
                 Opcode::OpIndex => {
-                    let index = self.pop();
-                    let left = self.pop();
-                    match self.execute_index_expression(left, index) {
+                    let index = self.pop().clone();
+                    let left = self.pop().clone();
+                    match self.execute_index_expression(&left, &index) {
                         Err(err) => return Err(err),
                         _ => {}
                     }
@@ -220,7 +220,7 @@ impl Vm {
                     }
                 }
                 Opcode::OpReturnValue => {
-                    let return_value = self.pop();
+                    let return_value = self.pop().clone();
                     let base_pointer = self.pop_frame().base_pointer;
                     self.sp = base_pointer - 1;
 
@@ -244,7 +244,7 @@ impl Vm {
                     self.current_frame().ip += 1;
 
                     let base_pointer = self.current_frame().base_pointer;
-                    self.stack[base_pointer + local_index] = self.pop();
+                    self.stack[base_pointer + local_index] = self.pop().clone();
                 }
                 Opcode::OpGetLocal => {
                     let local_index = ins.0[ip + 1] as usize;
@@ -252,9 +252,8 @@ impl Vm {
                     let base_pointer = self.current_frame().base_pointer;
                     let obj = self.stack[base_pointer + local_index]
                         .as_ref()
-                        .unwrap()
-                        .clone(); // TODO: can unwrap?
-                    match self.push(obj) {
+                        .unwrap(); // TODO: can unwrap?
+                    match self.push(obj.clone()) {
                         Err(err) => return Err(err),
                         _ => {}
                     }
@@ -307,10 +306,10 @@ impl Vm {
         Ok(())
     }
 
-    pub fn pop(&mut self) -> Option<Object> {
-        let o = self.stack[self.sp - 1].clone();
+    pub fn pop(&mut self) -> &Option<Object> {
+        let o = &self.stack[self.sp - 1];
         self.sp -= 1;
-        o
+        &o
     }
 
     pub fn last_popped_stack_elem(&self) -> Option<Object> {
@@ -318,8 +317,8 @@ impl Vm {
     }
 
     fn execute_binary_operation(&mut self, op: Opcode) -> Result<(), String> {
-        let right = self.pop();
-        let left = self.pop();
+        let right = self.pop().clone();
+        let left = self.pop().clone();
         if let Some(Object::Integer(Integer { value })) = left {
             let left_value = value;
             if let Some(Object::Integer(Integer { value })) = right {
@@ -361,12 +360,12 @@ impl Vm {
     }
 
     fn execute_comparison(&mut self, op: Opcode) -> Result<(), String> {
-        let right = self.pop();
-        let left = self.pop();
+        let right = self.pop().clone();
+        let left = self.pop().clone();
 
-        if let Some(Object::Integer(Integer { value })) = right.clone() {
+        if let Some(Object::Integer(Integer { value })) = right {
             let right_value = value;
-            if let Some(Object::Integer(Integer { value })) = left.clone() {
+            if let Some(Object::Integer(Integer { value })) = left {
                 let left_value = value;
                 return self.execute_integer_comparison(op, left_value, right_value);
             }
@@ -408,7 +407,7 @@ impl Vm {
         }
     }
     fn execute_minus_operator(&mut self) -> Result<(), String> {
-        let operand = self.pop();
+        let operand = self.pop().clone();
         match operand {
             Some(Object::Integer(Integer { value })) => {
                 return self.push(Object::Integer(Integer { value: -value }));
@@ -516,12 +515,12 @@ impl Vm {
 
     fn execute_index_expression(
         &mut self,
-        left: Option<Object>,
-        index: Option<Object>,
+        left: &Option<Object>,
+        index: &Option<Object>,
     ) -> Result<(), String> {
         if let Some(Object::Array(Array { elements })) = left.clone() {
             if let Some(Object::Integer(Integer { value })) = index {
-                return self.execute_array_index(elements, value);
+                return self.execute_array_index(elements, *value);
             }
         } else if let Some(Object::Hash(Hash { pairs })) = left {
             return self.execute_hash_index(pairs, index);
@@ -540,8 +539,8 @@ impl Vm {
 
     fn execute_hash_index(
         &mut self,
-        pairs: HashMap<HashKey, Object>,
-        index: Option<Object>,
+        pairs: &HashMap<HashKey, Object>,
+        index: &Option<Object>,
     ) -> Result<(), String> {
         if let Some(key) = index.clone() {
             if let Some(hash_key) = key.as_hashable() {
@@ -674,9 +673,9 @@ pub fn get_type(obj: &Option<Object>) -> String {
     }
 }
 
-fn is_truthy(obj: Option<Object>) -> bool {
+fn is_truthy(obj: &Option<Object>) -> bool {
     if let Some(Object::Boolean(Boolean { value })) = obj {
-        return value;
+        return *value;
     } else if let Some(NULL) = obj {
         return false;
     }

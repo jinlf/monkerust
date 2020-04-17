@@ -17,9 +17,9 @@ fn parse(input: &str) -> Option<Program> {
     return p.parse_program();
 }
 
-fn test_integer_object(expected: i64, actual: Option<Object>) -> Result<(), String> {
+fn test_integer_object(expected: i64, actual: &Option<Object>) -> Result<(), String> {
     if let Some(Object::Integer(Integer { value })) = actual {
-        if value != expected {
+        if *value != expected {
             return Err(format!(
                 "object has wrong value. got={}, want={}",
                 value, expected
@@ -46,7 +46,7 @@ fn run_vm_tests(tests: Vec<VmTestCase>) {
                 match vm.run() {
                     Ok(_) => {
                         let stack_elem = vm.last_popped_stack_elem();
-                        test_expected_object(&tt.expected, stack_elem);
+                        test_expected_object(&tt.expected, &stack_elem);
                     }
                     Err(err) => {
                         assert!(false, "vm error: {}", err);
@@ -60,7 +60,7 @@ fn run_vm_tests(tests: Vec<VmTestCase>) {
     }
 }
 
-fn test_expected_object(expected: &Object, actual: Option<Object>) {
+fn test_expected_object(expected: &Object, actual: &Option<Object>) {
     if let Object::Integer(Integer { value }) = expected {
         match test_integer_object(*value, actual) {
             Ok(_) => {}
@@ -100,7 +100,7 @@ fn test_expected_object(expected: &Object, actual: Option<Object>) {
 
             for (i, expected_elem) in expected_elements.iter().enumerate() {
                 if let Object::Integer(Integer { value }) = expected_elem {
-                    match test_integer_object(*value, Some(actual_elements[i].clone())) {
+                    match test_integer_object(*value, &Some(actual_elements[i].clone())) {
                         Ok(_) => {}
                         Err(err) => {
                             assert!(false, "test_integer_object failed: {}", err);
@@ -129,7 +129,7 @@ fn test_expected_object(expected: &Object, actual: Option<Object>) {
                         if let Object::Integer(Integer { value }) = *expected_value {
                             match test_integer_object(
                                 value,
-                                Some(actual_pairs[expected_key].clone()),
+                                &Some(actual_pairs[expected_key].clone()),
                             ) {
                                 Err(err) => {
                                     assert!(false, "test_integer_object failed: {}", err);
@@ -150,7 +150,7 @@ fn test_expected_object(expected: &Object, actual: Option<Object>) {
             let expected_message = message;
             if let Some(Object::ErrorObj(ErrorObj { message })) = actual {
                 assert!(
-                    expected_message == &message,
+                    expected_message == message,
                     "wrong error message. expected={:?}, got={:?}",
                     expected_message,
                     message
@@ -362,9 +362,9 @@ fn test_boolean_expressions() {
     run_vm_tests(tests);
 }
 
-fn test_boolean_object(expected: bool, actual: Option<Object>) -> Result<(), String> {
+fn test_boolean_object(expected: bool, actual: &Option<Object>) -> Result<(), String> {
     if let Some(Object::Boolean(Boolean { value })) = actual {
-        if value != expected {
+        if *value != expected {
             return Err(format!(
                 "object has wrong value. got={}, want={}",
                 value, expected
@@ -485,7 +485,7 @@ fn test_string_expressions() {
     run_vm_tests(tests);
 }
 
-fn test_string_object(expected: &str, actual: Option<Object>) -> Result<(), String> {
+fn test_string_object(expected: &str, actual: &Option<Object>) -> Result<(), String> {
     if let Some(Object::StringObj(StringObj { value })) = actual {
         if value != expected {
             return Err(format!(
