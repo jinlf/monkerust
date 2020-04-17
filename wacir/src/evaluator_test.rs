@@ -2,7 +2,7 @@
 
 extern crate test;
 
-use test::{black_box, Bencher};
+use test::Bencher;
 use super::ast::*;
 use super::environment::*;
 use super::evaluator::*;
@@ -12,6 +12,11 @@ use super::parser::*;
 use std::cell::*;
 use std::collections::*;
 use std::rc::*;
+
+#[bench]
+fn bench_eval_integer_expression(b:&mut Bencher) {
+    b.iter(|| test_eval_integer_expression());
+}
 
 #[test]
 fn test_eval_integer_expression() {
@@ -59,6 +64,11 @@ fn test_integer_object(obj: Option<Object>, expected: i64) {
     } else {
         assert!(false, "object is not Integer. got={:?}", obj);
     }
+}
+
+#[bench]
+fn bench_eval_boolean_expression(b:&mut Bencher) {
+    b.iter(|| test_eval_boolean_expression());
 }
 
 #[test]

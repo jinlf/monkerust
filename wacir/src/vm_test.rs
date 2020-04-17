@@ -2,7 +2,7 @@
 
 extern crate test;
 
-use test::{black_box, Bencher};
+use test::Bencher;
 use super::ast::*;
 use super::compiler::*;
 use super::lexer::*;
@@ -164,6 +164,11 @@ fn test_expected_object(expected: &Object, actual: Option<Object>) {
     }
 }
 
+#[bench]
+fn bench_integer_arithmetic(b:&mut Bencher) {
+    b.iter(|| test_integer_arithmetic());
+}
+
 #[test]
 fn test_integer_arithmetic() {
     let tests = vec![
@@ -238,6 +243,11 @@ fn test_integer_arithmetic() {
     ];
 
     run_vm_tests(tests);
+}
+
+#[bench]
+fn bench_boolean_expressions(b:&mut Bencher) {
+    b.iter(|| test_boolean_expressions());
 }
 
 #[test]
@@ -366,6 +376,11 @@ fn test_boolean_object(expected: bool, actual: Option<Object>) -> Result<(), Str
     Ok(())
 }
 
+#[bench]
+fn bench_conditionals(b:&mut Bencher) {
+    b.iter(|| test_conditionals());
+}
+
 #[test]
 fn test_conditionals() {
     let tests = vec![
@@ -414,6 +429,11 @@ fn test_conditionals() {
     run_vm_tests(tests);
 }
 
+#[bench]
+fn bench_global_let_statements(b: &mut Bencher) {
+    b.iter(|| test_global_let_statements());
+}
+
 #[test]
 fn test_global_let_statements() {
     let tests = vec![
@@ -432,6 +452,11 @@ fn test_global_let_statements() {
     ];
 
     run_vm_tests(tests);
+}
+
+#[bench]
+fn bench_string_expressions(b:&mut Bencher) {
+    b.iter(|| test_string_expressions());
 }
 
 #[test]
@@ -474,6 +499,11 @@ fn test_string_object(expected: &str, actual: Option<Object>) -> Result<(), Stri
     Ok(())
 }
 
+#[bench]
+fn bench_array_literal(b:&mut Bencher) {
+    b.iter(|| test_array_literals());
+}
+
 #[test]
 fn test_array_literals() {
     let tests = vec![
@@ -506,6 +536,11 @@ fn test_array_literals() {
     ];
 
     run_vm_tests(tests);
+}
+
+#[bench]
+fn bench_hash_literals(b:&mut Bencher) {
+    b.iter(|| test_hash_literals());
 }
 
 #[test]
@@ -548,6 +583,11 @@ fn test_hash_literals() {
     ];
 
     run_vm_tests(tests);
+}
+
+#[bench]
+fn bench_index_expressions(b:&mut Bencher) {
+    b.iter(|| test_index_expressions());
 }
 
 #[test]
@@ -598,6 +638,11 @@ fn test_index_expressions() {
     run_vm_tests(tests);
 }
 
+#[bench]
+fn bench_calling_functions_without_arguments(b:&mut Bencher) {
+    b.iter(|| test_calling_functions_without_arguments());
+}
+
 #[test]
 fn test_calling_functions_without_arguments() {
     let tests = vec![
@@ -627,6 +672,11 @@ fn test_calling_functions_without_arguments() {
     run_vm_tests(tests);
 }
 
+#[bench]
+fn bench_functions_with_return_statement(b:&mut Bencher) {
+    b.iter(|| test_functions_with_return_statement());
+}
+
 #[test]
 fn test_functions_with_return_statement() {
     let tests = vec![
@@ -645,6 +695,11 @@ fn test_functions_with_return_statement() {
     ];
 
     run_vm_tests(tests);
+}
+
+#[bench]
+fn bench_functions_without_return_value(b:&mut Bencher) {
+    b.iter(|| test_functions_without_return_value());
 }
 
 #[test]
@@ -669,6 +724,11 @@ fn test_functions_without_return_value() {
     run_vm_tests(tests);
 }
 
+#[bench]
+fn bench_first_class_functions(b:&mut Bencher) {
+    b.iter(|| test_first_class_functions());
+}
+
 #[test]
 fn test_first_class_functions() {
     let tests = vec![VmTestCase {
@@ -680,6 +740,11 @@ fn test_first_class_functions() {
         expected: Object::Integer(Integer { value: 1 }),
     }];
     run_vm_tests(tests);
+}
+
+#[bench]
+fn bench_calling_functions_with_bindings(b:&mut Bencher) {
+    b.iter(|| test_calling_functions_with_bindings());
 }
 
 #[test]
@@ -727,6 +792,11 @@ fn test_calling_functions_with_bindings() {
         },
     ];
     run_vm_tests(tests);
+}
+
+#[bench]
+fn bench_calling_functions_with_arguments_and_bindings(b:&mut Bencher) {
+    b.iter(|| test_calling_functions_with_arguments_and_bindings());
 }
 
 #[test]
@@ -790,6 +860,11 @@ fn test_calling_functions_with_arguments_and_bindings() {
     run_vm_tests(tests);
 }
 
+#[bench]
+fn bench_calling_functions_with_wrong_arguments(b:&mut Bencher) {
+    b.iter(|| test_calling_functions_with_wrong_arguments());
+}
+
 #[test]
 fn test_calling_functions_with_wrong_arguments() {
     let tests = vec![
@@ -841,6 +916,11 @@ fn test_calling_functions_with_wrong_arguments() {
             }
         }
     }
+}
+
+#[bench]
+fn bench_builtin_functions(b:&mut Bencher) {
+    b.iter(|| test_builtin_functions());
 }
 
 #[test]
@@ -939,6 +1019,11 @@ fn test_builtin_functions() {
     run_vm_tests(tests);
 }
 
+#[bench]
+fn bench_closures(b:&mut Bencher) {
+    b.iter(|| test_closures());
+}
+
 #[test]
 fn test_closures() {
     let tests = vec![
@@ -1018,6 +1103,11 @@ fn test_closures() {
         },
     ];
     run_vm_tests(tests);
+}
+
+#[bench]
+fn bench_recursive_fibonacci(b:&mut Bencher) {
+    b.iter(|| test_recursive_fibonacci());
 }
 
 #[test]
