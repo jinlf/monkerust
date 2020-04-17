@@ -1,5 +1,8 @@
 // src/evaluator_test.rs
 
+extern crate test;
+
+use test::{black_box, Bencher};
 use super::ast::*;
 use super::environment::*;
 use super::evaluator::*;

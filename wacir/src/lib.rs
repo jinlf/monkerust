@@ -1,4 +1,4 @@
-// src/lib.rs
+#![feature(test)]
 
 pub mod ast;
 pub mod builtins;
@@ -15,21 +15,13 @@ pub mod symbol_table;
 pub mod token;
 pub mod vm;
 
-// #[cfg(test)]
-// mod ast_test;
 #[cfg(test)]
+mod ast_test;
 mod code_test;
-#[cfg(test)]
 mod compiler_test;
-// #[cfg(test)]
-// mod evaluator_test;
-// #[cfg(test)]
-// mod lexer_test;
-// #[cfg(test)]
-// mod object_test;
-// #[cfg(test)]
-// mod parser_test;
-#[cfg(test)]
+mod evaluator_test;
+mod lexer_test;
+mod object_test;
+mod parser_test;
 mod symbol_table_test;
-#[cfg(test)]
 mod vm_test;

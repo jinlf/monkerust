@@ -1,7 +1,15 @@
 // src/lexer_test.rs
 
+extern crate test;
+
+use test::{black_box, Bencher};
 use super::lexer::*;
 use super::token::*;
+
+#[bench]
+fn bench_next_token(b: &mut Bencher) {
+    b.iter(|| test_next_token);
+}
 
 #[test]
 fn test_next_token() {

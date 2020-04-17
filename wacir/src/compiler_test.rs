@@ -1,5 +1,8 @@
 // src/compiler_test.rs
 
+extern crate test;
+
+use test::Bencher;
 use super::ast::*;
 use super::code::*;
 use super::compiler::*;
@@ -14,6 +17,11 @@ struct CompilerTestCase<'a> {
     input: &'a str,
     expected_constants: Vec<Box<dyn Any>>,
     expected_instructions: Vec<Instructions>,
+}
+
+#[bench]
+fn bench_integer_arithmetic(b: &mut Bencher) {
+    b.iter(|| test_integer_arithmetic());
 }
 
 #[test]
@@ -180,6 +188,11 @@ fn test_integer_object(expected: i64, actual: Object) {
     }
 }
 
+#[bench]
+fn bench_boolean_expressions(b: &mut Bencher) {
+    b.iter(|| test_boolean_expressions());
+}
+
 #[test]
 fn test_boolean_expressions() {
     let tests = vec![
@@ -273,6 +286,11 @@ fn test_boolean_expressions() {
     run_compiler_tests(tests);
 }
 
+#[bench]
+fn bench_conditionals(b: &mut Bencher) {
+    b.iter(|| test_conditionals());
+}
+
 #[test]
 fn test_conditionals() {
     let tests = vec![
@@ -311,6 +329,11 @@ fn test_conditionals() {
     ];
 
     run_compiler_tests(tests);
+}
+
+#[bench]
+fn bench_global_let_statements(b: &mut Bencher) {
+    b.iter(|| test_global_let_statements());
 }
 
 #[test]
@@ -357,6 +380,11 @@ fn test_global_let_statements() {
     run_compiler_tests(tests);
 }
 
+#[bench]
+fn bench_string_expressions(b:&mut Bencher) {
+    b.iter(|| test_string_expressions());
+}
+
 #[test]
 fn test_string_expressions() {
     let tests = vec![
@@ -394,6 +422,11 @@ fn test_string_object(expected: &str, actual: Object) {
     } else {
         assert!(false, "object is not String. got={:?}", actual);
     }
+}
+
+#[bench]
+fn bench_array_literal(b: &mut Bencher) {
+    b.iter(|| test_array_literal());
 }
 
 #[test]
@@ -445,6 +478,11 @@ fn test_array_literal() {
     ];
 
     run_compiler_tests(tests);
+}
+
+#[bench]
+fn bench_hash_literals(b:&mut Bencher) {
+    b.iter(|| test_hash_literals());
 }
 
 #[test]
@@ -506,6 +544,11 @@ fn test_hash_literals() {
     run_compiler_tests(tests);
 }
 
+#[bench]
+fn bench_index_expressions(b: &mut Bencher) {
+    b.iter(|| test_index_expressions());
+}
+
 #[test]
 fn test_index_expressions() {
     let tests = vec![
@@ -552,6 +595,11 @@ fn test_index_expressions() {
     ];
 
     run_compiler_tests(tests);
+}
+
+#[bench]
+fn bench_functions(b:&mut Bencher) {
+    b.iter(|| test_functions());
 }
 
 #[test]
@@ -610,6 +658,11 @@ impl PartialEq for super::symbol_table::SymbolTable {
         let other_addr = other as *const Self as usize;
         addr == other_addr
     }
+}
+
+#[bench]
+fn bench_compiler_scopes(b:&mut Bencher) {
+    b.iter(|| test_compiler_scopes());
 }
 
 #[test]
@@ -708,6 +761,11 @@ fn test_compiler_scopes() {
         previous.opcode,
         Opcode::OpMul
     );
+}
+
+#[bench]
+fn bench_function_calls(b:&mut Bencher) {
+    b.iter(|| test_function_calls());
 }
 
 #[test]
@@ -832,6 +890,11 @@ fn test_function_calls() {
     run_compiler_tests(tests);
 }
 
+#[bench]
+fn bench_let_statement_scopes(b:&mut Bencher) {
+    b.iter(|| test_let_statement_scopes());
+}
+
 #[test]
 fn test_let_statement_scopes() {
     let tests = vec![
@@ -901,6 +964,11 @@ fn test_let_statement_scopes() {
     run_compiler_tests(tests);
 }
 
+#[bench]
+fn bench_builtins(b:&mut Bencher) {
+    b.iter(|| test_builltins());
+}
+
 #[test]
 fn test_builltins() {
     let tests = vec![
@@ -936,6 +1004,11 @@ fn test_builltins() {
     run_compiler_tests(tests);
 }
 
+#[bench]
+fn bench_functions_without_return_value(b:&mut Bencher) {
+    b.iter(|| test_functions_without_return_value());
+}
+
 #[test]
 fn test_functions_without_return_value() {
     let tests = vec![CompilerTestCase {
@@ -948,6 +1021,11 @@ fn test_functions_without_return_value() {
     }];
 
     run_compiler_tests(tests);
+}
+
+#[bench]
+fn bench_closure(b:&mut Bencher) {
+    b.iter(|| test_closure());
 }
 
 #[test]

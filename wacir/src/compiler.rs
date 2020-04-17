@@ -203,7 +203,7 @@ impl Compiler {
             Node::Expression(Expression::Identifier(Identifier { token: _, value })) => {
                 let s = self.symbol_table.borrow_mut().resolve(&value);
                 if let Some(symbol) = s {
-                    self.load_symbol(symbol);
+                    self.load_symbol(&symbol);
                 } else {
                     return Err(format!("undefined variable {}", value));
                 };
@@ -286,7 +286,7 @@ impl Compiler {
                 let instructions = self.leave_scope();
 
                 for s in free_symbols.iter() {
-                    self.load_symbol(s.clone());
+                    self.load_symbol(s);
                 }
 
                 let compiled_fn = CompiledFunction {
@@ -479,7 +479,7 @@ impl Compiler {
         self.scopes[self.scope_index].last_instruction = Some(last);
     }
 
-    fn load_symbol(&mut self, s: Symbol) {
+    fn load_symbol(&mut self, s: &Symbol) {
         match s.scope {
             SymbolScope::GlobalScope => {
                 self.emit(Opcode::OpGetGlobal, vec![s.index as i64]);

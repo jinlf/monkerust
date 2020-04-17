@@ -1,5 +1,8 @@
 // src/vm_test.rs
 
+extern crate test;
+
+use test::{black_box, Bencher};
 use super::ast::*;
 use super::compiler::*;
 use super::lexer::*;

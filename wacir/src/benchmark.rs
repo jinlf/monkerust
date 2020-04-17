@@ -1,16 +1,31 @@
-include!("lib.rs");
 
-use ast::*;
-use compiler::*;
-use environment::*;
-use evaluator::*;
-use lexer::*;
-use object::*;
-use parser::*;
+mod ast;
+mod builtins;
+mod code;
+mod compiler;
+mod environment;
+mod evaluator;
+mod frame;
+mod lexer;
+mod object;
+mod parser;
+mod repl;
+mod symbol_table;
+mod token;
+mod vm;
+
 use std::cell::*;
 use std::rc::*;
 use std::time::*;
+
+use object::*;
+use lexer::*;
+use parser::*;
+use compiler::*;
+use ast::*;
 use vm::*;
+use environment::*;
+use evaluator::*;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -45,7 +60,7 @@ fn main() {
             }
         } 
     };
-    fibonacci(35);
+    fibonacci(25);
     ";
 
     let result: Option<Object>;

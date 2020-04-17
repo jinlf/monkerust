@@ -1,5 +1,8 @@
 // src/object_test.rs
 
+extern crate test;
+
+use test::{black_box, Bencher};
 use super::object::*;
 
 #[test]

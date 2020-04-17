@@ -1,6 +1,14 @@
 // src/code_test.rs
 
+extern crate test;
+
+use test::Bencher;
 use super::code::*;
+
+#[bench]
+fn bench_make(b: &mut Bencher) {
+    b.iter(|| test_make());
+}
 
 #[test]
 fn test_make() {
@@ -43,6 +51,11 @@ fn test_make() {
     }
 }
 
+#[bench]
+fn bench_instructions_string(b: &mut Bencher) {
+    b.iter(|| test_instructions_string());
+}
+
 #[test]
 fn test_instructions_string() {
     let instructions = vec![
@@ -71,6 +84,11 @@ fn test_instructions_string() {
         expected,
         concatted
     );
+}
+
+#[bench]
+fn bench_read_operands(b: &mut Bencher) {
+    b.iter(|| test_read_operands());
 }
 
 #[test]

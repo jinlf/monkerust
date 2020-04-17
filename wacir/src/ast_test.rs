@@ -1,7 +1,15 @@
 // src/ast_test.rs
 
+extern crate test;
+
+use test::Bencher;
 use super::ast::*;
 use super::token::*;
+
+#[bench]
+fn bench_string(b: &mut Bencher) {
+    b.iter(|| test_string());
+}
 
 #[test]
 fn test_string() {

@@ -1,13 +1,14 @@
 // src/vm.rs
 
-use super::builtins::*;
-use super::code::*;
-use super::compiler::*;
-use super::frame::*;
 use super::object::*;
+use super::code::*;
+use super::frame::*;
+use super::compiler::*;
+use super::builtins::*;
+
+use std::convert::TryInto;
 use std::cell::*;
 use std::collections::*;
-use std::convert::TryInto;
 use std::rc::*;
 
 const STACK_SIZE: usize = 2048;

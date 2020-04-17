@@ -1,5 +1,8 @@
 // src/symbol_table_test.rs
 
+extern crate test;
+
+use test::{black_box, Bencher};
 use super::symbol_table::*;
 use std::cell::*;
 use std::collections::*;

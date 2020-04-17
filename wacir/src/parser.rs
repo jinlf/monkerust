@@ -1,8 +1,9 @@
 // src/parser.rs
 
-use super::ast::*;
 use super::lexer::*;
 use super::token::*;
+use super::ast::*;
+
 use std::collections::*;
 
 pub struct Parser<'a> {
