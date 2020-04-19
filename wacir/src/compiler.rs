@@ -40,20 +40,14 @@ impl Compiler {
         match node {
             Node::Program(Program { statements }) => {
                 for s in statements.iter() {
-                    match self.compile(Node::Statement(s.clone())) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    }
+                    self.compile(Node::Statement(s.clone()))?;
                 }
             }
             Node::Statement(Statement::ExpressionStatement(ExpressionStatement {
                 token: _,
                 expression,
             })) => {
-                match self.compile(Node::Expression(expression)) {
-                    Err(err) => return Err(err),
-                    _ => {}
-                }
+                self.compile(Node::Expression(expression))?;
                 self.emit(Opcode::OpPop, Vec::new());
             }
             Node::Expression(Expression::InfixExpression(InfixExpression {
@@ -63,24 +57,12 @@ impl Compiler {
                 right,
             })) => {
                 if operator == "<" {
-                    match self.compile(Node::Expression(*right)) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    };
-                    match self.compile(Node::Expression(*left)) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    };
+                    self.compile(Node::Expression(*right))?;
+                    self.compile(Node::Expression(*left))?;
                     self.emit(Opcode::OpGreaterThan, Vec::new());
                 } else {
-                    match self.compile(Node::Expression(*left)) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    };
-                    match self.compile(Node::Expression(*right)) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    };
+                    self.compile(Node::Expression(*left))?;
+                    self.compile(Node::Expression(*right))?;
                     match &operator[..] {
                         "+" => {
                             self.emit(Opcode::OpAdd, Vec::new());
@@ -124,10 +106,7 @@ impl Compiler {
                 operator,
                 right,
             })) => {
-                match self.compile(Node::Expression(*right)) {
-                    Err(err) => return Err(err),
-                    _ => {}
-                };
+                self.compile(Node::Expression(*right))?;
                 match &operator[..] {
                     "!" => self.emit(Opcode::OpBang, Vec::new()),
                     "-" => self.emit(Opcode::OpMinus, Vec::new()),
@@ -140,15 +119,9 @@ impl Compiler {
                 consequence,
                 alternative,
             })) => {
-                match self.compile(Node::Expression(*condition)) {
-                    Err(err) => return Err(err),
-                    _ => {}
-                };
+                self.compile(Node::Expression(*condition))?;
                 let jump_not_truthy_pos = self.emit(Opcode::OpJumpNotTruthy, vec![9999]);
-                match self.compile(Node::Statement(Statement::BlockStatement(consequence))) {
-                    Err(err) => return Err(err),
-                    _ => {}
-                };
+                self.compile(Node::Statement(Statement::BlockStatement(consequence)))?;
 
                 if self.last_instruction_is(Opcode::OpPop) {
                     self.remove_last_pop();
@@ -160,10 +133,7 @@ impl Compiler {
                 self.change_operand(jump_not_truthy_pos, after_consequence_pos as i64);
 
                 if let Some(a) = alternative {
-                    match self.compile(Node::Statement(Statement::BlockStatement(a))) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    };
+                    self.compile(Node::Statement(Statement::BlockStatement(a)))?;
                     if self.last_instruction_is(Opcode::OpPop) {
                         self.remove_last_pop();
                     }
@@ -178,10 +148,7 @@ impl Compiler {
                 statements,
             })) => {
                 for s in statements.iter() {
-                    match self.compile(Node::Statement(s.clone())) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    };
+                    self.compile(Node::Statement(s.clone()))?;
                 }
             }
             Node::Statement(Statement::LetStatement(LetStatement {
@@ -190,10 +157,7 @@ impl Compiler {
                 value,
             })) => {
                 let symbol = self.symbol_table.borrow_mut().define(&name.value);
-                match self.compile(Node::Expression(value)) {
-                    Err(err) => return Err(err),
-                    _ => {}
-                };
+                self.compile(Node::Expression(value))?;
                 if symbol.scope == SymbolScope::GlobalScope {
                     self.emit(Opcode::OpSetGlobal, vec![symbol.index]);
                 } else {
@@ -218,10 +182,7 @@ impl Compiler {
             Node::Expression(Expression::ArrayLiteral(ArrayLiteral { token: _, elements })) => {
                 let len = elements.len() as i64;
                 for el in elements {
-                    match self.compile(Node::Expression(el)) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    }
+                    self.compile(Node::Expression(el))?;
                 }
                 self.emit(Opcode::OpArray, vec![len]);
             }
@@ -233,13 +194,8 @@ impl Compiler {
 
                 for k in keys.iter() {
                     let v = &pairs[k];
-                    match self.compile(Node::Expression(k.clone())) {
-                        Err(err) => return Err(err),
-                        Ok(_) => match self.compile(Node::Expression(v.clone())) {
-                            Err(err) => return Err(err),
-                            Ok(_) => {}
-                        },
-                    }
+                    self.compile(Node::Expression(k.clone()))?;
+                    self.compile(Node::Expression(v.clone()))?;
                 }
 
                 self.emit(Opcode::OpHash, vec![(pairs.len() * 2) as i64]);
@@ -249,14 +205,8 @@ impl Compiler {
                 left,
                 index,
             })) => {
-                match self.compile(Node::Expression(*left)) {
-                    Err(err) => return Err(err),
-                    _ => {}
-                };
-                match self.compile(Node::Expression(*index)) {
-                    Err(err) => return Err(err),
-                    _ => {}
-                };
+                self.compile(Node::Expression(*left))?;
+                self.compile(Node::Expression(*index))?;
 
                 self.emit(Opcode::OpIndex, Vec::new());
             }
@@ -271,10 +221,7 @@ impl Compiler {
                     self.symbol_table.borrow_mut().define(&p.value);
                 }
 
-                match self.compile(Node::Statement(Statement::BlockStatement(body))) {
-                    Err(err) => return Err(err),
-                    _ => {}
-                }
+                self.compile(Node::Statement(Statement::BlockStatement(body)))?;
 
                 if self.last_instruction_is(Opcode::OpPop) {
                     self.replace_last_pop_with_return();
@@ -303,10 +250,7 @@ impl Compiler {
                 token: _,
                 return_value,
             })) => {
-                match self.compile(Node::Expression(return_value)) {
-                    Err(err) => return Err(err),
-                    _ => {}
-                }
+                self.compile(Node::Expression(return_value))?;
                 self.emit(Opcode::OpReturnValue, Vec::new());
             }
             Node::Expression(Expression::CallExpression(CallExpression {
@@ -314,16 +258,10 @@ impl Compiler {
                 function,
                 arguments,
             })) => {
-                match self.compile(Node::Expression(*function)) {
-                    Err(err) => return Err(err),
-                    _ => {}
-                }
+                self.compile(Node::Expression(*function))?;
                 let len = arguments.len();
                 for a in arguments {
-                    match self.compile(Node::Expression(a)) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    }
+                    self.compile(Node::Expression(a))?;
                 }
                 self.emit(Opcode::OpCall, vec![len as i64]);
             }

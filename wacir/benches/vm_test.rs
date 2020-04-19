@@ -1,15 +1,17 @@
 // src/vm_test.rs
 
+#![feature(test)]
+
 extern crate test;
 
-use super::ast::*;
-use super::compiler::*;
-use super::lexer::*;
-use super::object::*;
-use super::parser::*;
-use super::vm::*;
 use std::collections::*;
 use test::Bencher;
+use wacir::ast::*;
+use wacir::compiler::*;
+use wacir::lexer::*;
+use wacir::object::*;
+use wacir::parser::*;
+use wacir::vm::*;
 
 fn parse(input: &str) -> Option<Program> {
     let l = Lexer::new(input);
@@ -166,7 +168,13 @@ fn test_expected_object(expected: &Object, actual: &Option<Object>) {
 
 #[bench]
 fn bench_integer_arithmetic(b: &mut Bencher) {
-    b.iter(|| test_integer_arithmetic());
+    b.iter(|| {
+        let tests = vec![VmTestCase {
+            input: "(5 + 10 * 2 + 15 / 3) * 2 + -10)",
+            expected: Object::Integer(Integer { value: 50 }),
+        }];
+        run_vm_tests(tests);
+    });
 }
 
 #[test]
@@ -247,7 +255,13 @@ fn test_integer_arithmetic() {
 
 #[bench]
 fn bench_boolean_expressions(b: &mut Bencher) {
-    b.iter(|| test_boolean_expressions());
+    b.iter(|| {
+        let tests = vec![VmTestCase {
+            input: "!(if (false) { 5; })",
+            expected: TRUE,
+        }];
+        run_vm_tests(tests);
+    });
 }
 
 #[test]
@@ -378,7 +392,13 @@ fn test_boolean_object(expected: bool, actual: &Option<Object>) -> Result<(), St
 
 #[bench]
 fn bench_conditionals(b: &mut Bencher) {
-    b.iter(|| test_conditionals());
+    b.iter(|| {
+        let tests = vec![VmTestCase {
+            input: "if ((if (false) { 10 })) { 10 } else { 20 }",
+            expected: Object::Integer(Integer { value: 20 }),
+        }];
+        run_vm_tests(tests);
+    });
 }
 
 #[test]
@@ -431,7 +451,13 @@ fn test_conditionals() {
 
 #[bench]
 fn bench_global_let_statements(b: &mut Bencher) {
-    b.iter(|| test_global_let_statements());
+    b.iter(|| {
+        let tests = vec![VmTestCase {
+            input: "let one = 1; let two = one + one; one + two",
+            expected: Object::Integer(Integer { value: 3 }),
+        }];
+        run_vm_tests(tests);
+    });
 }
 
 #[test]
@@ -456,7 +482,16 @@ fn test_global_let_statements() {
 
 #[bench]
 fn bench_string_expressions(b: &mut Bencher) {
-    b.iter(|| test_string_expressions());
+    b.iter(|| {
+        let tests = vec![VmTestCase {
+            input: "\"mon\" + \"key\" + \"banana\"",
+            expected: Object::StringObj(StringObj {
+                value: String::from("monkeybanana"),
+            }),
+        }];
+
+        run_vm_tests(tests);
+    });
 }
 
 #[test]
@@ -501,7 +536,19 @@ fn test_string_object(expected: &str, actual: &Option<Object>) -> Result<(), Str
 
 #[bench]
 fn bench_array_literal(b: &mut Bencher) {
-    b.iter(|| test_array_literals());
+    b.iter(|| {
+        let tests = vec![VmTestCase {
+            input: "[1 + 2, 3 * 4, 5 + 6]",
+            expected: Object::Array(Array {
+                elements: vec![
+                    Object::Integer(Integer { value: 3 }),
+                    Object::Integer(Integer { value: 12 }),
+                    Object::Integer(Integer { value: 11 }),
+                ],
+            }),
+        }];
+        run_vm_tests(tests);
+    });
 }
 
 #[test]
@@ -540,7 +587,23 @@ fn test_array_literals() {
 
 #[bench]
 fn bench_hash_literals(b: &mut Bencher) {
-    b.iter(|| test_hash_literals());
+    b.iter(|| {
+        let mut pairs3: HashMap<HashKey, Object> = HashMap::new();
+        pairs3.insert(
+            HashKey::Integer(Integer { value: 2 }),
+            Object::Integer(Integer { value: 4 }),
+        );
+        pairs3.insert(
+            HashKey::Integer(Integer { value: 6 }),
+            Object::Integer(Integer { value: 16 }),
+        );
+
+        let tests = vec![VmTestCase {
+            input: "{1 + 1: 2 * 2, 3 + 3: 4 * 4}",
+            expected: Object::Hash(Hash { pairs: pairs3 }),
+        }];
+        run_vm_tests(tests);
+    });
 }
 
 #[test]
@@ -587,7 +650,13 @@ fn test_hash_literals() {
 
 #[bench]
 fn bench_index_expressions(b: &mut Bencher) {
-    b.iter(|| test_index_expressions());
+    b.iter(|| {
+        let tests = vec![VmTestCase {
+            input: "{}[0]",
+            expected: NULL,
+        }];
+        run_vm_tests(tests);
+    });
 }
 
 #[test]
@@ -640,7 +709,17 @@ fn test_index_expressions() {
 
 #[bench]
 fn bench_calling_functions_without_arguments(b: &mut Bencher) {
-    b.iter(|| test_calling_functions_without_arguments());
+    b.iter(|| {
+        let tests = vec![VmTestCase {
+            input: "let a = fn() { 1 };
+                let b = fn() { a() + 1 };
+                let c = fn() { b() + 1 };
+                c();
+                ",
+            expected: Object::Integer(Integer { value: 3 }),
+        }];
+        run_vm_tests(tests);
+    });
 }
 
 #[test]
@@ -674,7 +753,15 @@ fn test_calling_functions_without_arguments() {
 
 #[bench]
 fn bench_functions_with_return_statement(b: &mut Bencher) {
-    b.iter(|| test_functions_with_return_statement());
+    b.iter(|| {
+        let tests = vec![VmTestCase {
+            input: "let earlyExit = fn() { return 99; return 100; };
+                earlyExit();
+                ",
+            expected: Object::Integer(Integer { value: 99 }),
+        }];
+        run_vm_tests(tests);
+    });
 }
 
 #[test]
@@ -699,7 +786,18 @@ fn test_functions_with_return_statement() {
 
 #[bench]
 fn bench_functions_without_return_value(b: &mut Bencher) {
-    b.iter(|| test_functions_without_return_value());
+    b.iter(|| {
+        let tests = vec![VmTestCase {
+            input: "let noReturn = fn() { };
+            let noReturnTwo = fn() { noReturn(); };
+            noReturn();
+            noReturnTwo();
+            ",
+            expected: NULL,
+        }];
+
+        run_vm_tests(tests);
+    });
 }
 
 #[test]
@@ -744,7 +842,23 @@ fn test_first_class_functions() {
 
 #[bench]
 fn bench_calling_functions_with_bindings(b: &mut Bencher) {
-    b.iter(|| test_calling_functions_with_bindings());
+    b.iter(|| {
+        let tests = vec![VmTestCase {
+            input: "let globalSeed = 50;
+            let minusOne = fn() { 
+                let num = 1;
+                globalSeed - num;
+            };
+            let minusTwo = fn() {
+                let num = 2;
+                globalSeed - num;                
+            }
+            minusOne() + minusTwo();            
+            ",
+            expected: Object::Integer(Integer { value: 97 }),
+        }];
+        run_vm_tests(tests);
+    });
 }
 
 #[test]
@@ -796,7 +910,25 @@ fn test_calling_functions_with_bindings() {
 
 #[bench]
 fn bench_calling_functions_with_arguments_and_bindings(b: &mut Bencher) {
-    b.iter(|| test_calling_functions_with_arguments_and_bindings());
+    b.iter(|| {
+        let tests = vec![VmTestCase {
+            input: "let globalNum = 10;
+                
+                let sum = fn(a, b) {
+                    let c = a + b;
+                    c + globalNum;
+                };
+                
+                let outer = fn() {
+                    sum(1, 2) + sum(3, 4) + globalNum;
+                };
+                
+                outer() + globalNum;
+                ",
+            expected: Object::Integer(Integer { value: 50 }),
+        }];
+        run_vm_tests(tests);
+    });
 }
 
 #[test]
@@ -862,7 +994,43 @@ fn test_calling_functions_with_arguments_and_bindings() {
 
 #[bench]
 fn bench_calling_functions_with_wrong_arguments(b: &mut Bencher) {
-    b.iter(|| test_calling_functions_with_wrong_arguments());
+    b.iter(|| {
+        let tests = vec![VmTestCase {
+            input: "fn(a, b) { a + b; }(1);",
+            expected: Object::ErrorObj(ErrorObj {
+                message: String::from("wrong number of arguments: want=2, got=1"),
+            }),
+        }];
+
+        for tt in tests.iter() {
+            let program = parse(tt.input);
+
+            let mut comp = Compiler::new();
+            match comp.compile(Node::Program(program.unwrap())) {
+                Err(err) => {
+                    assert!(false, "compiler error: {}", err);
+                }
+                _ => {}
+            }
+
+            let mut vm = Vm::new(comp.bytecode());
+            match vm.run() {
+                Err(err) => {
+                    assert!(
+                        Object::ErrorObj(ErrorObj {
+                            message: err.clone()
+                        }) == tt.expected,
+                        "wrong Vm error: want={:?}, got={}",
+                        tt.expected,
+                        err
+                    );
+                }
+                _ => {
+                    assert!(false, "expected VM error but resulted in none.");
+                }
+            }
+        }
+    });
 }
 
 #[test]
@@ -920,7 +1088,15 @@ fn test_calling_functions_with_wrong_arguments() {
 
 #[bench]
 fn bench_builtin_functions(b: &mut Bencher) {
-    b.iter(|| test_builtin_functions());
+    b.iter(|| {
+        let tests = vec![VmTestCase {
+            input: r#"push(1, 1)"#,
+            expected: Object::ErrorObj(ErrorObj {
+                message: String::from("argument to `push` must be ARRAY, got INTEGER"),
+            }),
+        }];
+        run_vm_tests(tests);
+    });
 }
 
 #[test]
@@ -1021,7 +1197,21 @@ fn test_builtin_functions() {
 
 #[bench]
 fn bench_closures(b: &mut Bencher) {
-    b.iter(|| test_closures());
+    b.iter(|| {
+        let tests = vec![VmTestCase {
+            input: "
+                let newClosure = fn(a, b) {
+                    let one = fn() { a; };
+                    let two = fn() { b; };
+                    fn() { one() + two(); };
+                };
+                let closure = newClosure(9, 90);
+                closure();
+                ",
+            expected: Object::Integer(Integer { value: 99 }),
+        }];
+        run_vm_tests(tests);
+    });
 }
 
 #[test]
@@ -1125,9 +1315,9 @@ fn test_recursive_fibonacci() {
                     }
                 }
             };
-            fibonacci(15);
+            fibonacci(2);
             ",
-        expected: Object::Integer(Integer { value: 610 }),
+        expected: Object::Integer(Integer { value: 1 }),
     }];
     run_vm_tests(tests);
 }

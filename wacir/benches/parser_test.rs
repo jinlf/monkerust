@@ -1,12 +1,19 @@
 // src/parser_test.rs
 
+#![feature(test)]
+
 extern crate test;
 
-use super::ast::*;
-use super::lexer::*;
-use super::parser::*;
 use std::collections::*;
-use test::{black_box, Bencher};
+use test::Bencher;
+use wacir::ast::*;
+use wacir::lexer::*;
+use wacir::parser::*;
+
+#[bench]
+fn bench_let_statements(b: &mut Bencher) {
+    b.iter(|| test_let_statements());
+}
 
 #[test]
 fn test_let_statements() {
@@ -79,6 +86,11 @@ fn check_parser_errors(p: &mut Parser) {
     assert!(false, msgs);
 }
 
+#[bench]
+fn bench_return_statement(b: &mut Bencher) {
+    b.iter(|| test_return_statement());
+}
+
 #[test]
 fn test_return_statement() {
     let input = "
@@ -112,6 +124,11 @@ return 993322;
     } else {
         assert!(false, "parse error");
     }
+}
+
+#[bench]
+fn bench_identifier_expression(b: &mut Bencher) {
+    b.iter(|| test_identifier_expression());
 }
 
 #[test]
@@ -161,6 +178,11 @@ fn test_identifier_expression() {
     }
 }
 
+#[bench]
+fn bench_integer_literal_expression(b: &mut Bencher) {
+    b.iter(|| test_integer_literal_expression());
+}
+
 #[test]
 fn test_integer_literal_expression() {
     let input = "5;";
@@ -203,6 +225,11 @@ fn test_integer_literal_expression() {
     } else {
         assert!(false, "parse error");
     }
+}
+
+#[bench]
+fn bench_parsing_prefix_expression(b: &mut Bencher) {
+    b.iter(|| test_parsing_prefix_expression());
 }
 
 #[test]
@@ -282,6 +309,11 @@ fn test_integer_literal(il: &Expression, expected_value: i64) {
     }
 }
 
+#[bench]
+fn bench_parsing_infix_expressions(b: &mut Bencher) {
+    b.iter(|| test_parsing_infix_expressions());
+}
+
 #[test]
 fn test_parsing_infix_expressions() {
     let tests: [(&str, Box<dyn std::any::Any>, &str, Box<dyn std::any::Any>); 11] = [
@@ -347,6 +379,11 @@ fn test_parsing_infix_expressions() {
             assert!(false, "parse error");
         }
     }
+}
+
+#[bench]
+fn bench_operator_precedence_parsing(b: &mut Bencher) {
+    b.iter(|| test_operator_precedence_parsing());
 }
 
 #[test]
@@ -483,6 +520,11 @@ fn test_boolean_literal(exp: &Expression, expected_value: bool) {
     }
 }
 
+#[bench]
+fn bench_if_expression(b: &mut Bencher) {
+    b.iter(|| test_if_expression());
+}
+
 #[test]
 fn test_if_expression() {
     let input = "if (x < y) { x }";
@@ -560,6 +602,11 @@ fn test_if_expression() {
     } else {
         assert!(false, "parse error");
     }
+}
+
+#[bench]
+fn bench_if_else_expression(b: &mut Bencher) {
+    b.iter(|| test_if_else_expression());
 }
 
 #[test]
@@ -659,6 +706,11 @@ fn test_if_else_expression() {
     }
 }
 
+#[bench]
+fn bench_function_literal_parsing(b: &mut Bencher) {
+    b.iter(|| test_function_literal_parsing());
+}
+
 #[test]
 fn test_function_literal_parsing() {
     let input = "fn(x, y) { x + y; }";
@@ -744,6 +796,11 @@ fn test_function_literal_parsing() {
     }
 }
 
+#[bench]
+fn bench_function_parameter_parsing(b: &mut Bencher) {
+    b.iter(|| test_function_parameter_parsing());
+}
+
 #[test]
 fn test_function_parameter_parsing() {
     let tests = [
@@ -792,6 +849,11 @@ fn test_function_parameter_parsing() {
             assert!(false, "parse error");
         }
     }
+}
+
+#[bench]
+fn bench_call_expression_parsing(b: &mut Bencher) {
+    b.iter(|| test_call_expression_parsing());
 }
 
 #[test]
@@ -862,6 +924,11 @@ fn test_call_expression_parsing() {
     }
 }
 
+#[bench]
+fn bench_string_literal_expression(b: &mut Bencher) {
+    b.iter(|| test_string_literal_expression());
+}
+
 #[test]
 fn test_string_literal_expression() {
     let input = r#""hello world";"#;
@@ -892,6 +959,11 @@ fn test_string_literal_expression() {
     } else {
         assert!(false, "parse error");
     }
+}
+
+#[bench]
+fn bench_parsing_array_literals(b: &mut Bencher) {
+    b.iter(|| test_parsing_array_literals());
 }
 
 #[test]
@@ -938,6 +1010,11 @@ fn test_parsing_array_literals() {
     }
 }
 
+#[bench]
+fn bench_parsing_index_expressions(b: &mut Bencher) {
+    b.iter(|| test_parsing_index_expressions());
+}
+
 #[test]
 fn test_parsing_index_expressions() {
     let input = "myArray[1 + 1]";
@@ -974,6 +1051,11 @@ fn test_parsing_index_expressions() {
     } else {
         assert!(false, "parse error");
     }
+}
+
+#[bench]
+fn bench_parsing_hash_literals_string_keys(b: &mut Bencher) {
+    b.iter(|| test_parsing_hash_literals_string_keys());
 }
 
 #[test]
@@ -1019,6 +1101,11 @@ fn test_parsing_hash_literals_string_keys() {
     }
 }
 
+#[bench]
+fn bench_parsing_empty_hash_literal(b: &mut Bencher) {
+    b.iter(|| test_parsing_empty_hash_literal());
+}
+
 #[test]
 fn test_parsing_empty_hash_literal() {
     let input = "{}";
@@ -1047,6 +1134,11 @@ fn test_parsing_empty_hash_literal() {
     } else {
         assert!(false, "parse error");
     }
+}
+
+#[bench]
+fn bench_parsing_hash_literal_with_expressions(b: &mut Bencher) {
+    b.iter(|| test_parsing_hash_literal_with_expressions());
 }
 
 #[test]

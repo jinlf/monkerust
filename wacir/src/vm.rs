@@ -90,49 +90,28 @@ impl Vm {
                     let const_index = read_u16(src);
                     self.current_frame().ip += 2;
                     let obj = self.constants.borrow()[const_index as usize].clone();
-                    match self.push(obj) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    };
+                    self.push(obj)?;
                 }
                 Opcode::OpAdd | Opcode::OpSub | Opcode::OpMul | Opcode::OpDiv => {
-                    match self.execute_binary_operation(op) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    };
+                    self.execute_binary_operation(op)?;
                 }
                 Opcode::OpPop => {
                     self.pop();
                 }
                 Opcode::OpTrue => {
-                    match self.push(TRUE) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    };
+                    self.push(TRUE)?;
                 }
                 Opcode::OpFalse => {
-                    match self.push(FALSE) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    };
+                    self.push(FALSE)?;
                 }
                 Opcode::OpEqual | Opcode::OpNotEqual | Opcode::OpGreaterThan => {
-                    match self.execute_comparison(op) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    };
+                    self.execute_comparison(op)?;
                 }
                 Opcode::OpBang => {
-                    match self.execute_bang_operator() {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    };
+                    self.execute_bang_operator()?;
                 }
                 Opcode::OpMinus => {
-                    match self.execute_minus_operator() {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    };
+                    self.execute_minus_operator()?;
                 }
                 Opcode::OpJump => {
                     let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
@@ -149,10 +128,7 @@ impl Vm {
                     }
                 }
                 Opcode::OpNull => {
-                    match self.push(NULL) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    };
+                    self.push(NULL)?;
                 }
                 Opcode::OpSetGlobal => {
                     let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
@@ -168,10 +144,7 @@ impl Vm {
                         .as_ref()
                         .unwrap()
                         .clone(); // TODO: can unwrap?
-                    match self.push(obj) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    };
+                    self.push(obj)?;
                 }
                 Opcode::OpArray => {
                     let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
@@ -181,63 +154,39 @@ impl Vm {
                     let array = self.build_array(self.sp - num_elements, self.sp);
                     self.sp -= num_elements;
 
-                    match self.push(array) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    }
+                    self.push(array)?;
                 }
                 Opcode::OpHash => {
                     let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
                     let num_elements = read_u16(src) as usize;
                     self.current_frame().ip += 2;
-                    match self.build_hash(self.sp - num_elements, self.sp) {
-                        Err(err) => return Err(err),
-                        Ok(hash) => {
-                            self.sp -= num_elements;
-
-                            match self.push(hash) {
-                                Err(err) => return Err(err),
-                                _ => {}
-                            }
-                        }
-                    };
+                    let hash = self.build_hash(self.sp - num_elements, self.sp)?;
+                    self.sp -= num_elements;
+                    self.push(hash)?;
                 }
                 Opcode::OpIndex => {
                     let index = self.pop().clone();
                     let left = self.pop().clone();
-                    match self.execute_index_expression(&left, &index) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    }
+                    self.execute_index_expression(&left, &index)?;
                 }
                 Opcode::OpCall => {
                     let num_args = ins.0[ip + 1] as usize;
                     self.current_frame().ip += 1;
 
-                    match self.execute_call(num_args) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    }
+                    self.execute_call(num_args)?;
                 }
                 Opcode::OpReturnValue => {
                     let return_value = self.pop().clone();
                     let base_pointer = self.pop_frame().base_pointer;
                     self.sp = base_pointer - 1;
 
-                    match self.push(return_value.unwrap()) {
-                        // TODO: can unwrap?
-                        Err(err) => return Err(err),
-                        _ => {}
-                    }
+                    self.push(return_value.unwrap())?;
                 }
                 Opcode::OpReturn => {
                     let base_pointer = self.pop_frame().base_pointer;
                     self.sp = base_pointer - 1;
 
-                    match self.push(NULL) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    }
+                    self.push(NULL)?;
                 }
                 Opcode::OpSetLocal => {
                     let local_index = ins.0[ip + 1] as usize;
@@ -251,10 +200,7 @@ impl Vm {
                     self.current_frame().ip += 1;
                     let base_pointer = self.current_frame().base_pointer;
                     let obj = self.stack[base_pointer + local_index].as_ref().unwrap(); // TODO: can unwrap?
-                    match self.push(obj.clone()) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    }
+                    self.push(obj.clone())?;
                 }
                 Opcode::OpGetBuiltin => {
                     let builtin_index = ins.0[ip + 1] as usize;
@@ -263,10 +209,7 @@ impl Vm {
                     let definition =
                         get_builtin_by_name(&get_builtin_names()[builtin_index]).unwrap(); //TODO: can unwrap?
 
-                    match self.push(Object::Builtin(definition)) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    }
+                    self.push(Object::Builtin(definition))?;
                 }
                 Opcode::OpClosure => {
                     let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
@@ -274,10 +217,7 @@ impl Vm {
                     let num_free = ins.0[ip + 3] as usize;
                     self.current_frame().ip += 3;
 
-                    match self.push_closure(const_index, num_free) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    }
+                    self.push_closure(const_index, num_free)?;
                 }
                 Opcode::OpGetFree => {
                     let free_index = ins.0[ip + 1] as usize;
@@ -285,10 +225,7 @@ impl Vm {
 
                     let current_closure = &self.current_frame().cl;
                     let free = current_closure.free[free_index].as_ref().unwrap().clone();
-                    match self.push(free) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    }
+                    self.push(free)?;
                 }
             }
         }
@@ -350,10 +287,7 @@ impl Vm {
             Opcode::OpDiv => left_value / right_value,
             _ => return Err(format!("unknown integer operator: {:?}", op)),
         };
-        match self.push(Object::Integer(Integer { value: result })) {
-            Err(err) => return Err(err),
-            _ => {}
-        };
+        self.push(Object::Integer(Integer { value: result }))?;
         Ok(())
     }
 
@@ -604,15 +538,9 @@ impl Vm {
         let result = func(&v);
         self.sp = self.sp - num_args - 1;
         if let Some(r) = result {
-            match self.push(r) {
-                Err(err) => return Err(err),
-                _ => {}
-            }
+            self.push(r)?;
         } else {
-            match self.push(NULL) {
-                Err(err) => return Err(err),
-                _ => {}
-            }
+            self.push(NULL)?;
         }
         Ok(())
     }
