@@ -8,23 +8,21 @@ pub fn get_builtin(name: &str) -> Option<Object> {
         "len" => {
             let func: BuiltinFunction = |args| {
                 if args.len() != 1 {
-                    return new_error(format!(
+                    return Err(format!(
                         "wrong number of arguments. got={}, want=1",
                         args.len()
                     ));
                 }
                 return match &args[0] {
-                    Some(Object::Array(Array { elements })) => Some(Object::Integer(Integer {
+                    Object::Array(Array { elements }) => Ok(Object::Integer(Integer {
                         value: elements.len() as i64,
                     })),
-                    Some(Object::StringObj(StringObj { value })) => {
-                        Some(Object::Integer(Integer {
-                            value: value.len() as i64,
-                        }))
-                    }
-                    _ => new_error(format!(
+                    Object::StringObj(StringObj { value }) => Ok(Object::Integer(Integer {
+                        value: value.len() as i64,
+                    })),
+                    _ => Err(format!(
                         "argument to `len` not supported, got {}",
-                        get_type(&args[0])
+                        args[0].get_type()
                     )),
                 };
             };
@@ -33,20 +31,20 @@ pub fn get_builtin(name: &str) -> Option<Object> {
         "first" => {
             let func: BuiltinFunction = |args| {
                 if args.len() != 1 {
-                    return new_error(format!(
+                    return Err(format!(
                         "wrong number of arguments. got={}, want=1",
                         args.len()
                     ));
                 }
-                if let Some(Object::Array(Array { elements })) = &args[0] {
+                if let Object::Array(Array { elements }) = &args[0] {
                     if elements.len() > 0 {
-                        return Some(elements[0].clone());
+                        return Ok(elements[0].clone());
                     }
-                    return Some(Object::Null(NULL));
+                    return Ok(Object::Null(NULL));
                 } else {
-                    return new_error(format!(
+                    return Err(format!(
                         "arguemnt to `first` must be ARRAY, got={:?}",
-                        get_type(&args[0])
+                        args[0].get_type()
                     ));
                 }
             };
@@ -55,21 +53,21 @@ pub fn get_builtin(name: &str) -> Option<Object> {
         "last" => {
             let func: BuiltinFunction = |args| {
                 if args.len() != 1 {
-                    return new_error(format!(
+                    return Err(format!(
                         "wrong number of arguments. got={}, want=1",
                         args.len()
                     ));
                 }
-                if let Some(Object::Array(Array { elements })) = &args[0] {
+                if let Object::Array(Array { elements }) = &args[0] {
                     let length = elements.len();
                     if length > 0 {
-                        return Some(elements[length - 1].clone());
+                        return Ok(elements[length - 1].clone());
                     }
-                    return Some(Object::Null(NULL));
+                    return Ok(Object::Null(NULL));
                 } else {
-                    return new_error(format!(
+                    return Err(format!(
                         "arguemnt to `last` must be ARRAY, got={:?}",
-                        get_type(&args[0])
+                        args[0].get_type()
                     ));
                 }
             };
@@ -78,23 +76,23 @@ pub fn get_builtin(name: &str) -> Option<Object> {
         "rest" => {
             let func: BuiltinFunction = |args| {
                 if args.len() != 1 {
-                    return new_error(format!(
+                    return Err(format!(
                         "wrong number of arguments. got={}, want=1",
                         args.len()
                     ));
                 }
-                if let Some(Object::Array(Array { elements })) = &args[0] {
+                if let Object::Array(Array { elements }) = &args[0] {
                     let length = elements.len();
                     if length > 0 {
                         let mut new_vec: Vec<Object> = vec![Object::Null(NULL); length - 1];
                         new_vec.clone_from_slice(&elements[1..length]);
-                        return Some(Object::Array(Array { elements: new_vec }));
+                        return Ok(Object::Array(Array { elements: new_vec }));
                     }
-                    return Some(Object::Null(NULL));
+                    return Ok(Object::Null(NULL));
                 } else {
-                    return new_error(format!(
+                    return Err(format!(
                         "arguemnt to `rest` must be ARRAY, got={:?}",
-                        get_type(&args[0])
+                        args[0].get_type()
                     ));
                 }
             };
@@ -103,21 +101,21 @@ pub fn get_builtin(name: &str) -> Option<Object> {
         "push" => {
             let func: BuiltinFunction = |args| {
                 if args.len() != 2 {
-                    return new_error(format!(
+                    return Err(format!(
                         "wrong number of arguments. got={}, want=2",
                         args.len()
                     ));
                 }
-                if let Some(Object::Array(Array { elements })) = &args[0] {
+                if let Object::Array(Array { elements }) = &args[0] {
                     let mut new_elements = elements.to_vec();
-                    new_elements.push(args[1].as_ref().unwrap().clone());
-                    return Some(Object::Array(Array {
+                    new_elements.push(args[1].clone());
+                    return Ok(Object::Array(Array {
                         elements: new_elements,
                     }));
                 } else {
-                    return new_error(format!(
+                    return Err(format!(
                         "arguemnt to `push` must be ARRAY, got={:?}",
-                        get_type(&args[0])
+                        args[0].get_type()
                     ));
                 }
             };
@@ -126,9 +124,9 @@ pub fn get_builtin(name: &str) -> Option<Object> {
         "puts" => {
             let func: BuiltinFunction = |args| {
                 for arg in args.iter() {
-                    println!("{}", arg.as_ref().unwrap().inspect());
+                    println!("{}", arg.inspect());
                 }
-                return Some(Object::Null(NULL));
+                return Ok(Object::Null(NULL));
             };
             Some(Object::Builtin(Builtin { func: func }))
         }

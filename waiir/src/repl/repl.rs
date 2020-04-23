@@ -29,11 +29,10 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
                 print_parser_errors(output, &errors);
                 continue;
             }
-            Ok(program) => {
-                if let Some(evaluated) = eval(Node::Program(program), Rc::clone(&env)) {
-                    writeln!(output, "{}", evaluated.inspect()).unwrap();
-                }
-            }
+            Ok(program) => match eval(Node::Program(program), Rc::clone(&env)) {
+                Ok(evaluated) => writeln!(output, "{}", evaluated.inspect()).unwrap(),
+                Err(err) => writeln!(output, "{}", err).unwrap(),
+            },
         }
     }
 }

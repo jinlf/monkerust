@@ -11,28 +11,27 @@ pub const TRUE: Boolean = Boolean { value: true };
 pub const FALSE: Boolean = Boolean { value: false };
 pub const NULL: Null = Null {};
 
-pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
+pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
     match node {
         Node::Program(program) => eval_program(program, Rc::clone(&env)),
+
         Node::Statement(Statement::ExpressionStatement(ExpressionStatement {
             token: _,
             expression,
         })) => eval(Node::Expression(expression), Rc::clone(&env)),
+
         Node::Expression(Expression::IntegerLiteral(IntegerLiteral { token: _, value })) => {
-            Some(Object::Integer(Integer { value: value }))
+            Ok(Object::Integer(Integer { value: value }))
         }
         Node::Expression(Expression::BooleanLiteral(BooleanLiteral { token: _, value })) => {
-            Some(Object::Boolean(native_bool_to_boolean_object(value)))
+            Ok(Object::Boolean(native_bool_to_boolean_object(value)))
         }
         Node::Expression(Expression::PrefixExpression(PrefixExpression {
             token: _,
             operator,
             right,
         })) => {
-            let right_obj = eval(Node::Expression(*right), Rc::clone(&env));
-            if is_error(&right_obj) {
-                return right_obj;
-            }
+            let right_obj = eval(Node::Expression(*right), Rc::clone(&env))?;
             eval_prefix_expression(&operator, right_obj)
         }
         Node::Expression(Expression::InfixExpression(InfixExpression {
@@ -41,15 +40,9 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
             operator,
             right,
         })) => {
-            let left_obj = eval(Node::Expression(*left), Rc::clone(&env));
-            if is_error(&left_obj) {
-                return left_obj;
-            }
-            let right_obj = eval(Node::Expression(*right), Rc::clone(&env));
-            if is_error(&right_obj) {
-                return right_obj;
-            }
-            eval_infix_expression(&operator, left_obj, right_obj)
+            let left_obj = eval(Node::Expression(*left), Rc::clone(&env))?;
+            let right_obj = eval(Node::Expression(*right), Rc::clone(&env))?;
+            eval_infix_expression(&operator, &left_obj, &right_obj)
         }
         Node::Statement(Statement::BlockStatement(block)) => {
             eval_block_statement(block, Rc::clone(&env))
@@ -61,36 +54,25 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
             token: _,
             return_value,
         })) => {
-            let val = eval(Node::Expression(return_value), Rc::clone(&env));
-            if is_error(&val) {
-                return val;
-            }
-            if val.is_some() {
-                Some(Object::ReturnValue(ReturnValue {
-                    value: Box::new(val.unwrap()),
-                }))
-            } else {
-                None
-            }
+            let val = eval(Node::Expression(return_value), Rc::clone(&env))?;
+            Ok(Object::ReturnValue(ReturnValue {
+                value: Box::new(val),
+            }))
         }
         Node::Statement(Statement::LetStatement(LetStatement {
             token: _,
             name,
             value,
         })) => {
-            let val = eval(Node::Expression(value), Rc::clone(&env));
-            if is_error(&val) {
-                return val;
-            }
-
-            env.borrow_mut().set(name.value, val)
+            let val = eval(Node::Expression(value), Rc::clone(&env))?;
+            Ok(env.borrow_mut().set(name.value, val))
         }
         Node::Expression(Expression::Identifier(ident)) => eval_identifier(ident, Rc::clone(&env)),
         Node::Expression(Expression::FunctionLiteral(FunctionLiteral {
             token: _,
             parameters,
             body,
-        })) => Some(Object::Function(Function {
+        })) => Ok(Object::Function(Function {
             parameters: parameters,
             body: body,
             env: Rc::clone(&env),
@@ -100,29 +82,17 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
             function,
             arguments,
         })) => {
-            let function_obj = eval(Node::Expression(*function), Rc::clone(&env));
-            if is_error(&function_obj) {
-                return function_obj;
-            }
-            let mut args = eval_expressions(arguments, Rc::clone(&env));
-            if args.len() == 1 && is_error(&args[0]) {
-                return args.remove(0);
-            }
+            let function_obj = eval(Node::Expression(*function), Rc::clone(&env))?;
+            let args = eval_expressions(arguments, Rc::clone(&env))?;
             apply_function(function_obj, args)
         }
         Node::Expression(Expression::StringLiteral(StringLiteral { token: _, value })) => {
-            Some(Object::StringObj(StringObj { value: value }))
+            Ok(Object::StringObj(StringObj { value: value }))
         }
         Node::Expression(Expression::ArrayLiteral(ArrayLiteral { token: _, elements })) => {
-            let mut elements_obj = eval_expressions(elements, Rc::clone(&env));
-            if elements_obj.len() == 1 && is_error(&elements_obj[0]) {
-                return elements_obj.remove(0);
-            }
-            Some(Object::Array(Array {
-                elements: elements_obj
-                    .iter()
-                    .map(|x| x.as_ref().unwrap().clone())
-                    .collect(),
+            let elements_obj = eval_expressions(elements, Rc::clone(&env))?;
+            Ok(Object::Array(Array {
+                elements: elements_obj,
             }))
         }
         Node::Expression(Expression::IndexExpression(IndexExpression {
@@ -130,21 +100,9 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
             left,
             index,
         })) => {
-            let left_obj = eval(Node::Expression(*left), Rc::clone(&env));
-            if is_error(&left_obj) {
-                return left_obj;
-            }
-            if left_obj.is_none() {
-                return None;
-            }
-            let index_obj = eval(Node::Expression(*index), Rc::clone(&env));
-            if is_error(&index_obj) {
-                return index_obj;
-            }
-            if index_obj.is_none() {
-                return None;
-            }
-            eval_index_expression(left_obj.unwrap(), index_obj.unwrap())
+            let left_obj = eval(Node::Expression(*left), Rc::clone(&env))?;
+            let index_obj = eval(Node::Expression(*index), Rc::clone(&env))?;
+            eval_index_expression(&left_obj, &index_obj)
         }
         Node::Expression(Expression::HashLiteral(hash_literal)) => {
             eval_hash_literal(hash_literal, Rc::clone(&env))
@@ -152,17 +110,15 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
     }
 }
 
-fn eval_program(program: Program, env: Rc<RefCell<Environment>>) -> Option<Object> {
-    let mut result: Option<Object> = None;
-    for statement in program.statements.iter() {
-        result = eval(Node::Statement(statement.clone()), Rc::clone(&env));
-        if let Some(Object::ReturnValue(ReturnValue { value })) = result {
-            return Some(*value);
-        } else if let Some(Object::ErrorObj(_)) = result {
-            return result;
+fn eval_program(program: Program, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
+    let mut result: Object = Object::Null(NULL);
+    for statement in program.statements.into_iter() {
+        result = eval(Node::Statement(statement), Rc::clone(&env))?;
+        if let Object::ReturnValue(ReturnValue { value }) = result {
+            return Ok(*value);
         }
     }
-    result
+    Ok(result)
 }
 
 pub fn native_bool_to_boolean_object(input: bool) -> Boolean {
@@ -173,113 +129,102 @@ pub fn native_bool_to_boolean_object(input: bool) -> Boolean {
     }
 }
 
-fn eval_prefix_expression(operator: &str, right: Option<Object>) -> Option<Object> {
+fn eval_prefix_expression(operator: &str, right: Object) -> Result<Object, String> {
     match operator {
         "!" => eval_bang_operator_expression(right),
         "-" => eval_minus_prefix_operator_expression(right),
-        _ => new_error(format!(
+        _ => Err(format!(
             "unknown operator: {}{}",
             operator,
-            get_type(&right)
+            right.get_type()
         )),
     }
 }
 
-fn eval_bang_operator_expression(right: Option<Object>) -> Option<Object> {
+fn eval_bang_operator_expression(right: Object) -> Result<Object, String> {
     match right {
-        Some(Object::Boolean(TRUE)) => Some(Object::Boolean(FALSE)),
-        Some(Object::Boolean(FALSE)) => Some(Object::Boolean(TRUE)),
-        Some(Object::Null(NULL)) => Some(Object::Boolean(TRUE)),
-        _ => Some(Object::Boolean(FALSE)),
+        Object::Boolean(TRUE) => Ok(Object::Boolean(FALSE)),
+        Object::Boolean(FALSE) => Ok(Object::Boolean(TRUE)),
+        Object::Null(NULL) => Ok(Object::Boolean(TRUE)),
+        _ => Ok(Object::Boolean(FALSE)),
     }
 }
 
-fn eval_minus_prefix_operator_expression(right: Option<Object>) -> Option<Object> {
-    if let Some(Object::Integer(Integer { value })) = right {
-        Some(Object::Integer(Integer { value: -value }))
+fn eval_minus_prefix_operator_expression(right: Object) -> Result<Object, String> {
+    if let Object::Integer(Integer { value }) = right {
+        Ok(Object::Integer(Integer { value: -value }))
     } else {
-        new_error(format!("unknown operator: -{}", get_type(&right)))
+        Err(format!("unknown operator: -{}", right.get_type()))
     }
 }
 
-fn eval_infix_expression(
-    operator: &str,
-    left: Option<Object>,
-    right: Option<Object>,
-) -> Option<Object> {
-    if get_type(&left) != get_type(&right) {
-        return new_error(format!(
+fn eval_infix_expression(operator: &str, left: &Object, right: &Object) -> Result<Object, String> {
+    if left.get_type() != right.get_type() {
+        return Err(format!(
             "type mismatch: {} {} {}",
-            get_type(&left),
+            left.get_type(),
             operator,
-            get_type(&right)
+            right.get_type()
         ));
     }
-    if let Some(Object::StringObj(_)) = left {
-        if let Some(Object::StringObj(_)) = right {
-            return eval_string_infix_expression(operator, &left, &right);
-        }
-    }
-    if let Some(Object::Integer(Integer { value })) = left {
+    if let Object::StringObj(value) = left {
         let left_val = value;
-        if let Some(Object::Integer(Integer { value })) = right {
+        if let Object::StringObj(value) = right {
             let right_val = value;
-            return eval_integer_infix_expression(operator, left_val, right_val);
+            return eval_string_infix_expression(operator, left_val, right_val);
+        }
+    } else if let Object::Integer(Integer { value }) = left {
+        let left_val = value;
+        if let Object::Integer(Integer { value }) = right {
+            let right_val = value;
+            return eval_integer_infix_expression(operator, *left_val, *right_val);
         }
     }
-    if let Some(left_obj) = left {
-        if let Some(right_obj) = right {
-            return match operator {
-                "==" => Some(Object::Boolean(native_bool_to_boolean_object(
-                    left_obj == right_obj,
-                ))),
-                "!=" => Some(Object::Boolean(native_bool_to_boolean_object(
-                    left_obj != right_obj,
-                ))),
-                _ => new_error(format!(
-                    "unknown operator: {} {} {}",
-                    left_obj.get_type(),
-                    operator,
-                    right_obj.get_type(),
-                )),
-            };
-        }
-    }
-    None
-}
-
-fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Option<Object> {
-    match operator {
-        "+" => Some(Object::Integer(Integer {
-            value: left + right,
-        })),
-        "-" => Some(Object::Integer(Integer {
-            value: left - right,
-        })),
-        "*" => Some(Object::Integer(Integer {
-            value: left * right,
-        })),
-        "/" => Some(Object::Integer(Integer {
-            value: left / right,
-        })),
-        "<" => Some(Object::Boolean(native_bool_to_boolean_object(left < right))),
-        ">" => Some(Object::Boolean(native_bool_to_boolean_object(left > right))),
-        "==" => Some(Object::Boolean(native_bool_to_boolean_object(
+    return match operator {
+        "==" => Ok(Object::Boolean(native_bool_to_boolean_object(
             left == right,
         ))),
-        "!=" => Some(Object::Boolean(native_bool_to_boolean_object(
+        "!=" => Ok(Object::Boolean(native_bool_to_boolean_object(
             left != right,
         ))),
-        _ => new_error(format!("unknown operator: INTEGER {} INTEGER", operator)),
+        _ => Err(format!(
+            "unknown operator: {} {} {}",
+            left.get_type(),
+            operator,
+            right.get_type(),
+        )),
+    };
+}
+
+fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Result<Object, String> {
+    match operator {
+        "+" => Ok(Object::Integer(Integer {
+            value: left + right,
+        })),
+        "-" => Ok(Object::Integer(Integer {
+            value: left - right,
+        })),
+        "*" => Ok(Object::Integer(Integer {
+            value: left * right,
+        })),
+        "/" => Ok(Object::Integer(Integer {
+            value: left / right,
+        })),
+        "<" => Ok(Object::Boolean(native_bool_to_boolean_object(left < right))),
+        ">" => Ok(Object::Boolean(native_bool_to_boolean_object(left > right))),
+        "==" => Ok(Object::Boolean(native_bool_to_boolean_object(
+            left == right,
+        ))),
+        "!=" => Ok(Object::Boolean(native_bool_to_boolean_object(
+            left != right,
+        ))),
+        _ => Err(format!("unknown operator: INTEGER {} INTEGER", operator)),
     }
 }
 
-fn eval_if_expression(ie: IfExpression, env: Rc<RefCell<Environment>>) -> Option<Object> {
-    let condition = eval(Node::Expression(*ie.condition), Rc::clone(&env));
-    if is_error(&condition) {
-        return condition;
-    }
-    if is_truthy(&condition) {
+fn eval_if_expression(ie: IfExpression, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
+    let condition = eval(Node::Expression(*ie.condition), Rc::clone(&env))?;
+    if is_truthy(condition) {
         return eval(
             Node::Statement(Statement::BlockStatement(ie.consequence)),
             Rc::clone(&env),
@@ -290,191 +235,146 @@ fn eval_if_expression(ie: IfExpression, env: Rc<RefCell<Environment>>) -> Option
             Rc::clone(&env),
         );
     } else {
-        Some(Object::Null(NULL))
+        Ok(Object::Null(NULL))
     }
 }
 
-fn is_truthy(obj: &Option<Object>) -> bool {
+fn is_truthy(obj: Object) -> bool {
     match obj {
-        Some(Object::Null(NULL)) => false,
-        Some(Object::Boolean(TRUE)) => true,
-        Some(Object::Boolean(FALSE)) => false,
+        Object::Null(NULL) => false,
+        Object::Boolean(TRUE) => true,
+        Object::Boolean(FALSE) => false,
         _ => true,
     }
 }
 
-fn eval_block_statement(block: BlockStatement, env: Rc<RefCell<Environment>>) -> Option<Object> {
-    let mut result: Option<Object> = None;
-    for statement in block.statements.iter() {
-        result = eval(Node::Statement(statement.clone()), Rc::clone(&env));
+fn eval_block_statement(
+    block: BlockStatement,
+    env: Rc<RefCell<Environment>>,
+) -> Result<Object, String> {
+    let mut result: Object = Object::Null(NULL);
+    for statement in block.statements.into_iter() {
+        result = eval(Node::Statement(statement), Rc::clone(&env))?;
 
-        if let Some(Object::ReturnValue(_)) = result {
-            return result;
-        } else if let Some(Object::ErrorObj(_)) = result {
-            return result;
+        if let Object::ReturnValue(_) = result {
+            return Ok(result);
         }
     }
-    result
+    Ok(result)
 }
 
-pub fn new_error(msg: String) -> Option<Object> {
-    Some(Object::ErrorObj(ErrorObj { message: msg }))
-}
-
-pub fn get_type(obj: &Option<Object>) -> String {
-    if obj.is_some() {
-        obj.as_ref().unwrap().get_type()
-    } else {
-        String::from("None")
-    }
-}
-
-fn is_error(obj: &Option<Object>) -> bool {
-    if let Some(Object::ErrorObj(_)) = obj {
-        true
-    } else {
-        false
-    }
-}
-
-fn eval_identifier(node: Identifier, env: Rc<RefCell<Environment>>) -> Option<Object> {
-    if let Some(val) = env.borrow().get(node.value.clone()) {
-        val
+fn eval_identifier(node: Identifier, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
+    if let Some(val) = env.borrow().get(&node.value) {
+        Ok(val)
     } else if let Some(builtin) = get_builtin(&node.value) {
-        Some(builtin)
+        Ok(builtin)
     } else {
-        new_error(format!("identifier not found: {}", node.value))
+        Err(format!("identifier not found: {}", node.value))
     }
 }
 
-fn eval_expressions(exps: Vec<Expression>, env: Rc<RefCell<Environment>>) -> Vec<Option<Object>> {
-    let mut result: Vec<Option<Object>> = Vec::new();
-    for e in exps.iter() {
-        let evaluated = eval(Node::Expression(e.clone()), Rc::clone(&env));
-        if is_error(&evaluated) {
-            return vec![evaluated];
-        }
+fn eval_expressions(
+    exps: Vec<Expression>,
+    env: Rc<RefCell<Environment>>,
+) -> Result<Vec<Object>, String> {
+    let mut result: Vec<Object> = Vec::new();
+    for e in exps.into_iter() {
+        let evaluated = eval(Node::Expression(e), Rc::clone(&env))?;
         result.push(evaluated);
     }
-    result
+    Ok(result)
 }
 
-fn apply_function(func: Option<Object>, args: Vec<Option<Object>>) -> Option<Object> {
-    if let Some(Object::Function(function)) = func {
-        let extended_env = Rc::new(RefCell::new(extend_function_env(function.clone(), args)));
+fn apply_function(func: Object, args: Vec<Object>) -> Result<Object, String> {
+    if let Object::Function(function) = func {
+        let extended_env = Rc::new(RefCell::new(extend_function_env(&function, args)));
         let evaluated = eval(
             Node::Statement(Statement::BlockStatement(function.body)),
             Rc::clone(&extended_env),
-        );
+        )?;
         unwrap_return_value(evaluated)
-    } else if let Some(Object::Builtin(Builtin { func })) = func {
+    } else if let Object::Builtin(Builtin { func }) = func {
         func(&args)
     } else {
-        new_error(format!("not a function: {:?}", get_type(&func)))
+        Err(format!("not a function: {:?}", func.get_type()))
     }
 }
 
-fn extend_function_env(func: Function, args: Vec<Option<Object>>) -> Environment {
-    let mut env = new_enclosed_environment(Some(func.env));
+fn extend_function_env(func: &Function, args: Vec<Object>) -> Environment {
+    let mut env = new_enclosed_environment(Some(Rc::clone(&func.env)));
     for (param_idx, param) in func.parameters.iter().enumerate() {
         env.set(param.value.clone(), args[param_idx].clone());
     }
     env
 }
 
-fn unwrap_return_value(obj: Option<Object>) -> Option<Object> {
-    if let Some(Object::ReturnValue(ReturnValue { value })) = obj {
-        return Some(*value);
+fn unwrap_return_value(obj: Object) -> Result<Object, String> {
+    if let Object::ReturnValue(ReturnValue { value }) = obj {
+        return Ok(*value);
     }
-    obj
+    Ok(obj)
 }
 
 fn eval_string_infix_expression(
     operator: &str,
-    left: &Option<Object>,
-    right: &Option<Object>,
-) -> Option<Object> {
+    left: &StringObj,
+    right: &StringObj,
+) -> Result<Object, String> {
     if operator != "+" {
-        return new_error(format!(
+        return Err(format!(
             "unknown operator: {} {} {}",
-            get_type(&left),
+            left.get_type(),
             operator,
-            get_type(&right)
+            right.get_type()
         ));
     }
-    if let Some(Object::StringObj(StringObj { value })) = left {
-        let left_val = value;
-        if let Some(Object::StringObj(StringObj { value })) = right {
-            let right_val = value;
-            return Some(Object::StringObj(StringObj {
-                value: format!("{}{}", left_val, right_val),
-            }));
-        }
-    }
-    None
+    return Ok(Object::StringObj(StringObj {
+        value: format!("{}{}", left.value, right.value),
+    }));
 }
 
-fn eval_index_expression(left: Object, index: Object) -> Option<Object> {
-    if let Object::Array(_) = left {
-        if let Object::Integer(_) = index {
-            return eval_array_index_expression(left, index);
+fn eval_index_expression(left: &Object, index: &Object) -> Result<Object, String> {
+    if let Object::Array(Array { elements }) = left {
+        if let Object::Integer(Integer { value }) = index {
+            return eval_array_index_expression(elements, *value);
         }
     } else if let Object::Hash(hash_obj) = left {
         return eval_hash_index_expression(hash_obj, index);
     }
-    new_error(format!("index operator not supported: {}", left.get_type()))
+    Err(format!("index operator not supported: {}", left.get_type()))
 }
 
-fn eval_array_index_expression(array: Object, index: Object) -> Option<Object> {
-    if let Object::Array(Array { elements }) = array {
-        if let Object::Integer(Integer { value }) = index {
-            let idx = value;
-            let max = elements.len() as i64 - 1;
-            if idx < 0 || idx > max {
-                return Some(Object::Null(NULL));
-            }
-            return Some(elements[idx as usize].clone());
-        }
+fn eval_array_index_expression(elements: &Vec<Object>, idx: i64) -> Result<Object, String> {
+    let max = elements.len() as i64 - 1;
+    if idx < 0 || idx > max {
+        return Ok(Object::Null(NULL));
     }
-    None
+    return Ok(elements[idx as usize].clone());
 }
 
-fn eval_hash_literal(node: HashLiteral, env: Rc<RefCell<Environment>>) -> Option<Object> {
+fn eval_hash_literal(node: HashLiteral, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
     let mut pairs: HashMap<HashKey, Object> = HashMap::new();
 
-    for (key_node, value_node) in node.pairs.iter() {
-        let key = eval(Node::Expression(key_node.clone()), Rc::clone(&env));
-        if is_error(&key) {
-            return key;
-        }
-        if key.is_none() {
-            return None;
-        }
-
-        if let Some(hash_key) = key.as_ref().unwrap().as_hashable() {
-            let value = eval(Node::Expression(value_node.clone()), Rc::clone(&env));
-            if is_error(&value) {
-                return value;
-            }
-            if value.is_none() {
-                return None;
-            }
+    for (key_node, value_node) in node.pairs.into_iter() {
+        let key = eval(Node::Expression(key_node), Rc::clone(&env))?;
+        if let Some(hash_key) = key.as_hashable() {
+            let value = eval(Node::Expression(value_node), Rc::clone(&env))?;
             let hashed = hash_key.hash_key();
-            pairs.insert(hashed, value.unwrap());
+            pairs.insert(hashed, value);
         } else {
-            panic!("unusable as hash key: {}", get_type(&key));
+            panic!("unusable as hash key: {}", key.get_type());
         }
     }
-    Some(Object::Hash(Hash { pairs: pairs }))
+    Ok(Object::Hash(Hash { pairs: pairs }))
 }
 
-fn eval_hash_index_expression(hash: Hash, index: Object) -> Option<Object> {
+fn eval_hash_index_expression(hash: &Hash, index: &Object) -> Result<Object, String> {
     if let Some(key) = index.as_hashable() {
         if let Some(pair) = hash.pairs.get(&key.hash_key()) {
-            return Some(pair.clone());
+            return Ok(pair.clone());
         }
-        return Some(Object::Null(NULL));
+        Ok(Object::Null(NULL))
     } else {
-        return new_error(format!("unusable as hash key: {}", index.get_type()));
+        Err(format!("unusable as hash key: {}", index.get_type()))
     }
 }

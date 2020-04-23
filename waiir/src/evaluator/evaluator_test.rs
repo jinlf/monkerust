@@ -35,17 +35,24 @@ fn test_eval_integer_expression() {
     }
 }
 
-fn test_eval(input: &str) -> Option<Object> {
+fn test_eval(input: &str) -> Object {
     let env = Rc::new(RefCell::new(new_environment()));
 
     let l = Lexer::new(input);
     let mut p = Parser::new(l);
-    let program = p.parse_program();
-    eval(Node::Program(program.unwrap()), Rc::clone(&env))
+    match p.parse_program() {
+        Ok(program) => {
+            return match eval(Node::Program(program), Rc::clone(&env)) {
+                Ok(o) => o,
+                Err(err) => Object::ErrorObj(ErrorObj { message: err }),
+            }
+        }
+        Err(errors) => panic!("{:?}", errors),
+    }
 }
 
-fn test_integer_object(obj: Option<Object>, expected: i64) {
-    if let Some(Object::Integer(Integer { value })) = obj {
+fn test_integer_object(obj: Object, expected: i64) {
+    if let Object::Integer(Integer { value }) = obj {
         assert!(
             value == expected,
             "object has wrong value. got={}, want={}",
@@ -86,8 +93,8 @@ fn test_eval_boolean_expression() {
     }
 }
 
-fn test_boolean_object(obj: Option<Object>, expected: bool) {
-    if let Some(Object::Boolean(Boolean { value })) = obj {
+fn test_boolean_object(obj: Object, expected: bool) {
+    if let Object::Boolean(Boolean { value }) = obj {
         assert!(
             value == expected,
             "object has wrong value. got={}, want={}",
@@ -118,34 +125,25 @@ fn test_bang_operator() {
 
 #[test]
 fn test_if_else_expression() {
-    let tests: [(&str, Option<Object>); 7] = [
-        (
-            "if (true) { 10 }",
-            Some(Object::Integer(Integer { value: 10 })),
-        ),
-        ("if (false) { 10 }", None),
-        (
-            "if (1) { 10 }",
-            Some(Object::Integer(Integer { value: 10 })),
-        ),
-        (
-            "if (1 < 2) { 10 }",
-            Some(Object::Integer(Integer { value: 10 })),
-        ),
-        ("if (1 > 2) { 10 }", None),
+    let tests = vec![
+        ("if (true) { 10 }", Object::Integer(Integer { value: 10 })),
+        ("if (false) { 10 }", Object::Null(NULL)),
+        ("if (1) { 10 }", Object::Integer(Integer { value: 10 })),
+        ("if (1 < 2) { 10 }", Object::Integer(Integer { value: 10 })),
+        ("if (1 > 2) { 10 }", Object::Null(NULL)),
         (
             "if (1 > 2) { 10 } else { 20 }",
-            Some(Object::Integer(Integer { value: 20 })),
+            Object::Integer(Integer { value: 20 }),
         ),
         (
             "if (1 < 2) { 10 } else { 20 }",
-            Some(Object::Integer(Integer { value: 10 })),
+            Object::Integer(Integer { value: 10 }),
         ),
     ];
 
     for tt in tests.iter() {
         let evaluated = test_eval(tt.0);
-        if let Some(Object::Integer(Integer { value })) = tt.1 {
+        if let Object::Integer(Integer { value }) = tt.1 {
             test_integer_object(evaluated, value);
         } else {
             test_null_object(evaluated);
@@ -153,9 +151,9 @@ fn test_if_else_expression() {
     }
 }
 
-fn test_null_object(obj: Option<Object>) {
+fn test_null_object(obj: Object) {
     assert!(
-        obj == Some(Object::Null(NULL)),
+        obj == Object::Null(NULL),
         "object is not NULL, got={:?}",
         obj
     );
@@ -217,7 +215,7 @@ return 1;
 
     for tt in tests.iter() {
         let evaluated = test_eval(tt.0);
-        if let Some(Object::ErrorObj(ErrorObj { message })) = evaluated {
+        if let Object::ErrorObj(ErrorObj { message }) = evaluated {
             assert!(
                 message == tt.1,
                 "wrong error message. expected={}, got={}",
@@ -248,11 +246,11 @@ fn test_let_statements() {
 fn test_function_object() {
     let input = "fn(x) { x + 2; };";
     let evaluated = test_eval(input);
-    if let Some(Object::Function(Function {
+    if let Object::Function(Function {
         parameters,
         body,
         env: _,
-    })) = evaluated
+    }) = evaluated
     {
         assert!(
             parameters.len() == 1,
@@ -309,7 +307,7 @@ addTwo(2);";
 fn test_string_literal() {
     let input = r#""Hello World!""#;
     let evaluated = test_eval(input);
-    if let Some(Object::StringObj(StringObj { value })) = evaluated {
+    if let Object::StringObj(StringObj { value }) = evaluated {
         assert!(
             value == "Hello World!",
             "String has wrong value. got={:?}",
@@ -324,7 +322,7 @@ fn test_string_literal() {
 fn test_string_concatenation() {
     let input = r#""Hello" + " " + "World!""#;
     let evaluated = test_eval(input);
-    if let Some(Object::StringObj(StringObj { value })) = evaluated {
+    if let Object::StringObj(StringObj { value }) = evaluated {
         assert!(
             value == "Hello World!",
             "String has wrong value. got={:?}",
@@ -337,7 +335,7 @@ fn test_string_concatenation() {
 
 #[test]
 fn test_builtin_functions() {
-    let tests: [(&str, Object); 5] = [
+    let tests = vec![
         (r#"len("")"#, Object::Integer(Integer { value: 0 })),
         (r#"len("four")"#, Object::Integer(Integer { value: 4 })),
         (
@@ -364,7 +362,7 @@ fn test_builtin_functions() {
             test_integer_object(evaluated, *value);
         } else if let Object::ErrorObj(ErrorObj { message }) = &tt.1 {
             let expected_message = message;
-            if let Some(Object::ErrorObj(ErrorObj { message })) = evaluated {
+            if let Object::ErrorObj(ErrorObj { message }) = evaluated {
                 assert!(
                     message == *expected_message,
                     "wrong error message. expected={:?}, got={:?}",
@@ -382,16 +380,16 @@ fn test_builtin_functions() {
 fn test_array_literals() {
     let input = "[1, 2 * 2, 3 + 3]";
     let evaluated = test_eval(input);
-    if let Some(Object::Array(Array { elements })) = evaluated {
+    if let Object::Array(Array { elements }) = evaluated {
         assert!(
             elements.len() == 3,
             "array has wrong num of elments. got={}",
             elements.len()
         );
 
-        test_integer_object(Some(elements[0].clone()), 1);
-        test_integer_object(Some(elements[1].clone()), 4);
-        test_integer_object(Some(elements[2].clone()), 6);
+        test_integer_object(elements[0].clone(), 1);
+        test_integer_object(elements[1].clone(), 4);
+        test_integer_object(elements[2].clone(), 6);
     } else {
         panic!("object is not Array. got={:?}", evaluated);
     }
@@ -399,7 +397,7 @@ fn test_array_literals() {
 
 #[test]
 fn test_array_index_expressions() {
-    let tests: [(&str, Object); 10] = [
+    let tests = vec![
         ("[1, 2, 3][0]", Object::Integer(Integer { value: 1 })),
         ("[1, 2, 3][1]", Object::Integer(Integer { value: 2 })),
         ("[1, 2, 3][2]", Object::Integer(Integer { value: 3 })),
@@ -443,7 +441,7 @@ fn test_hash_literals() {
         false: 6
     }"#;
     let evaluated = test_eval(input);
-    if let Some(Object::Hash(Hash { pairs })) = evaluated {
+    if let Object::Hash(Hash { pairs }) = evaluated {
         let mut expected: HashMap<HashKey, i64> = HashMap::new();
         expected.insert(
             StringObj {
@@ -477,7 +475,7 @@ fn test_hash_literals() {
         );
         for (expected_key, expected_value) in expected.iter() {
             if let Some(pair) = pairs.get(expected_key) {
-                test_integer_object(Some(pair.clone()), *expected_value);
+                test_integer_object(pair.clone(), *expected_value);
             } else {
                 panic!("no pair for given key in pairs");
             }
@@ -489,31 +487,25 @@ fn test_hash_literals() {
 
 #[test]
 fn test_hash_index_expressions() {
-    let tests: [(&str, Option<Object>); 7] = [
+    let tests = vec![
         (
             r#"{"foo": 5}["foo"]"#,
-            Some(Object::Integer(Integer { value: 5 })),
+            Object::Integer(Integer { value: 5 }),
         ),
-        (r#"{"foo": 5}["bar"]"#, Some(Object::Null(NULL))),
+        (r#"{"foo": 5}["bar"]"#, Object::Null(NULL)),
         (
             r#"let key = "foo"; {"foo": 5}[key]"#,
-            Some(Object::Integer(Integer { value: 5 })),
+            Object::Integer(Integer { value: 5 }),
         ),
-        (r#"{}["foo"]"#, Some(Object::Null(NULL))),
-        ("{5: 5} [5]", Some(Object::Integer(Integer { value: 5 }))),
-        (
-            "{true: 5}[true]",
-            Some(Object::Integer(Integer { value: 5 })),
-        ),
-        (
-            "{false: 5}[false]",
-            Some(Object::Integer(Integer { value: 5 })),
-        ),
+        (r#"{}["foo"]"#, Object::Null(NULL)),
+        ("{5: 5} [5]", Object::Integer(Integer { value: 5 })),
+        ("{true: 5}[true]", Object::Integer(Integer { value: 5 })),
+        ("{false: 5}[false]", Object::Integer(Integer { value: 5 })),
     ];
 
     for tt in tests.iter() {
         let evaluated = test_eval(tt.0);
-        if let Some(Object::Integer(integer)) = &tt.1 {
+        if let Object::Integer(integer) = &tt.1 {
             test_integer_object(evaluated, integer.value);
         } else {
             test_null_object(evaluated);

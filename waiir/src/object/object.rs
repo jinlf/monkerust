@@ -171,7 +171,7 @@ impl ObjectTrait for StringObj {
     }
 }
 
-pub type BuiltinFunction = fn(&Vec<Option<Object>>) -> Option<Object>;
+pub type BuiltinFunction = fn(&Vec<Object>) -> std::result::Result<Object, String>;
 
 pub struct Builtin {
     pub func: BuiltinFunction,

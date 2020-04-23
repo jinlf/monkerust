@@ -20,27 +20,20 @@ pub fn new_environment() -> Environment {
 
 #[derive(Debug)]
 pub struct Environment {
-    pub store: HashMap<String, Option<Object>>,
+    pub store: HashMap<String, Object>,
     pub outer: Option<Rc<RefCell<Environment>>>,
 }
 impl Environment {
-    pub fn get(&self, name: String) -> Option<Option<Object>> {
-        if let Some(v) = self.store.get(&name) {
-            if let Some(vv) = v {
-                return Some(Some(vv.clone()));
-            }
+    pub fn get(&self, name: &str) -> Option<Object> {
+        if let Some(v) = self.store.get(name) {
+            return Some(v.clone());
         } else if let Some(o) = &self.outer {
             return o.borrow().get(name);
         }
         None
     }
-    pub fn set(&mut self, name: String, val: Option<Object>) -> Option<Object> {
-        if let Some(v) = val {
-            self.store.insert(name, Some(v.clone()));
-            Some(v)
-        } else {
-            self.store.insert(name, None);
-            None
-        }
+    pub fn set(&mut self, name: String, val: Object) -> Object {
+        self.store.insert(name, val.clone());
+        val
     }
 }

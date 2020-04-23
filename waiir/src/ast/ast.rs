@@ -9,10 +9,20 @@ pub trait NodeTrait {
     fn string(&self) -> String;
 }
 
+#[derive(Debug, Clone)]
 pub enum Node {
     Program(Program),
     Statement(Statement),
     Expression(Expression),
+}
+impl NodeTrait for Node {
+    fn string(&self) -> String {
+        match self {
+            Node::Program(p) => p.string(),
+            Node::Statement(s) => s.string(),
+            Node::Expression(e) => e.string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -67,6 +77,7 @@ impl NodeTrait for Expression {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Program {
     pub statements: Vec<Statement>,
 }
