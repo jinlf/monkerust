@@ -3,7 +3,7 @@
 use std::collections::*;
 use std::convert::TryInto;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct Instructions(pub Vec<u8>);
 impl std::fmt::Debug for Instructions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -61,7 +61,7 @@ impl Instructions {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Hash, Eq)]
+#[derive(Debug, PartialEq, Hash, Eq, Clone)]
 pub enum Opcode {
     OpConstant = 0,
     OpAdd,

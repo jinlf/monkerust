@@ -1,11 +1,10 @@
 // src/evaluator_test.rs
 
-use super::ast::*;
-use super::environment::*;
-use super::evaluator::*;
-use super::lexer::*;
-use super::object::*;
-use super::parser::*;
+use crate::ast::*;
+use crate::evaluator::*;
+use crate::lexer::*;
+use crate::object::*;
+use crate::parser::*;
 use std::cell::*;
 use std::collections::*;
 use std::rc::*;
@@ -54,7 +53,7 @@ fn test_integer_object(obj: Option<Object>, expected: i64) {
             expected
         );
     } else {
-        assert!(false, "object is not Integer. got={:?}", obj);
+        panic!("object is not Integer. got={:?}", obj);
     }
 }
 
@@ -96,7 +95,7 @@ fn test_boolean_object(obj: Option<Object>, expected: bool) {
             expected
         );
     } else {
-        assert!(false, "object is not BooleanLiteral. got={:?}", obj);
+        panic!("object is not BooleanLiteral. got={:?}", obj);
     }
 }
 
@@ -226,7 +225,7 @@ return 1;
                 message
             );
         } else {
-            assert!(false, "no error object returned. got={:?}", evaluated);
+            panic!("no error object returned. got={:?}", evaluated);
         }
     }
 }
@@ -275,7 +274,7 @@ fn test_function_object() {
             body.string()
         );
     } else {
-        assert!(false, "object is not Function. got={:?}", evaluated);
+        panic!("object is not Function. got={:?}", evaluated);
     }
 }
 
@@ -317,7 +316,7 @@ fn test_string_literal() {
             value
         );
     } else {
-        assert!(false, "object is not String. got={:?}", evaluated);
+        panic!("object is not String. got={:?}", evaluated);
     }
 }
 
@@ -332,7 +331,7 @@ fn test_string_concatenation() {
             value
         );
     } else {
-        assert!(false, "object is not String. got={:?}", evaluated);
+        panic!("object is not String. got={:?}", evaluated);
     }
 }
 
@@ -373,7 +372,7 @@ fn test_builtin_functions() {
                     message
                 );
             } else {
-                assert!(false, "object is not Error. got={:?}", evaluated);
+                panic!("object is not Error. got={:?}", evaluated);
             }
         }
     }
@@ -394,7 +393,7 @@ fn test_array_literals() {
         test_integer_object(Some(elements[1].clone()), 4);
         test_integer_object(Some(elements[2].clone()), 6);
     } else {
-        assert!(false, "object is not Array. got={:?}", evaluated);
+        panic!("object is not Array. got={:?}", evaluated);
     }
 }
 
@@ -480,11 +479,11 @@ fn test_hash_literals() {
             if let Some(pair) = pairs.get(expected_key) {
                 test_integer_object(Some(pair.clone()), *expected_value);
             } else {
-                assert!(false, "no pair for given key in pairs");
+                panic!("no pair for given key in pairs");
             }
         }
     } else {
-        assert!(false, "eval didn't return Hash. got={:?}", evaluated);
+        panic!("eval didn't return Hash. got={:?}", evaluated);
     }
 }
 

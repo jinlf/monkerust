@@ -4,7 +4,7 @@ use std::cell::*;
 use std::collections::*;
 use std::rc::*;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum SymbolScope {
     GlobalScope,
     LocalScope,
@@ -12,7 +12,7 @@ pub enum SymbolScope {
     FreeScope,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Symbol {
     pub name: String,
     pub scope: SymbolScope,

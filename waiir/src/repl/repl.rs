@@ -1,11 +1,10 @@
 // src/repl.rs
 
-use super::ast::*;
-use super::environment::*;
-use super::evaluator::*;
-use super::lexer::*;
-use super::object::*;
-use super::parser::*;
+use crate::ast::*;
+use crate::evaluator::*;
+use crate::lexer::*;
+use crate::object::*;
+use crate::parser::*;
 use std::cell::*;
 use std::io::*;
 use std::rc::*;
@@ -25,14 +24,15 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
         }
         let l = Lexer::new(&line);
         let mut p = Parser::new(l);
-        let program = p.parse_program();
-        if p.errors.len() != 0 {
-            print_parser_errors(output, &p.errors);
-            continue;
-        }
-        if program.is_some() {
-            if let Some(evaluated) = eval(Node::Program(program.unwrap()), Rc::clone(&env)) {
-                writeln!(output, "{}", evaluated.inspect()).unwrap();
+        match p.parse_program() {
+            Err(errors) => {
+                print_parser_errors(output, &errors);
+                continue;
+            }
+            Ok(program) => {
+                if let Some(evaluated) = eval(Node::Program(program), Rc::clone(&env)) {
+                    writeln!(output, "{}", evaluated.inspect()).unwrap();
+                }
             }
         }
     }

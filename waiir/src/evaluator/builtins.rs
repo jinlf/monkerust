@@ -1,7 +1,7 @@
 // src/buildins.rs
 
-use super::evaluator::*;
-use super::object::*;
+use crate::evaluator::*;
+use crate::object::*;
 
 pub fn get_builtin(name: &str) -> Option<Object> {
     match name {

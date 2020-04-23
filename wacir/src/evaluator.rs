@@ -158,7 +158,7 @@ fn eval_program(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
     let mut result: Option<Object> = None;
     if let Node::Program(Program { statements }) = node {
         for statement in statements.iter() {
-            result = eval(Node::Statement(statement.clone()), Rc::clone(&env));
+            result = eval(Node::Statement(*statement), Rc::clone(&env));
             if let Some(Object::ReturnValue(ReturnValue { value })) = result {
                 return Some(*value);
             } else if let Some(Object::ErrorObj(_)) = result {
@@ -310,7 +310,7 @@ fn is_truthy(obj: &Option<Object>) -> bool {
 fn eval_block_statement(block: BlockStatement, env: Rc<RefCell<Environment>>) -> Option<Object> {
     let mut result: Option<Object> = None;
     for statement in block.statements.iter() {
-        result = eval(Node::Statement(statement.clone()), Rc::clone(&env));
+        result = eval(Node::Statement(*statement), Rc::clone(&env));
 
         if let Some(Object::ReturnValue(_)) = result {
             return result;
@@ -354,7 +354,7 @@ fn eval_identifier(node: Identifier, env: Rc<RefCell<Environment>>) -> Option<Ob
 fn eval_expressions(exps: Vec<Expression>, env: Rc<RefCell<Environment>>) -> Vec<Option<Object>> {
     let mut result: Vec<Option<Object>> = Vec::new();
     for e in exps.iter() {
-        let evaluated = eval(Node::Expression(e.clone()), Rc::clone(&env));
+        let evaluated = eval(Node::Expression(*e), Rc::clone(&env));
         if is_error(&evaluated) {
             return vec![evaluated];
         }
@@ -365,7 +365,7 @@ fn eval_expressions(exps: Vec<Expression>, env: Rc<RefCell<Environment>>) -> Vec
 
 fn apply_function(func: Option<Object>, args: Vec<Option<Object>>) -> Option<Object> {
     if let Some(Object::Function(function)) = func {
-        let extended_env = Rc::new(RefCell::new(extend_function_env(function.clone(), args)));
+        let extended_env = Rc::new(RefCell::new(extend_function_env(function, args)));
         let evaluated = eval(
             Node::Statement(Statement::BlockStatement(function.body)),
             Rc::clone(&extended_env),
@@ -447,7 +447,7 @@ fn eval_hash_literal(node: HashLiteral, env: Rc<RefCell<Environment>>) -> Option
     let mut pairs: HashMap<HashKey, Object> = HashMap::new();
 
     for (key_node, value_node) in node.pairs.iter() {
-        let key = eval(Node::Expression(key_node.clone()), Rc::clone(&env));
+        let key = eval(Node::Expression(*key_node), Rc::clone(&env));
         if is_error(&key) {
             return key;
         }
@@ -456,7 +456,7 @@ fn eval_hash_literal(node: HashLiteral, env: Rc<RefCell<Environment>>) -> Option
         }
 
         if let Some(hash_key) = key.as_ref().unwrap().as_hashable() {
-            let value = eval(Node::Expression(value_node.clone()), Rc::clone(&env));
+            let value = eval(Node::Expression(*value_node), Rc::clone(&env));
             if is_error(&value) {
                 return value;
             }

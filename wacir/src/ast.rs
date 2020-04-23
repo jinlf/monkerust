@@ -16,7 +16,7 @@ pub enum Node {
     Expression(Expression),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Statement {
     LetStatement(LetStatement),
     ReturnStatement(ReturnStatement),
@@ -42,7 +42,7 @@ impl NodeTrait for Statement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
@@ -112,7 +112,7 @@ impl NodeTrait for Program {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct LetStatement {
     pub token: Token,
     pub name: Identifier,
@@ -132,7 +132,7 @@ impl NodeTrait for LetStatement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Identifier {
     pub token: Token,
     pub value: String,
@@ -146,7 +146,7 @@ impl NodeTrait for Identifier {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ReturnStatement {
     pub token: Token,
     pub return_value: Expression,
@@ -160,7 +160,7 @@ impl NodeTrait for ReturnStatement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ExpressionStatement {
     pub token: Token,
     pub expression: Expression,
@@ -174,7 +174,7 @@ impl NodeTrait for ExpressionStatement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct IntegerLiteral {
     pub token: Token,
     pub value: i64,
@@ -188,7 +188,7 @@ impl NodeTrait for IntegerLiteral {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PrefixExpression {
     pub token: Token,
     pub operator: String,
@@ -203,7 +203,7 @@ impl NodeTrait for PrefixExpression {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct InfixExpression {
     pub token: Token,
     pub left: Box<Expression>,
@@ -224,7 +224,7 @@ impl NodeTrait for InfixExpression {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct BooleanLiteral {
     pub token: Token,
     pub value: bool,
@@ -238,7 +238,7 @@ impl NodeTrait for BooleanLiteral {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct IfExpression {
     pub token: Token,
     pub condition: Box<Expression>,
@@ -263,7 +263,7 @@ impl NodeTrait for IfExpression {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct BlockStatement {
     pub token: Token,
     pub statements: Vec<Statement>,
@@ -282,7 +282,7 @@ impl NodeTrait for BlockStatement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct FunctionLiteral {
     pub token: Token,
     pub parameters: Vec<Identifier>,
@@ -306,7 +306,7 @@ impl NodeTrait for FunctionLiteral {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct CallExpression {
     pub token: Token,
     pub function: Box<Expression>,
@@ -329,7 +329,7 @@ impl NodeTrait for CallExpression {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct StringLiteral {
     pub token: Token,
     pub value: String,
@@ -343,7 +343,7 @@ impl NodeTrait for StringLiteral {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ArrayLiteral {
     pub token: Token,
     pub elements: Vec<Expression>,
@@ -364,7 +364,7 @@ impl NodeTrait for ArrayLiteral {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct IndexExpression {
     pub token: Token,
     pub left: Box<Expression>,
@@ -379,7 +379,6 @@ impl NodeTrait for IndexExpression {
     }
 }
 
-#[derive(Clone)]
 pub struct HashLiteral {
     pub token: Token,
     pub pairs: HashMap<Expression, Expression>,

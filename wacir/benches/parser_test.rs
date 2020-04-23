@@ -719,7 +719,7 @@ fn test_function_literal_parsing() {
     let program = p.parse_program();
     check_parser_errors(&mut p);
 
-    if let Some(Program { statements }) = program {
+    if let Some(Program { mut statements }) = program {
         assert!(
             statements.len() == 1,
             "program.body does not contain {} statements. got={}",
@@ -730,11 +730,11 @@ fn test_function_literal_parsing() {
         if let Statement::ExpressionStatement(ExpressionStatement {
             token: _,
             expression,
-        }) = &statements[0]
+        }) = statements.remove(0)
         {
             if let Expression::FunctionLiteral(FunctionLiteral {
                 token: _,
-                parameters,
+                mut parameters,
                 body,
             }) = expression
             {
@@ -745,11 +745,11 @@ fn test_function_literal_parsing() {
                 );
 
                 test_literal_expression(
-                    &Expression::Identifier(parameters[0].clone()),
+                    &Expression::Identifier(parameters.remove(0)),
                     &*Box::new("x"),
                 );
                 test_literal_expression(
-                    &Expression::Identifier(parameters[1].clone()),
+                    &Expression::Identifier(parameters.remove(1)),
                     &*Box::new("y"),
                 );
 

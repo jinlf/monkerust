@@ -2,8 +2,13 @@
 
 extern crate test;
 
-use test::{black_box, Bencher};
 use super::object::*;
+use test::Bencher;
+
+#[bench]
+fn bennch_string_hash_key(b: &mut Bencher) {
+    b.iter(|| test_string_hash_key());
+}
 
 #[test]
 fn test_string_hash_key() {

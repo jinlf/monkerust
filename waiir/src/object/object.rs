@@ -1,7 +1,7 @@
 // src/object.rs
 
-use super::ast::*;
-use super::environment::*;
+use crate::ast::*;
+use crate::object::*;
 use std::cell::*;
 use std::collections::hash_map::*;
 use std::fmt::*;

@@ -6,7 +6,7 @@ pub struct Token {
     pub literal: String,
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Hash, Eq)]
 pub enum TokenType {
     ILLEGAL,   // unknown character
     EOF,       // end of file

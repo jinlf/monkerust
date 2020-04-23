@@ -20,9 +20,9 @@ pub const NULL: Object = Object::Null(Null {});
 
 pub struct Vm {
     pub constants: Rc<RefCell<Vec<Object>>>,
-    pub stack: Vec<Option<Object>>,
+    pub stack: [Option<Object>; STACK_SIZE],
     pub sp: usize, // Always points to the next value. Top of stack is stack[sp-1]
-    globals: Rc<RefCell<Vec<Option<Object>>>>,
+    globals: Rc<RefCell<[Option<Object>; GLOBALS_SIZE]>>,
     frames: Vec<Frame>,
     frame_index: usize,
 }
@@ -54,10 +54,10 @@ impl Vm {
         ];
         frames[0] = main_frame;
 
-        let globals = Rc::new(RefCell::new(vec![None; GLOBALS_SIZE]));
+        let globals = Rc::new(RefCell::new(init_globals()));
         Vm {
             constants: Rc::clone(&bytecode.constants),
-            stack: vec![None; STACK_SIZE],
+            stack: init_stack(),
             sp: 0, // Always points to the next value. Top of stack is stack[sp-1]
             globals: Rc::clone(&globals),
             frames: frames,
@@ -353,7 +353,10 @@ impl Vm {
         }
     }
 
-    pub fn new_with_globals_store(bytecode: Bytecode, s: Rc<RefCell<Vec<Option<Object>>>>) -> Vm {
+    pub fn new_with_globals_store(
+        bytecode: Bytecode,
+        s: Rc<RefCell<[Option<Object>; GLOBALS_SIZE]>>,
+    ) -> Vm {
         let main_fn = CompiledFunction {
             instructions: bytecode.instuctions.clone(),
             num_locals: 0,
@@ -383,7 +386,7 @@ impl Vm {
         Vm {
             constants: bytecode.constants,
 
-            stack: vec![None; STACK_SIZE],
+            stack: init_stack(),
             sp: 0, // Always points to the next value. Top of stack is stack[sp-1]
             globals: Rc::clone(&s),
             frames: frames,
@@ -606,4 +609,28 @@ fn is_truthy(obj: &Option<Object>) -> bool {
         return false;
     }
     true
+}
+
+pub fn init_stack() -> [Option<Object>; STACK_SIZE] {
+    let mut data: [std::mem::MaybeUninit<Option<Object>>; STACK_SIZE] =
+        unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+    for elem in &mut data[..] {
+        unsafe {
+            std::ptr::write(elem.as_mut_ptr(), None);
+        }
+    }
+
+    unsafe { std::mem::transmute::<_, [Option<Object>; STACK_SIZE]>(data) }
+}
+
+pub fn init_globals() -> [Option<Object>; GLOBALS_SIZE] {
+    let mut data: [std::mem::MaybeUninit<Option<Object>>; GLOBALS_SIZE] =
+        unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+    for elem in &mut data[..] {
+        unsafe {
+            std::ptr::write(elem.as_mut_ptr(), None);
+        }
+    }
+
+    unsafe { std::mem::transmute::<_, [Option<Object>; GLOBALS_SIZE]>(data) }
 }

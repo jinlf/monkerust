@@ -1,7 +1,7 @@
 // src/lexer_test.rs
 
-use super::lexer::*;
-use super::token::*;
+use crate::lexer::*;
+use crate::token::*;
 
 #[test]
 fn test_next_token() {

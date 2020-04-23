@@ -38,9 +38,9 @@ impl Compiler {
 
     pub fn compile(&mut self, node: Node) -> Result<(), String> {
         match node {
-            Node::Program(Program { statements }) => {
-                for s in statements.iter() {
-                    self.compile(Node::Statement(s.clone()))?;
+            Node::Program(Program { mut statements }) => {
+                for _ in 0..statements.len() {
+                    self.compile(Node::Statement(statements.remove(0)))?;
                 }
             }
             Node::Statement(Statement::ExpressionStatement(ExpressionStatement {
@@ -145,10 +145,10 @@ impl Compiler {
             }
             Node::Statement(Statement::BlockStatement(BlockStatement {
                 token: _,
-                statements,
+                mut statements,
             })) => {
-                for s in statements.iter() {
-                    self.compile(Node::Statement(s.clone()))?;
+                for _ in 0..statements.len() {
+                    self.compile(Node::Statement(statements.remove(0)))?;
                 }
             }
             Node::Statement(Statement::LetStatement(LetStatement {
@@ -186,16 +186,19 @@ impl Compiler {
                 }
                 self.emit(Opcode::OpArray, vec![len]);
             }
-            Node::Expression(Expression::HashLiteral(HashLiteral { token: _, pairs })) => {
-                let mut keys: Vec<Expression> =
-                    pairs.keys().into_iter().map(|x| x.clone()).collect();
+            Node::Expression(Expression::HashLiteral(HashLiteral {
+                token: _,
+                mut pairs,
+            })) => {
+                let mut keys: Vec<&Expression> = pairs.keys().into_iter().map(|x| x).collect();
 
                 keys.sort_by_key(|x| x.string());
 
-                for k in keys.iter() {
-                    let v = &pairs[k];
-                    self.compile(Node::Expression(k.clone()))?;
-                    self.compile(Node::Expression(v.clone()))?;
+                for _ in 0..keys.len() {
+                    let k = keys.remove(0);
+                    let v = pairs[k];
+                    self.compile(Node::Expression(*k))?;
+                    self.compile(Node::Expression(v))?;
                 }
 
                 self.emit(Opcode::OpHash, vec![(pairs.len() * 2) as i64]);
@@ -230,7 +233,7 @@ impl Compiler {
                     self.emit(Opcode::OpReturn, Vec::new());
                 }
 
-                let free_symbols = self.symbol_table.borrow().free_symbols.clone();
+                let free_symbols = &self.symbol_table.borrow().free_symbols;
                 let num_locals = self.symbol_table.borrow().num_definitions;
                 let instructions = self.leave_scope();
 
@@ -442,7 +445,7 @@ pub struct Bytecode {
     pub constants: Rc<RefCell<Vec<Object>>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub struct EmittedInstruction {
     pub opcode: Opcode,
     pub position: usize,

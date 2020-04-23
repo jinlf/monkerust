@@ -2,7 +2,6 @@
 
 extern crate test;
 
-use test::Bencher;
 use super::ast::*;
 use super::environment::*;
 use super::evaluator::*;
@@ -12,9 +11,10 @@ use super::parser::*;
 use std::cell::*;
 use std::collections::*;
 use std::rc::*;
+use test::Bencher;
 
 #[bench]
-fn bench_eval_integer_expression(b:&mut Bencher) {
+fn bench_eval_integer_expression(b: &mut Bencher) {
     b.iter(|| test_eval_integer_expression());
 }
 
@@ -67,7 +67,7 @@ fn test_integer_object(obj: Option<Object>, expected: i64) {
 }
 
 #[bench]
-fn bench_eval_boolean_expression(b:&mut Bencher) {
+fn bench_eval_boolean_expression(b: &mut Bencher) {
     b.iter(|| test_eval_boolean_expression());
 }
 
@@ -396,16 +396,16 @@ fn test_builtin_functions() {
 fn test_array_literals() {
     let input = "[1, 2 * 2, 3 + 3]";
     let evaluated = test_eval(input);
-    if let Some(Object::Array(Array { elements })) = evaluated {
+    if let Some(Object::Array(Array { mut elements })) = evaluated {
         assert!(
             elements.len() == 3,
             "array has wrong num of elments. got={}",
             elements.len()
         );
 
-        test_integer_object(Some(elements[0].clone()), 1);
-        test_integer_object(Some(elements[1].clone()), 4);
-        test_integer_object(Some(elements[2].clone()), 6);
+        test_integer_object(Some(elements.remove(0)), 1);
+        test_integer_object(Some(elements.remove(0)), 4);
+        test_integer_object(Some(elements.remove(2)), 6);
     } else {
         assert!(false, "object is not Array. got={:?}", evaluated);
     }

@@ -1,17 +1,17 @@
 // src/lexer.rs
 
-use super::token::*;
+use crate::token::*;
 
-pub struct Lexer<'a> {
-    input: &'a str,
+pub struct Lexer {
+    input: String,
     position: usize,      // 当前字符位置
     read_position: usize, // 当前读取位置（在当前字符位置之后）
     ch: u8,               // 当前字符
 }
-impl<'a> Lexer<'a> {
-    pub fn new(input: &'a str) -> Lexer<'a> {
+impl Lexer {
+    pub fn new(input: &str) -> Lexer {
         let mut l = Lexer {
-            input: input,
+            input: input.to_owned(),
             position: 0,
             read_position: 0,
             ch: 0,

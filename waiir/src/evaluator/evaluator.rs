@@ -1,9 +1,8 @@
 // src/evaluator.rs
 
-use super::ast::*;
 use super::builtins::*;
-use super::environment::*;
-use super::object::*;
+use crate::ast::*;
+use crate::object::*;
 use std::cell::*;
 use std::collections::*;
 use std::rc::*;
@@ -14,7 +13,7 @@ pub const NULL: Null = Null {};
 
 pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
     match node {
-        Node::Program(_) => eval_program(node, Rc::clone(&env)),
+        Node::Program(program) => eval_program(program, Rc::clone(&env)),
         Node::Statement(Statement::ExpressionStatement(ExpressionStatement {
             token: _,
             expression,
@@ -105,9 +104,9 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
             if is_error(&function_obj) {
                 return function_obj;
             }
-            let args = eval_expressions(arguments, Rc::clone(&env));
+            let mut args = eval_expressions(arguments, Rc::clone(&env));
             if args.len() == 1 && is_error(&args[0]) {
-                return args[0].clone();
+                return args.remove(0);
             }
             apply_function(function_obj, args)
         }
@@ -115,14 +114,13 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
             Some(Object::StringObj(StringObj { value: value }))
         }
         Node::Expression(Expression::ArrayLiteral(ArrayLiteral { token: _, elements })) => {
-            let elements_obj = eval_expressions(elements, Rc::clone(&env));
+            let mut elements_obj = eval_expressions(elements, Rc::clone(&env));
             if elements_obj.len() == 1 && is_error(&elements_obj[0]) {
-                return elements_obj[0].clone();
+                return elements_obj.remove(0);
             }
             Some(Object::Array(Array {
                 elements: elements_obj
                     .iter()
-                    .filter(|x| x.is_some())
                     .map(|x| x.as_ref().unwrap().clone())
                     .collect(),
             }))
@@ -154,16 +152,14 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
     }
 }
 
-fn eval_program(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
+fn eval_program(program: Program, env: Rc<RefCell<Environment>>) -> Option<Object> {
     let mut result: Option<Object> = None;
-    if let Node::Program(Program { statements }) = node {
-        for statement in statements.iter() {
-            result = eval(Node::Statement(statement.clone()), Rc::clone(&env));
-            if let Some(Object::ReturnValue(ReturnValue { value })) = result {
-                return Some(*value);
-            } else if let Some(Object::ErrorObj(_)) = result {
-                return result;
-            }
+    for statement in program.statements.iter() {
+        result = eval(Node::Statement(statement.clone()), Rc::clone(&env));
+        if let Some(Object::ReturnValue(ReturnValue { value })) = result {
+            return Some(*value);
+        } else if let Some(Object::ErrorObj(_)) = result {
+            return result;
         }
     }
     result
@@ -466,7 +462,7 @@ fn eval_hash_literal(node: HashLiteral, env: Rc<RefCell<Environment>>) -> Option
             let hashed = hash_key.hash_key();
             pairs.insert(hashed, value.unwrap());
         } else {
-            assert!(false, "unusable as hash key: {}", get_type(&key));
+            panic!("unusable as hash key: {}", get_type(&key));
         }
     }
     Some(Object::Hash(Hash { pairs: pairs }))

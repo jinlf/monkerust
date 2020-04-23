@@ -128,11 +128,31 @@ impl ObjectTrait for ErrorObj {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Function {
     pub parameters: Vec<Identifier>,
     pub body: BlockStatement,
     pub env: Rc<RefCell<Environment>>,
+}
+impl Clone for Function {
+    fn clone(&self) -> Self {
+        let parameters: Vec<Identifier> = Vec::new();
+        for p in self.parameters.iter() {
+            parameters.push(Identifier {
+                token: p.token.clone(),
+                value: p.value.clone(),
+            });
+        }
+
+        Function {
+            parameters: parameters,
+            body: BlockStatement {
+                token: self.body.token.clone(),
+                statements: Vec::new(),
+            },
+            env: Rc::clone(&self.env),
+        }
+    }
 }
 impl ObjectTrait for Function {
     fn get_type(&self) -> String {
@@ -180,6 +200,7 @@ impl ObjectTrait for StringObj {
 
 pub type BuiltinFunction = fn(&Vec<Option<Object>>) -> Option<Object>;
 
+#[derive(Clone)]
 pub struct Builtin {
     pub func: BuiltinFunction,
 }
@@ -202,11 +223,6 @@ impl PartialEq for Builtin {
     }
 }
 impl Eq for Builtin {}
-impl Clone for Builtin {
-    fn clone(&self) -> Self {
-        Builtin { func: self.func }
-    }
-}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Array {

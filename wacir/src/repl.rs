@@ -22,7 +22,8 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
     let mut scanner = BufReader::new(input);
     // let env = Rc::new(RefCell::new(new_environment()));
     let mut constants: Rc<RefCell<Vec<Object>>> = Rc::new(RefCell::new(Vec::new()));
-    let globals: Rc<RefCell<Vec<Option<Object>>>> = Rc::new(RefCell::new(vec![None; GLOBALS_SIZE]));
+    let globals: Rc<RefCell<[Option<Object>; GLOBALS_SIZE]>> =
+        Rc::new(RefCell::new(init_globals()));
     let mut st = SymbolTable::new();
     for (i, v) in get_builtin_names().iter().enumerate() {
         st.define_builtin(i, v);

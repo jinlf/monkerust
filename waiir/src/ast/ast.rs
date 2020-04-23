@@ -1,12 +1,11 @@
 // src/ast.rs
 
-use super::token::*;
+use crate::token::*;
 use std::collections::*;
 use std::hash::Hash as StdHash;
 use std::hash::Hasher;
 
 pub trait NodeTrait {
-    fn token_literal(&self) -> String;
     fn string(&self) -> String;
 }
 
@@ -24,14 +23,6 @@ pub enum Statement {
     BlockStatement(BlockStatement),
 }
 impl NodeTrait for Statement {
-    fn token_literal(&self) -> String {
-        match self {
-            Statement::LetStatement(let_stmt) => let_stmt.token_literal(),
-            Statement::ReturnStatement(return_stmt) => return_stmt.token_literal(),
-            Statement::ExpressionStatement(expr_stmt) => expr_stmt.token_literal(),
-            Statement::BlockStatement(block_stmt) => block_stmt.token_literal(),
-        }
-    }
     fn string(&self) -> String {
         match self {
             Statement::LetStatement(let_stmt) => let_stmt.string(),
@@ -58,22 +49,6 @@ pub enum Expression {
     HashLiteral(HashLiteral),
 }
 impl NodeTrait for Expression {
-    fn token_literal(&self) -> String {
-        match self {
-            Expression::Identifier(ident) => ident.token_literal(),
-            Expression::IntegerLiteral(integer_literal) => integer_literal.token_literal(),
-            Expression::PrefixExpression(prefix_expr) => prefix_expr.token_literal(),
-            Expression::InfixExpression(infix_expr) => infix_expr.token_literal(),
-            Expression::BooleanLiteral(bo) => bo.token_literal(),
-            Expression::IfExpression(if_expr) => if_expr.token_literal(),
-            Expression::FunctionLiteral(function_literal) => function_literal.token_literal(),
-            Expression::CallExpression(call_expr) => call_expr.token_literal(),
-            Expression::StringLiteral(string_literal) => string_literal.token_literal(),
-            Expression::ArrayLiteral(array_literal) => array_literal.token_literal(),
-            Expression::IndexExpression(index_expr) => index_expr.token_literal(),
-            Expression::HashLiteral(hash_literal) => hash_literal.token_literal(),
-        }
-    }
     fn string(&self) -> String {
         match self {
             Expression::Identifier(ident) => ident.string(),
@@ -96,13 +71,6 @@ pub struct Program {
     pub statements: Vec<Statement>,
 }
 impl NodeTrait for Program {
-    fn token_literal(&self) -> String {
-        if self.statements.len() > 0 {
-            self.statements[0].token_literal()
-        } else {
-            String::new()
-        }
-    }
     fn string(&self) -> String {
         let mut out = String::new();
         for s in self.statements.iter() {
@@ -119,13 +87,10 @@ pub struct LetStatement {
     pub value: Expression,
 }
 impl NodeTrait for LetStatement {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         format!(
             "{} {} = {};",
-            self.token_literal(),
+            self.token.literal,
             self.name.string(),
             self.value.string(),
         )
@@ -138,9 +103,6 @@ pub struct Identifier {
     pub value: String,
 }
 impl NodeTrait for Identifier {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         self.value.clone()
     }
@@ -152,11 +114,8 @@ pub struct ReturnStatement {
     pub return_value: Expression,
 }
 impl NodeTrait for ReturnStatement {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
-        format!("{} {};", self.token_literal(), self.return_value.string())
+        format!("{} {};", self.token.literal, self.return_value.string())
     }
 }
 
@@ -166,9 +125,6 @@ pub struct ExpressionStatement {
     pub expression: Expression,
 }
 impl NodeTrait for ExpressionStatement {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         self.expression.string()
     }
@@ -180,9 +136,6 @@ pub struct IntegerLiteral {
     pub value: i64,
 }
 impl NodeTrait for IntegerLiteral {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         self.token.literal.clone()
     }
@@ -195,9 +148,6 @@ pub struct PrefixExpression {
     pub right: Box<Expression>,
 }
 impl NodeTrait for PrefixExpression {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         format!("({}{})", self.operator, self.right.string())
     }
@@ -211,9 +161,6 @@ pub struct InfixExpression {
     pub right: Box<Expression>,
 }
 impl NodeTrait for InfixExpression {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         format!(
             "({} {} {})",
@@ -230,9 +177,6 @@ pub struct BooleanLiteral {
     pub value: bool,
 }
 impl NodeTrait for BooleanLiteral {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         self.token.literal.clone()
     }
@@ -246,9 +190,6 @@ pub struct IfExpression {
     pub alternative: Option<BlockStatement>,
 }
 impl NodeTrait for IfExpression {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         let mut out = String::new();
         out.push_str(&format!(
@@ -269,9 +210,6 @@ pub struct BlockStatement {
     pub statements: Vec<Statement>,
 }
 impl NodeTrait for BlockStatement {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         let mut out = String::new();
 
@@ -289,13 +227,10 @@ pub struct FunctionLiteral {
     pub body: BlockStatement,
 }
 impl NodeTrait for FunctionLiteral {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         format!(
             "{} ({}) {}",
-            self.token_literal(),
+            self.token.literal,
             self.parameters
                 .iter()
                 .map(|x| x.string())
@@ -313,9 +248,6 @@ pub struct CallExpression {
     pub arguments: Vec<Expression>,
 }
 impl NodeTrait for CallExpression {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         format!(
             "{}({})",
@@ -335,9 +267,6 @@ pub struct StringLiteral {
     pub value: String,
 }
 impl NodeTrait for StringLiteral {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         format!("{}", self.value)
     }
@@ -349,9 +278,6 @@ pub struct ArrayLiteral {
     pub elements: Vec<Expression>,
 }
 impl NodeTrait for ArrayLiteral {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         format!(
             "[{}]",
@@ -371,9 +297,6 @@ pub struct IndexExpression {
     pub index: Box<Expression>,
 }
 impl NodeTrait for IndexExpression {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         format!("({}[{}])", self.left.string(), self.index.string())
     }
@@ -385,9 +308,6 @@ pub struct HashLiteral {
     pub pairs: HashMap<Expression, Expression>,
 }
 impl NodeTrait for HashLiteral {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         format!(
             "{{{}}}",

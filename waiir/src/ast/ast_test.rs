@@ -1,7 +1,7 @@
 // src/ast_test.rs
 
-use super::ast::*;
-use super::token::*;
+use crate::ast::*;
+use crate::token::*;
 
 #[test]
 fn test_string() {
