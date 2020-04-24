@@ -244,7 +244,7 @@ impl NodeTrait for FunctionLiteral {
             self.token.literal,
             self.parameters
                 .iter()
-                .map(|x| x.string())
+                .map(|x| { x.string() })
                 .collect::<Vec<String>>()
                 .join(", "),
             self.body.string()

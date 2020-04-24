@@ -40,7 +40,7 @@ impl Lexer {
             b'"' => {
                 tok = Token {
                     tk_type: TokenType::STRING,
-                    literal: self.read_string(),
+                    literal: String::from(self.read_string()),
                 }
             }
             b'=' => {
@@ -90,13 +90,13 @@ impl Lexer {
                     let literal = self.read_identifier();
                     tok = Token {
                         tk_type: lookup_ident(&literal),
-                        literal: literal,
+                        literal: String::from(literal),
                     };
                     return tok;
                 } else if self.ch.is_ascii_digit() {
                     tok = Token {
                         tk_type: TokenType::INT,
-                        literal: self.read_number(),
+                        literal: String::from(self.read_number()),
                     };
                     return tok;
                 }
@@ -107,12 +107,12 @@ impl Lexer {
         tok
     }
 
-    fn read_identifier(&mut self) -> String {
+    fn read_identifier(&mut self) -> &str {
         let position = self.position;
         while is_letter(self.ch) {
             self.read_char();
         }
-        String::from(&self.input[position..self.position])
+        &self.input[position..self.position]
     }
 
     fn skip_whitespace(&mut self) {
@@ -124,12 +124,12 @@ impl Lexer {
         }
     }
 
-    fn read_number(&mut self) -> String {
+    fn read_number(&mut self) -> &str {
         let position = self.position;
         while self.ch.is_ascii_digit() {
             self.read_char();
         }
-        String::from(&self.input[position..self.position])
+        &self.input[position..self.position]
     }
 
     fn peek_char(&mut self) -> u8 {
@@ -140,7 +140,7 @@ impl Lexer {
         }
     }
 
-    fn read_string(&mut self) -> String {
+    fn read_string(&mut self) -> &str {
         let position = self.position + 1;
         loop {
             self.read_char();
@@ -148,7 +148,7 @@ impl Lexer {
                 break;
             }
         }
-        String::from(&self.input[position..self.position])
+        &self.input[position..self.position]
     }
 }
 

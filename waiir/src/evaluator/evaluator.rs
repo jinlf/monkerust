@@ -71,7 +71,7 @@ fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
             value,
         })) => {
             let val = eval(Node::Expression(value), Rc::clone(&env))?;
-            Ok(env.borrow_mut().set(name.value, val))
+            Ok(env.borrow_mut().set(name.value, val).clone())
         }
         Node::Expression(Expression::Identifier(ident)) => eval_identifier(ident, Rc::clone(&env)),
         Node::Expression(Expression::FunctionLiteral(FunctionLiteral {
@@ -89,8 +89,8 @@ fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
             arguments,
         })) => {
             let function_obj = eval(Node::Expression(*function), Rc::clone(&env))?;
-            let args = eval_expressions(arguments, Rc::clone(&env))?;
-            apply_function(function_obj, args)
+            let mut args = eval_expressions(arguments, Rc::clone(&env))?;
+            apply_function(function_obj, &mut args)
         }
         Node::Expression(Expression::StringLiteral(StringLiteral { token: _, value })) => {
             Ok(Object::StringObj(StringObj { value: value }))
@@ -271,7 +271,7 @@ fn eval_block_statement(
 
 fn eval_identifier(node: Identifier, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
     if let Some(val) = env.borrow().get(&node.value) {
-        Ok(val)
+        Ok(val.clone())
     } else if let Some(builtin) = get_builtin(&node.value) {
         Ok(builtin)
     } else {
@@ -291,7 +291,7 @@ fn eval_expressions(
     Ok(result)
 }
 
-fn apply_function(func: Object, args: Vec<Object>) -> Result<Object, String> {
+fn apply_function(func: Object, args: &mut Vec<Object>) -> Result<Object, String> {
     if let Object::Function(function) = func {
         let extended_env = Rc::new(RefCell::new(extend_function_env(&function, args)));
         let evaluated = eval(
@@ -306,10 +306,13 @@ fn apply_function(func: Object, args: Vec<Object>) -> Result<Object, String> {
     }
 }
 
-fn extend_function_env(func: &Function, args: Vec<Object>) -> Environment {
+fn extend_function_env(func: &Function, args: &mut Vec<Object>) -> Environment {
     let mut env = new_enclosed_environment(Some(Rc::clone(&func.env)));
     for (param_idx, param) in func.parameters.iter().enumerate() {
-        env.set(param.value.clone(), args[param_idx].clone());
+        env.set(
+            param.value.clone(),
+            std::mem::replace(&mut args[param_idx], Object::Null(NULL)),
+        );
     }
     env
 }
@@ -342,7 +345,7 @@ fn eval_string_infix_expression(
 fn eval_index_expression(left: &Object, index: &Object) -> Result<Object, String> {
     if let Object::Array(Array { elements }) = left {
         if let Object::Integer(Integer { value }) = index {
-            return eval_array_index_expression(elements, *value);
+            return eval_array_index_expression(&elements, *value);
         }
     } else if let Object::Hash(hash_obj) = left {
         return eval_hash_index_expression(hash_obj, index);

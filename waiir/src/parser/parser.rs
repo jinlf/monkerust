@@ -78,8 +78,7 @@ impl Parser {
     }
 
     pub fn next_token(&mut self) {
-        self.cur_token = self.peek_token.clone();
-        self.peek_token = self.l.next_token();
+        self.cur_token = std::mem::replace(&mut self.peek_token, self.l.next_token());
     }
 
     pub fn parse_program(&mut self) -> Result<Program, Vec<String>> {
@@ -424,7 +423,7 @@ impl Parser {
 
         Ok(Expression::ArrayLiteral(ArrayLiteral {
             token: token,
-            elements: elements,
+            elements: elements.to_vec(),
         }))
     }
 

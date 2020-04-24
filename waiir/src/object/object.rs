@@ -10,7 +10,7 @@ use std::hash::Hasher;
 use std::rc::*;
 
 pub trait ObjectTrait {
-    fn get_type(&self) -> String;
+    fn get_type(&self) -> &str;
     fn inspect(&self) -> String;
 }
 
@@ -28,7 +28,7 @@ pub enum Object {
     Hash(Hash),
 }
 impl ObjectTrait for Object {
-    fn get_type(&self) -> String {
+    fn get_type(&self) -> &str {
         match self {
             Object::Integer(i) => i.get_type(),
             Object::Boolean(b) => b.get_type(),
@@ -63,8 +63,8 @@ pub struct Integer {
     pub value: i64,
 }
 impl ObjectTrait for Integer {
-    fn get_type(&self) -> String {
-        String::from("INTEGER")
+    fn get_type(&self) -> &str {
+        "INTEGER"
     }
     fn inspect(&self) -> String {
         format!("{}", self.value)
@@ -76,8 +76,8 @@ pub struct Boolean {
     pub value: bool,
 }
 impl ObjectTrait for Boolean {
-    fn get_type(&self) -> String {
-        String::from("BOOLEAN")
+    fn get_type(&self) -> &str {
+        "BOOLEAN"
     }
     fn inspect(&self) -> String {
         format!("{}", self.value)
@@ -87,8 +87,8 @@ impl ObjectTrait for Boolean {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Null {}
 impl ObjectTrait for Null {
-    fn get_type(&self) -> String {
-        String::from("NULL")
+    fn get_type(&self) -> &str {
+        "NULL"
     }
     fn inspect(&self) -> String {
         String::from("null")
@@ -100,8 +100,8 @@ pub struct ReturnValue {
     pub value: Box<Object>,
 }
 impl ObjectTrait for ReturnValue {
-    fn get_type(&self) -> String {
-        String::from("RETURN_VALUE")
+    fn get_type(&self) -> &str {
+        "RETURN_VALUE"
     }
     fn inspect(&self) -> String {
         self.value.inspect()
@@ -113,8 +113,8 @@ pub struct ErrorObj {
     pub message: String,
 }
 impl ObjectTrait for ErrorObj {
-    fn get_type(&self) -> String {
-        String::from("ERROR")
+    fn get_type(&self) -> &str {
+        "ERROR"
     }
     fn inspect(&self) -> String {
         format!("ERROR: {}", self.message)
@@ -128,8 +128,8 @@ pub struct Function {
     pub env: Rc<RefCell<Environment>>,
 }
 impl ObjectTrait for Function {
-    fn get_type(&self) -> String {
-        String::from("FUNCTION")
+    fn get_type(&self) -> &str {
+        "FUNCTION"
     }
     fn inspect(&self) -> String {
         format!(
@@ -163,8 +163,8 @@ pub struct StringObj {
     pub value: String,
 }
 impl ObjectTrait for StringObj {
-    fn get_type(&self) -> String {
-        String::from("STRING")
+    fn get_type(&self) -> &str {
+        "STRING"
     }
     fn inspect(&self) -> String {
         self.value.clone()
@@ -177,8 +177,8 @@ pub struct Builtin {
     pub func: BuiltinFunction,
 }
 impl ObjectTrait for Builtin {
-    fn get_type(&self) -> String {
-        String::from("BUILTIN")
+    fn get_type(&self) -> &str {
+        "BUILTIN"
     }
     fn inspect(&self) -> String {
         String::from("builtin function")
@@ -206,8 +206,8 @@ pub struct Array {
     pub elements: Vec<Object>,
 }
 impl ObjectTrait for Array {
-    fn get_type(&self) -> String {
-        String::from("ARRAY")
+    fn get_type(&self) -> &str {
+        "ARRAY"
     }
     fn inspect(&self) -> String {
         format!(
@@ -279,8 +279,8 @@ impl PartialEq for Hash {
     }
 }
 impl ObjectTrait for Hash {
-    fn get_type(&self) -> String {
-        String::from("HASH")
+    fn get_type(&self) -> &str {
+        "HASH"
     }
     fn inspect(&self) -> String {
         format!(
