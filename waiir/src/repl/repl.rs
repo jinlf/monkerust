@@ -51,7 +51,7 @@ const MONKEY_FACE: &str = r#"
            '-----'
 "#;
 
-fn print_parser_errors(output: &mut dyn Write, errors: &Vec<String>) {
+fn print_parser_errors(output: &mut dyn Write, errors: &[String]) {
     writeln!(output, "{}", MONKEY_FACE).unwrap();
     writeln!(output, "Woops! We ran into some monkey business here!").unwrap();
     writeln!(output, " parser errros:").unwrap();

@@ -20,12 +20,10 @@ pub fn evaluate(node: Node, env: Rc<RefCell<Environment>>) -> Object {
 fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
     match node {
         Node::Program(program) => eval_program(program, Rc::clone(&env)),
-
         Node::Statement(Statement::ExpressionStatement(ExpressionStatement {
             token: _,
             expression,
         })) => eval(Node::Expression(expression), Rc::clone(&env)),
-
         Node::Expression(Expression::IntegerLiteral(IntegerLiteral { token: _, value })) => {
             Ok(Object::Integer(Integer { value: value }))
         }
@@ -309,10 +307,7 @@ fn apply_function(func: Object, args: &mut Vec<Object>) -> Result<Object, String
 fn extend_function_env(func: &Function, args: &mut Vec<Object>) -> Environment {
     let mut env = new_enclosed_environment(Some(Rc::clone(&func.env)));
     for (param_idx, param) in func.parameters.iter().enumerate() {
-        env.set(
-            param.value.clone(),
-            std::mem::replace(&mut args[param_idx], Object::Null(NULL)),
-        );
+        env.set(param.value.clone(), args[param_idx].clone());
     }
     env
 }

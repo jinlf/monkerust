@@ -78,7 +78,8 @@ impl Parser {
     }
 
     pub fn next_token(&mut self) {
-        self.cur_token = std::mem::replace(&mut self.peek_token, self.l.next_token());
+        self.cur_token = self.peek_token.clone();
+        self.peek_token = self.l.next_token();
     }
 
     pub fn parse_program(&mut self) -> Result<Program, Vec<String>> {
@@ -86,12 +87,10 @@ impl Parser {
         let mut errors = Vec::new();
         while self.cur_token.tk_type != TokenType::EOF {
             match self.parse_statement() {
-                Ok(stmt) => {
-                    statements.push(stmt);
-                    self.next_token();
-                }
+                Ok(stmt) => statements.push(stmt),
                 Err(err) => errors.push(err),
             }
+            self.next_token();
         }
         if errors.len() != 0 {
             return Err(errors);
@@ -112,6 +111,7 @@ impl Parser {
 
     fn parse_let_statement(&mut self) -> Result<Statement, String> {
         let token = self.cur_token.clone();
+
         self.expect_peek(TokenType::IDENT)?;
 
         let name = Identifier {
@@ -122,6 +122,7 @@ impl Parser {
         self.expect_peek(TokenType::ASSIGN)?;
 
         self.next_token();
+
         let value = self.parse_expression(Precedence::LOWEST)?;
 
         if self.peek_token_is(TokenType::SEMICOLON) {
