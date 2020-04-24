@@ -202,7 +202,7 @@ impl From<i64> for ExpectedType {
 }
 impl From<&str> for ExpectedType {
     fn from(v: &str) -> Self {
-        ExpectedType::Sval(v.to_owned())
+        ExpectedType::Sval(String::from(v))
     }
 }
 impl From<bool> for ExpectedType {

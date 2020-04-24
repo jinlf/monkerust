@@ -11,7 +11,13 @@ pub const TRUE: Boolean = Boolean { value: true };
 pub const FALSE: Boolean = Boolean { value: false };
 pub const NULL: Null = Null {};
 
-pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
+pub fn evaluate(node: Node, env: Rc<RefCell<Environment>>) -> Object {
+    match eval(node, env) {
+        Ok(v) => v,
+        Err(err) => Object::ErrorObj(ErrorObj { message: err }),
+    }
+}
+fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
     match node {
         Node::Program(program) => eval_program(program, Rc::clone(&env)),
 

@@ -31,7 +31,7 @@ fn test_eval_integer_expression() {
 
     for tt in tests.iter() {
         let evaluated = test_eval(tt.0);
-        test_integer_object(evaluated, tt.1);
+        test_integer_object(&evaluated, tt.1);
     }
 }
 
@@ -41,20 +41,15 @@ fn test_eval(input: &str) -> Object {
     let l = Lexer::new(input);
     let mut p = Parser::new(l);
     match p.parse_program() {
-        Ok(program) => {
-            return match eval(Node::Program(program), Rc::clone(&env)) {
-                Ok(o) => o,
-                Err(err) => Object::ErrorObj(ErrorObj { message: err }),
-            }
-        }
+        Ok(program) => evaluate(Node::Program(program), Rc::clone(&env)),
         Err(errors) => panic!("{:?}", errors),
     }
 }
 
-fn test_integer_object(obj: Object, expected: i64) {
+fn test_integer_object(obj: &Object, expected: i64) {
     if let Object::Integer(Integer { value }) = obj {
         assert!(
-            value == expected,
+            *value == expected,
             "object has wrong value. got={}, want={}",
             value,
             expected
@@ -144,7 +139,7 @@ fn test_if_else_expression() {
     for tt in tests.iter() {
         let evaluated = test_eval(tt.0);
         if let Object::Integer(Integer { value }) = tt.1 {
-            test_integer_object(evaluated, value);
+            test_integer_object(&evaluated, value);
         } else {
             test_null_object(evaluated);
         }
@@ -179,7 +174,7 @@ fn test_return_statements() {
 
     for tt in tests.iter() {
         let evaluated = test_eval(tt.0);
-        test_integer_object(evaluated, tt.1);
+        test_integer_object(&evaluated, tt.1);
     }
 }
 
@@ -238,7 +233,7 @@ fn test_let_statements() {
     ];
 
     for tt in tests.iter() {
-        test_integer_object(test_eval(tt.0), tt.1);
+        test_integer_object(&test_eval(tt.0), tt.1);
     }
 }
 
@@ -288,7 +283,7 @@ fn test_function_application() {
     ];
 
     for tt in tests.iter() {
-        test_integer_object(test_eval(tt.0), tt.1);
+        test_integer_object(&test_eval(tt.0), tt.1);
     }
 }
 
@@ -300,7 +295,7 @@ fn(y) { x + y };
 };
 let addTwo = newAdder(2);
 addTwo(2);";
-    test_integer_object(test_eval(input), 4);
+    test_integer_object(&test_eval(input), 4);
 }
 
 #[test]
@@ -359,7 +354,7 @@ fn test_builtin_functions() {
     for tt in tests.iter() {
         let evaluated = test_eval(tt.0);
         if let Object::Integer(Integer { value }) = &tt.1 {
-            test_integer_object(evaluated, *value);
+            test_integer_object(&evaluated, *value);
         } else if let Object::ErrorObj(ErrorObj { message }) = &tt.1 {
             let expected_message = message;
             if let Object::ErrorObj(ErrorObj { message }) = evaluated {
@@ -387,9 +382,9 @@ fn test_array_literals() {
             elements.len()
         );
 
-        test_integer_object(elements[0].clone(), 1);
-        test_integer_object(elements[1].clone(), 4);
-        test_integer_object(elements[2].clone(), 6);
+        test_integer_object(&elements[0], 1);
+        test_integer_object(&elements[1], 4);
+        test_integer_object(&elements[2], 6);
     } else {
         panic!("object is not Array. got={:?}", evaluated);
     }
@@ -422,7 +417,7 @@ fn test_array_index_expressions() {
     for tt in tests.iter() {
         let evaluated = test_eval(tt.0);
         if let Object::Integer(Integer { value }) = tt.1 {
-            test_integer_object(evaluated, value);
+            test_integer_object(&evaluated, value);
         } else {
             test_null_object(evaluated);
         }
@@ -475,7 +470,7 @@ fn test_hash_literals() {
         );
         for (expected_key, expected_value) in expected.iter() {
             if let Some(pair) = pairs.get(expected_key) {
-                test_integer_object(pair.clone(), *expected_value);
+                test_integer_object(&pair, *expected_value);
             } else {
                 panic!("no pair for given key in pairs");
             }
@@ -506,7 +501,7 @@ fn test_hash_index_expressions() {
     for tt in tests.iter() {
         let evaluated = test_eval(tt.0);
         if let Object::Integer(integer) = &tt.1 {
-            test_integer_object(evaluated, integer.value);
+            test_integer_object(&evaluated, integer.value);
         } else {
             test_null_object(evaluated);
         }

@@ -11,7 +11,7 @@ pub struct Lexer {
 impl Lexer {
     pub fn new(input: &str) -> Lexer {
         let mut l = Lexer {
-            input: input.to_owned(),
+            input: String::from(input),
             position: 0,
             read_position: 0,
             ch: 0,

@@ -1,3 +1,6 @@
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 mod ast;
 mod evaluator;
 mod lexer;
@@ -12,10 +15,9 @@ use crate::object::*;
 use crate::parser::*;
 use std::cell::*;
 use std::rc::*;
-use std::time::*;
 
 fn main() {
-    let input = "
+  let input = "
 let fibonacci = fn(x) {
   if (x == 0) {
     0
@@ -27,27 +29,18 @@ let fibonacci = fn(x) {
     }
   }
 };
-fibonacci(28);
+fibonacci(30);
     ";
 
-    let l = Lexer::new(input);
-    let mut p = Parser::new(l);
+  let l = Lexer::new(input);
+  let mut p = Parser::new(l);
 
-    match p.parse_program() {
-        Ok(program) => {
-            let env = Rc::new(RefCell::new(new_environment()));
-            let now = SystemTime::now();
-            match evaluator::eval(Node::Program(program), Rc::clone(&env)) {
-                Ok(result) => {
-                    println!(
-                        "result={}, duration={:?}",
-                        result.inspect(),
-                        now.elapsed().unwrap().as_millis()
-                    );
-                }
-                Err(err) => panic!("{}", err),
-            }
-        }
-        Err(err) => panic!("{:?}", err),
+  match p.parse_program() {
+    Ok(program) => {
+      let env = Rc::new(RefCell::new(new_environment()));
+      let result = evaluator::evaluate(Node::Program(program), Rc::clone(&env));
+      println!("result={}", result.inspect());
     }
+    Err(err) => panic!("{:?}", err),
+  }
 }

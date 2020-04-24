@@ -320,7 +320,7 @@ impl Parser {
 
         while !self.cur_token_is(TokenType::RBRACE) {
             if self.cur_token_is(TokenType::EOF) {
-                return Err("EOF".to_owned());
+                return Err(String::from("EOF"));
             }
             let stmt = self.parse_statement()?;
             statements.push(stmt);
