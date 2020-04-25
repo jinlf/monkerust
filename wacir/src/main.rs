@@ -4,18 +4,14 @@
 extern crate lazy_static;
 
 mod ast;
-mod builtins;
 #[macro_use]
 mod code;
 mod compiler;
-mod environment;
 mod evaluator;
-mod frame;
 mod lexer;
 mod object;
 mod parser;
 mod repl;
-mod symbol_table;
 mod token;
 mod vm;
 
