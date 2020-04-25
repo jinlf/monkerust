@@ -50,7 +50,7 @@ impl NodeTrait for Expression {
 
 Rust语言具有强大的enum和match匹配能力，本文用enum来定义Node、Statement和Expression，以便用match语句进行类型匹配。
 
-上述代码中的NodeTrait规定了所有Node的共同特征，具有token_literal方法，该方法返回当前Node节点的Token字面量（literal)。Monkey语言AST中节点Node可以是Statement，也可以是Expression。下面再加上一种：Program节点。
+上述代码中的NodeTrait规定了所有Node的共同特征，具有string方法，该方法返回当前Node节点转成的字符串值。Monkey语言AST中节点Node可以是Statement，也可以是Expression。下面再加上一种：Program节点。
 
 定义Program：
 ```rust,noplaypen
@@ -351,7 +351,7 @@ fn panic_with_errors(errors: Vec<String>) {
 fn test_let_statement(s: &Statement, expected_name: &str) {
     assert!(
         &s.string()[0..3] == "let",
-        "s.token_literal not 'let'. got={}",
+        "s.token.literal not 'let'. got={}",
         s.string()
     );
 
@@ -506,9 +506,9 @@ pub enum Expression {
     MockExpression, //TODO remove
 }
 impl NodeTrait for Expression {
-    fn token_literal(&self) -> String {
+    fn string(&self) -> String {
         match self {
-            Expression::Identifier(ident) => ident.token_literal(),
+            Expression::Identifier(ident) => ident.string(),
             Expression::MockExpression => String::new(), //TODO remove
         }
     }

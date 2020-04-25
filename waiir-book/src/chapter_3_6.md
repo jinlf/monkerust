@@ -137,8 +137,8 @@ pub struct ExpressionStatement {
     pub expression: Expression,
 }
 impl NodeTrait for ExpressionStatement {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
+    fn string(&self) -> String {
+        self.expression.string()
     }
 }
 ```
@@ -153,27 +153,6 @@ pub enum Statement {
     ExpressionStatement(ExpressionStatement),
 }
 impl NodeTrait for Statement {
-    fn token_literal(&self) -> String {
-        match self {
-            Statement::LetStatement(let_stmt) => let_stmt.token_literal(),
-            Statement::ReturnStatement(return_stmt) => return_stmt.token_literal(),
-            Statement::ExpressionStatement(expr_stmt) => expr_stmt.token_literal(),
-        }
-    }
-}
-```
-
-给NodeTrait增加string方法，并通过补写各种Node的string方法来解决由此带来的一系列编译问题。
-```rust,noplaypen
-// src/ats.rs
-
-pub trait NodeTrait {
-    fn token_literal(&self) -> String;
-    fn string(&self) -> String;
-}
-
-impl NodeTrait for Statement {
-// [...]
     fn string(&self) -> String {
         match self {
             Statement::LetStatement(let_stmt) => let_stmt.string(),
@@ -182,67 +161,14 @@ impl NodeTrait for Statement {
         }
     }
 }
-
-impl NodeTrait for Expression {
-// [...]
-    fn string(&self) -> String {
-        match self {
-            Expression::Identifier(ident) => ident.string(),
-            Expression::MockExpression { v: _ } => String::new(), //TODO remove
-        }
-    }
-}
-
-impl NodeTrait for Program {
-// [...]
-    fn string(&self) -> String {
-        let mut out = String::new();
-        for s in self.statements.iter() {
-            out.push_str(&s.string());
-        }
-        out
-    }
-}
-
-impl NodeTrait for LetStatement {
-// [...]
-    fn string(&self) -> String {
-        format!(
-            "{} {} = {};",
-            self.token_literal(),
-            self.name.string(),
-            self.value.string(),
-        )
-    }
-}
-
-impl NodeTrait for Identifier {
-// [...]
-    fn string(&self) -> String {
-        self.value.clone()
-    }
-}
-
-impl NodeTrait for ReturnStatement {
-// [...]
-    fn string(&self) -> String {
-        format!("{} {};", self.token_literal(), self.return_value.string())
-    }
-}
-
-impl NodeTrait for ExpressionStatement {
-// [...]
-    fn string(&self) -> String {
-        self.expression.string()
-    }
-}
 ```
+
 下面写AST的一个测试用例：
 ```rust,noplaypen
 // src/ast/ast_test.rs
 
-use super::ast::*;
-use super::token::*;
+use crate::ast::*;
+use crate::token::*;
 
 #[test]
 fn test_string() {
@@ -276,9 +202,9 @@ fn test_string() {
     );
 }
 ```
-在lib.rs中加入
+在src/ast/mod.rs中加入
 ```rust,noplaypen
-// src/lib.rs
+// src/ast/mod.rs
 
 #[cfg(test)]
 mod ast_test;
@@ -287,7 +213,44 @@ mod ast_test;
 
 ## 实现普拉特解析器
 
-原著中实现的普拉特解析器，使用了Go语言的函数指针。我用Rust实现类似的方式时，发现Rust中可变方法指针的使用不是很方便，考虑原因应该是这种灵活的写法容易带来内存管理方面的不安全，Rust不推荐也不适用这种方式。于是本文中将解析函数调用直接写到前缀和中缀表达式解析过程中，原理是一致的。
+实现函数指针：
+```rust,noplaypen
+// src/parser/parser.rs
+
+use std::collections::HashMap;
+
+type PrefixParseFn = fn(&mut Parser) -> Result<Expression, String>;
+type InfixParseFn = fn(&mut Parser, Expression) -> Result<Expression, String>;
+
+// [...]
+pub struct Parser {
+    pub l: Lexer,
+    pub cur_token: Token,
+    pub peek_token: Token,
+    pub prefix_parse_fns: HashMap<TokenType, PrefixParseFn>,
+    pub infix_parse_fns: HashMap<TokenType, InfixParseFn>,
+}
+
+impl Parser {
+    pub fn new(l: Lexer) -> Parser {
+        let mut p = Parser {
+            l: l,
+            cur_token: new_token(TokenType::ILLEGAL, 0),
+            peek_token: new_token(TokenType::ILLEGAL, 0),
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+// [...]        
+    }
+// [...]   
+    fn register_prefix(&mut self, token_type: TokenType, func: PrefixParseFn) {
+        self.prefix_parse_fns.insert(token_type, func);
+    }
+    fn register_infix(&mut self, token_type: TokenType, func: InfixParseFn) {
+        self.infix_parse_fns.insert(token_type, func);
+    } 
+}
+```
 
 先考虑Monkey语言中最简单的表达式：标识符。表达式语句中的标识符是这样的：
 ```js
@@ -311,45 +274,43 @@ fn test_identifier_expression() {
     let input = "foobar;";
     let l = Lexer::new(input);
     let mut p = Parser::new(l);
-    let program = p.parse_program();
-    check_parser_errors(&mut p);
-
-    if let Some(Program { statements }) = program {
-        assert!(
-            statements.len() == 1,
-            "program has not enough statements. got={}",
-            statements.len()
-        );
-        if let Statement::ExpressionStatement(ExpressionStatement {
-            token: _,
-            expression,
-        }) = &statements[0]
-        {
-            if let Expression::Identifier(Identifier { token, value }) = expression {
-                assert!(
-                    value == "foobar",
-                    "ident.value not {}. got={}",
-                    "foobar",
-                    value
-                );
-                assert!(
-                    token.literal == "foobar",
-                    "ident.token_literal not {}. got={}",
-                    "foobar",
-                    token.literal
-                );
-            } else {
-                assert!(false, "exp not Identifier. got={:?}", expression);
-            }
-        } else {
+    match p.parse_program() {
+        Ok(Program { statements }) => {
             assert!(
-                false,
-                "program.statements[0] is not ExpressionStatement. got={:?}",
-                &statements[0]
+                statements.len() == 1,
+                "program has not enough statements. got={}",
+                statements.len()
             );
+            if let Statement::ExpressionStatement(ExpressionStatement {
+                token: _,
+                expression,
+            }) = &statements[0]
+            {
+                if let Expression::Identifier(Identifier { token, value }) = expression {
+                    assert!(
+                        value == "foobar",
+                        "ident.value not {}. got={}",
+                        "foobar",
+                        value
+                    );
+                    assert!(
+                        token.literal == "foobar",
+                        "ident.token.literal not {}. got={}",
+                        "foobar",
+                        token.literal
+                    );
+                } else {
+                    assert!(false, "exp not Identifier. got={:?}", expression);
+                }
+            } else {
+                assert!(
+                    false,
+                    "program.statements[0] is not ExpressionStatement. got={:?}",
+                    &statements[0]
+                );
+            }
         }
-    } else {
-        assert!(false, "parse error");
+        Err(errors) => panic_with_errors(errors),
     }
 }
 ```
@@ -367,32 +328,32 @@ thread 'parser::tests::test_identifier_expression' panicked at 'program has not 
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.cur_token.tk_type {
 // [...]
-            _ => {
-                if let Some(stmt) = self.parse_expression_statement() {
-                    return Some(Statement::ExpressionStatement(stmt));
-                }
-                None
-            }
+            _ => Ok(self.parse_expression_statement()?),
         }
     }
 ```
 增加parse_expression_statement方法
 ```rust,noplaypen
-// src/parse.rs
+// src/parser/parse.rs
 
-    fn parse_expression_statement(&mut self) -> Option<ExpressionStatement> {
+    fn parse_expression_statement(&mut self) -> Result<Statement, String> {
         let token = self.cur_token.clone();
-        let expression = self.parse_expression(Precedence::LOWEST);
-        if expression.is_none() {
-            return None;
-        }
-        if self.peek_token_is(TokenType::SEMICOLON) {
+        let expression = self.parse_expression(Precedence::LOWEST)?;
+        if self.peek_token_is(&TokenType::SEMICOLON) {
             self.next_token();
         }
-        Some(ExpressionStatement {
+        Ok(Statement::ExpressionStatement(ExpressionStatement {
             token: token,
-            expression: expression.unwrap(),
-        })
+            expression: expression,
+        }))
+    }
+
+    fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression, String> {
+        if let Some(prefix) = self.prefix_parse_fns.get(&self.cur_token.tk_type) {
+            let left_exp = prefix(self)?;
+            return Ok(left_exp);
+        } 
+        Err(String::from("error"))
     }
 ```
 这里需要考虑运算符的优先级了，定义如下：
@@ -413,23 +374,34 @@ pub enum Precedence {
 ```rust,noplaypen
 // src/parser/parser.rs
 
-    fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
-        let left_exp: Option<Expression>;
-        match self.cur_token.tk_type {
-            TokenType::IDENT => left_exp = self.parse_identifier(),
-            _ => return None,
-        }
-        left_exp
+impl Parser {
+    pub fn new(l: Lexer) -> Parser {
+        let mut p = Parser {
+            l: l,
+            cur_token: new_token(TokenType::ILLEGAL, 0),
+            peek_token: new_token(TokenType::ILLEGAL, 0),
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+        p.register_prefix(TokenType::IDENT, |parser| parser.parse_identifier());
+// [...]
     }
-
-    fn parse_identifier(&mut self) -> Option<Expression> {
-        Some(Expression::Identifier(Identifier {
+// [...]            
+    fn parse_identifier(&mut self) -> Result<Expression, String> {
+        Ok(Expression::Identifier(Identifier {
             token: self.cur_token.clone(),
             value: self.cur_token.literal.clone(),
         }))
     }
 ```
-这里就是与原著不同的地方，原著中为标识符Token注册了前缀解析函数（放到函数指针表里），在parse_expression方法中通过查表来调用。本文中通过match匹配标识符Token类型，直接调用其前缀解析方法parse_identifier，表达方式不同，原理一致。
+需要为TokenType增加Eq和Hash trait：
+```rust,noplaypen
+// src/token/token.rs
+
+#[derive(PartialEq, Debug, Clone, Hash, Eq)]
+pub enum TokenType {
+// [...]
+```
 
 测试通过！
 
@@ -456,41 +428,39 @@ fn test_integer_literal_expression() {
 
     let l = Lexer::new(input);
     let mut p = Parser::new(l);
-    let program = p.parse_program();
-    check_parser_errors(&mut p);
-
-    if let Some(Program { statements }) = program {
-        assert!(
-            statements.len() == 1,
-            "program has not enough statements. got={}",
-            statements.len()
-        );
-
-        if let Statement::ExpressionStatement(ExpressionStatement {
-            token: _,
-            expression,
-        }) = &statements[0]
-        {
-            if let Expression::IntegerLiteral(IntegerLiteral { token, value }) = expression {
-                assert!(*value == 5, "literal.value not {}. got={}", 5, value);
-                assert!(
-                    token.literal == "5",
-                    "literal.token_literal not {}. got={}",
-                    "5",
-                    token.literal
-                );
-            } else {
-                assert!(false, "exp not IntegerLiteral. got={:?}", expression);
-            }
-        } else {
+    match p.parse_program() {
+        Ok(Program { statements }) => {
             assert!(
-                false,
-                "program.statements[0] is not ExpressionStatement. got={:?}",
-                &statements[0]
+                statements.len() == 1,
+                "program has not enough statements. got={}",
+                statements.len()
             );
+
+            if let Statement::ExpressionStatement(ExpressionStatement {
+                token: _,
+                expression,
+            }) = &statements[0]
+            {
+                if let Expression::IntegerLiteral(IntegerLiteral { token, value }) = expression {
+                    assert!(*value == 5, "literal.value not {}. got={}", 5, value);
+                    assert!(
+                        token.literal == "5",
+                        "literal.token_literal not {}. got={}",
+                        "5",
+                        token.literal
+                    );
+                } else {
+                    panic!("exp not IntegerLiteral. got={:?}", expression);
+                }
+            } else {
+                assert!(
+                    false,
+                    "program.statements[0] is not ExpressionStatement. got={:?}",
+                    &statements[0]
+                );
+            }
         }
-    } else {
-        assert!(false, "parse error");
+        Err(errors) => panic_with_errors(errors),
     }
 }
 ```
@@ -506,9 +476,6 @@ pub struct IntegerLiteral {
     pub value: i64,
 }
 impl NodeTrait for IntegerLiteral {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         self.token.literal.clone()
     }
@@ -520,12 +487,6 @@ pub enum Expression {
     IntegerLiteral(IntegerLiteral),
 }
 impl NodeTrait for Expression {
-    fn token_literal(&self) -> String {
-        match self {
-// [...]
-            Expression::IntegerLiteral(integer_literal) => integer_literal.token_literal(),
-        }
-    }
     fn string(&self) -> String {
         match self {
 // [...]
@@ -540,18 +501,18 @@ impl NodeTrait for Expression {
 ```rust,noplaypen
 // src/parser/parser.rs
 
-    fn parse_integer_literal(&mut self) -> Option<Expression> {
+    fn parse_integer_literal(&mut self) -> Result<Expression, String> {
+        let token = self.cur_token.clone();
         if let Ok(value) = self.cur_token.literal.parse::<i64>() {
-            Some(Expression::IntegerLiteral(IntegerLiteral {
-                token: self.cur_token.clone(),
+            Ok(Expression::IntegerLiteral(IntegerLiteral {
+                token: token,
                 value: value,
             }))
         } else {
-            self.errors.push(format!(
+            Err(format!(
                 "could not parse {} as integer",
                 self.cur_token.literal
-            ));
-            None
+            ))
         }
     }
 ```
@@ -564,15 +525,12 @@ thread 'parser::tests::test_integer_literal_expression' panicked at 'program has
 ```rust,noplaypen
 // src/parser/parser.rs
 
-    fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
-        let left_exp: Option<Expression>;
-        match self.cur_token.tk_type {
-            TokenType::IDENT => left_exp = self.parse_identifier(),
-            TokenType::INT => left_exp = self.parse_integer_literal(),
-            _ => return None,
-        }
-        left_exp
-    }
+impl Parser {
+    pub fn new(l: Lexer) -> Parser {
+// [...]
+        p.register_prefix(TokenType::IDENT, |parser| parser.parse_identifier());
+        p.register_prefix(TokenType::INT, |parser| parser.parse_integer_literal());
+// [...]
 ```
 测试通过！
 
@@ -600,54 +558,81 @@ Monkey中的前缀操作符是“!”和“-”，使用如下：
 ```rust,noplaypen
 // src/parser/parser_test.rs
 
+enum ExpectedType {
+    Ival(i64),
+    Sval(String),
+    Bval(bool),
+}
+impl From<i64> for ExpectedType {
+    fn from(v: i64) -> Self {
+        ExpectedType::Ival(v)
+    }
+}
+impl From<&str> for ExpectedType {
+    fn from(v: &str) -> Self {
+        ExpectedType::Sval(String::from(v))
+    }
+}
+impl From<bool> for ExpectedType {
+    fn from(v: bool) -> Self {
+        ExpectedType::Bval(v)
+    }
+}
+
 #[test]
 fn test_parsing_prefix_expression() {
-    let tests = [("!5;", "!", 5), ("-15;", "-", 15)];
+    let tests = vec![
+        ("!5;", "!", ExpectedType::from(5)),
+        ("-15;", "-", ExpectedType::from(15)),
+    ];
 
     for tt in tests.iter() {
         let l = Lexer::new(tt.0);
         let mut p = Parser::new(l);
-        let program = p.parse_program();
-        check_parser_errors(&mut p);
-        if let Some(Program { statements }) = program {
-            assert!(
-                statements.len() == 1,
-                "program.statements does not contain {} statements. got={}",
-                1,
-                statements.len()
-            );
-
-            if let Statement::ExpressionStatement(ExpressionStatement {
-                token: _,
-                expression,
-            }) = &statements[0]
-            {
-                if let Expression::PrefixExpression(PrefixExpression {
-                    token: _,
-                    operator,
-                    right,
-                }) = expression
-                {
-                    assert!(
-                        operator == tt.1,
-                        "exp.operator is not '{}'. got={}",
-                        tt.1,
-                        operator
-                    );
-
-                    test_integer_literal(right, tt.2);
-                } else {
-                    assert!(false, "stmt is not PrefixExpression. got={:?}", expression);
-                }
-            } else {
+        match p.parse_program() {
+            Ok(Program { statements }) => {
                 assert!(
-                    false,
-                    "program.statements[0] is not ExpressionStatement. got={:?}",
-                    &statements[0]
+                    statements.len() == 1,
+                    "program.statements does not contain {} statements. got={}",
+                    1,
+                    statements.len()
                 );
+
+                if let Statement::ExpressionStatement(ExpressionStatement {
+                    token: _,
+                    expression,
+                }) = &statements[0]
+                {
+                    if let Expression::PrefixExpression(PrefixExpression {
+                        token: _,
+                        operator,
+                        right,
+                    }) = expression
+                    {
+                        assert!(
+                            operator == tt.1,
+                            "exp.operator is not '{}'. got={}",
+                            tt.1,
+                            operator
+                        );
+
+                        if let ExpectedType::Ival(i) = tt.2 {
+                            test_integer_literal(right, i);
+                        } else {
+                            panic!("error");
+                        }
+                    } else {
+                        panic!("stmt is not PrefixExpression. got={:?}", expression);
+                    }
+                } else {
+                    assert!(
+                        false,
+                        "program.statements[0] is not ExpressionStatement. got={:?}",
+                        &statements[0]
+                    );
+                }
             }
-        } else {
-            assert!(false, "parse error");
+            Err(errors) => panic_with_errors(errors),
         }
     }
 }
@@ -672,7 +657,7 @@ fn test_integer_literal(il: &Expression, expected_value: i64) {
             token.literal
         );
     } else {
-        assert!(false, "il not IntegerLiteral. got={:?}", il);
+        panic!("il not IntegerLiteral. got={:?}", il);
     }
 }
 ```
@@ -687,9 +672,6 @@ pub struct PrefixExpression {
     pub right: Box<Expression>,
 }
 impl NodeTrait for PrefixExpression {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         format!("({}{})", self.operator, self.right.string())
     }
@@ -700,12 +682,6 @@ pub enum Expression {
     PrefixExpression(PrefixExpression),
 }
 impl NodeTrait for Expression {
-    fn token_literal(&self) -> String {
-        match self {
-// [...]
-            Expression::PrefixExpression(prefix_expr) => prefix_expr.token_literal(),
-        }
-    }
     fn string(&self) -> String {
         match self {
 // [...]
@@ -724,9 +700,8 @@ thread 'parser::tests::test_parsing_prefix_expression' panicked at 'stmt is not 
 ```rust,noplaypen
 // src/parser/parser.rs
 
-    fn no_prefix_parse_fn_error(&mut self, t: TokenType) {
-        self.errors
-            .push(format!("no prefix parse function for {:?} found", t));
+    fn no_prefix_parse_fn_error(&self, t: &TokenType) -> String {
+        format!("no prefix parse function for {:?} found", t)
     }
 ```
 虽然我们并没有采用原著中的函数指针的方式，但简单起见，这里沿用了原著中的错误提示。
@@ -735,18 +710,13 @@ thread 'parser::tests::test_parsing_prefix_expression' panicked at 'stmt is not 
 ```rust,noplaypen
 // src/parser/parser.rs
 
-    fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
-        let left_exp: Option<Expression>;
-        let tk_type = self.cur_token.tk_type.clone();
-        match tk_type {
-            TokenType::IDENT => left_exp = self.parse_identifier(),
-            TokenType::INT => left_exp = self.parse_integer_literal(),
-            _ => {
-                self.no_prefix_parse_fn_error(tk_type);
-                return None;
-            }
+    fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression, String> {
+        if let Some(prefix) = self.prefix_parse_fns.get(&self.cur_token.tk_type) {
+            let left_exp = prefix(self)?;
+            Ok(left_exp)
+        } else {
+            Err(self.no_prefix_parse_fn_error(&self.cur_token.tk_type))
         }
-        left_exp
     }
 ```
 再次执行测试，错误信息变成：
@@ -759,30 +729,25 @@ parser error: "no prefix parse function for BANG found"
 ```rust,noplaypen
 // src/parser/parser.rs
 
-    fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
+impl Parser {
+    pub fn new(l: Lexer) -> Parser {
 // [...]
-        match tk_type {
+        p.register_prefix(TokenType::IDENT, |parser| parser.parse_identifier());
+        p.register_prefix(TokenType::INT, |parser| parser.parse_integer_literal());
+        p.register_prefix(TokenType::BANG, |parser| parser.parse_prefix_expression());
+        p.register_prefix(TokenType::MINUS, |parser| parser.parse_prefix_expression());
 // [...]
-            TokenType::BANG | TokenType::MINUS => left_exp = self.parse_prefix_expression(),
-            _ => {
-// [...]
-        }
-        left_exp
-    }
 
-    fn parse_prefix_expression(&mut self) -> Option<Expression> {
+    fn parse_prefix_expression(&mut self) -> Result<Expression, String> {
         let token = self.cur_token.clone();
         let operator = self.cur_token.literal.clone();
         self.next_token();
-        let right = self.parse_expression(Precedence::PREFIX);
-        if right.is_none() {
-            return None;
-        }
+        let right = self.parse_expression(Precedence::PREFIX)?;
 
-        Some(Expression::PrefixExpression(PrefixExpression {
+        Ok(Expression::PrefixExpression(PrefixExpression {
             token: token,
             operator: operator,
-            right: Box::new(right.unwrap()),
+            right: Box::new(right),
         }))
     }
 ```
@@ -814,64 +779,79 @@ parser error: "no prefix parse function for BANG found"
 
 #[test]
 fn test_parsing_infix_expressions() {
-    let tests = [
-        ("5 + 5;", 5, "+", 5),
-        ("5 - 5;", 5, "-", 5),
-        ("5 * 5;", 5, "*", 5),
-        ("5 / 5;", 5, "/", 5),
-        ("5 > 5;", 5, ">", 5),
-        ("5 < 5;", 5, "<", 5),
-        ("5 == 5;", 5, "==", 5),
-        ("5 != 5;", 5, "!=", 5),
+    let tests = vec![
+        ("5 + 5;", ExpectedType::from(5), "+", ExpectedType::from(5)),
+        ("5 - 5;", ExpectedType::from(5), "-", ExpectedType::from(5)),
+        ("5 * 5;", ExpectedType::from(5), "*", ExpectedType::from(5)),
+        ("5 / 5;", ExpectedType::from(5), "/", ExpectedType::from(5)),
+        ("5 > 5;", ExpectedType::from(5), ">", ExpectedType::from(5)),
+        ("5 < 5;", ExpectedType::from(5), "<", ExpectedType::from(5)),
+        (
+            "5 == 5;",
+            ExpectedType::from(5),
+            "==",
+            ExpectedType::from(5),
+        ),
+        (
+            "5 != 5;",
+            ExpectedType::from(5),
+            "!=",
+            ExpectedType::from(5),
+        ),
     ];
 
     for tt in tests.iter() {
         let l = Lexer::new(tt.0);
         let mut p = Parser::new(l);
-        let program = p.parse_program();
-        check_parser_errors(&mut p);
-
-        if let Some(Program { statements }) = program {
-            assert!(
-                statements.len() == 1,
-                "program.statements does not contain {} statements. got={}",
-                1,
-                statements.len()
-            );
-            if let Statement::ExpressionStatement(ExpressionStatement {
-                token: _,
-                expression,
-            }) = &statements[0]
-            {
-                if let Expression::InfixExpression(InfixExpression {
-                    token: _,
-                    left,
-                    operator,
-                    right,
-                }) = expression
-                {
-                    test_integer_literal(left, tt.1);
-
-                    assert!(
-                        operator == tt.2,
-                        "exp.operator is not '{}. got={}",
-                        tt.2,
-                        operator
-                    );
-
-                    test_integer_literal(right, tt.3);
-                } else {
-                    assert!(false, "exp is not InfixExpression. got={:?}", expression);
-                }
-            } else {
+        match p.parse_program() {
+            Ok(Program { statements }) => {
                 assert!(
-                    false,
-                    "program.statements[0] is not ExpressionStatement. got={:?}",
-                    &statements[0]
+                    statements.len() == 1,
+                    "program.statements does not contain {} statements. got={}",
+                    1,
+                    statements.len()
                 );
+                if let Statement::ExpressionStatement(ExpressionStatement {
+                    token: _,
+                    expression,
+                }) = &statements[0]
+                {
+                    if let Expression::InfixExpression(InfixExpression {
+                        token: _,
+                        left,
+                        operator,
+                        right,
+                    }) = expression
+                    {
+                        if let ExpectedType::Ival(i) = tt.1 {
+                            test_integer_literal(left, i);
+                        } else {
+                            panic!("error");
+                        }
+                        assert!(
+                            operator == tt.2,
+                            "exp.operator is not '{}. got={}",
+                            tt.2,
+                            operator
+                        );
+
+                        if let ExpectedType::Ival(i) = tt.3 {
+                            test_integer_literal(right, i);
+                        } else {
+                            panic!("error");
+                        }                    
+                    } else {
+                        panic!("exp is not InfixExpression. got={:?}", expression);
+                    }
+                } else {
+                    assert!(
+                        false,
+                        "program.statements[0] is not ExpressionStatement. got={:?}",
+                        &statements[0]
+                    );
+                }
             }
-        } else {
-            assert!(false, "parse error");
+            Err(errors) => panic_with_errors(errors),
         }
     }
 }
@@ -890,9 +870,6 @@ pub struct InfixExpression {
     pub right: Box<Expression>,
 }
 impl NodeTrait for InfixExpression {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         format!(
             "({} {} {})",
@@ -909,12 +886,6 @@ pub enum Expression {
     InfixExpression(InfixExpression),
 }
 impl NodeTrait for Expression {
-    fn token_literal(&self) -> String {
-        match self {
-// [...]
-            Expression::InfixExpression(infix_expr) => infix_expr.token_literal(),
-        }
-    }
     fn string(&self) -> String {
         match self {
 // [...]
@@ -959,20 +930,17 @@ fn get_precedence(t: &TokenType) -> Precedence {
 ```rust,noplaypen
 // src/parser/parser.rs
 
-    fn parse_infix_expression(&mut self, left: Expression) -> Option<Expression> {
+    fn parse_infix_expression(&mut self, left: Expression) -> Result<Expression, String> {
         let token = self.cur_token.clone();
         let operator = self.cur_token.literal.clone();
         let precedence = self.cur_precedence();
         self.next_token();
-        let right = self.parse_expression(precedence);
-        if right.is_none() {
-            return None;
-        }
-        Some(Expression::InfixExpression(InfixExpression {
+        let right = self.parse_expression(precedence)?;
+        Ok(Expression::InfixExpression(InfixExpression {
             token: token,
             left: Box::new(left),
             operator: operator,
-            right: Box::new(right.unwrap()),
+            right: Box::new(right),
         }))
     }
 ```
@@ -982,39 +950,65 @@ fn get_precedence(t: &TokenType) -> Precedence {
 ```rust,noplaypen
 // src/parser/parser.rs
 
-    fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
-        let mut left_exp: Option<Expression>;
-        let tk_type = self.cur_token.tk_type.clone();
-        match tk_type {
+impl Parser {
+    pub fn new(l: Lexer) -> Parser {
 // [...]
-        }
-        if left_exp.is_none() {
-            return None;
-        }
+        p.register_prefix(TokenType::IDENT, |parser| parser.parse_identifier());
+        p.register_prefix(TokenType::INT, |parser| parser.parse_integer_literal());
+        p.register_prefix(TokenType::BANG, |parser| parser.parse_prefix_expression());
+        p.register_prefix(TokenType::MINUS, |parser| parser.parse_prefix_expression());
 
-        while !self.peek_token_is(TokenType::SEMICOLON) && precedence < self.peek_precedence() {
-            let tk_type = self.peek_token.tk_type.clone();
-            match tk_type {
-                TokenType::PLUS
-                | TokenType::MINUS
-                | TokenType::SLASH
-                | TokenType::ASTERISK
-                | TokenType::EQ
-                | TokenType::NOTEQ
-                | TokenType::LT
-                | TokenType::GT => {
-                    self.next_token();
-                    left_exp = self.parse_infix_expression(left_exp.unwrap());
-                }
-                _ => return left_exp,
-            }
-        }
-        left_exp
-    }
+        p.register_infix(TokenType::PLUS, |parser, exp| {
+            parser.parse_infix_expression(exp)
+        });
+        p.register_infix(TokenType::MINUS, |parser, exp| {
+            parser.parse_infix_expression(exp)
+        });
+        p.register_infix(TokenType::SLASH, |parser, exp| {
+            parser.parse_infix_expression(exp)
+        });
+        p.register_infix(TokenType::ASTERISK, |parser, exp| {
+            parser.parse_infix_expression(exp)
+        });
+        p.register_infix(TokenType::EQ, |parser, exp| {
+            parser.parse_infix_expression(exp)
+        });
+        p.register_infix(TokenType::NOTEQ, |parser, exp| {
+            parser.parse_infix_expression(exp)
+        });
+        p.register_infix(TokenType::LT, |parser, exp| {
+            parser.parse_infix_expression(exp)
+        });
+        p.register_infix(TokenType::GT, |parser, exp| {
+            parser.parse_infix_expression(exp)
+        });
+// [...]
 ```
 此部分代码是普拉特解析器的核心，稍后我们会做解释。
 
-注意：这里需要把left_exp修改成可变的（mut）。
+```rust,noplaypen
+// src/parser/parser.rs
+
+    fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression, String> {
+        if let Some(prefix) = self.prefix_parse_fns.get(&self.cur_token.tk_type) {
+            let mut left_exp = prefix(self)?;
+            while !self.peek_token_is(&TokenType::SEMICOLON) && precedence < self.peek_precedence() {
+                let infix_fn: InfixParseFn;
+                if let Some(infix) = self.infix_parse_fns.get(&self.peek_token.tk_type) {
+                    infix_fn = *infix;
+                } else {
+                    return Ok(left_exp);
+                }
+                self.next_token();
+                left_exp = infix_fn(self, left_exp)?;
+            }
+            Ok(left_exp)
+        } else {
+            Err(self.no_prefix_parse_fn_error(&self.cur_token.tk_type))
+        }
+    }
+```
+注意：。
 
 另外，由于这里有precedence的比较，需要修改Precedence的定义，加上PartialOrd和PartialEq属性，由此产生的优先级排序正好满足我们的需求。
 ```rust,noplaypen
@@ -1060,11 +1054,13 @@ fn test_operator_precedence_parsing() {
     for tt in tests.iter() {
         let l = Lexer::new(tt.0);
         let mut p = Parser::new(l);
-        let program = p.parse_program();
-        check_parser_errors(&mut p);
-
-        let actual = program.unwrap().string();
-        assert!(actual == tt.1, "expected={:?}, got={:?}", tt.1, actual);
+        match p.parse_program() {
+            Ok(program) => {
+                let actual = program.string();
+                assert!(actual == tt.1, "expected={:?}, got={:?}", tt.1, actual);
+            }
+            Err(errors) => panic_with_errors(errors),
+        }
     }
 }
 ```

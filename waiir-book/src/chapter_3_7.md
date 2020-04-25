@@ -20,7 +20,7 @@
 
 然后判断循环条件：
 ```rust,noplaypen
-        while !self.peek_token_is(TokenType::SEMICOLON) && precedence < self.peek_precedence() {
+        while !self.peek_token_is(&TokenType::SEMICOLON) && precedence < self.peek_precedence() {
 // [...]
         }
 ```
@@ -33,20 +33,17 @@ peek_token（“+”号）的优先级比当前方法参数precedence的优先�
 ```rust,noplaypen
 // src/parser/parser.rs
 
-    fn parse_infix_expression(&mut self, left: Expression) -> Option<Expression> {
+    fn parse_infix_expression(&mut self, left: Expression) -> Result<Expression, String> {
         let token = self.cur_token.clone();
         let operator = self.cur_token.literal.clone();
         let precedence = self.cur_precedence();
         self.next_token();
-        let right = self.parse_expression(precedence);
-        if right.is_none() {
-            return None;
-        }
-        Some(Expression::InfixExpression(InfixExpression {
+        let right = self.parse_expression(precedence)?;
+        Ok(Expression::InfixExpression(InfixExpression {
             token: token,
             left: Box::new(left),
             operator: operator,
-            right: Box::new(right.unwrap()),
+            right: Box::new(right),
         }))
     }
 ```
@@ -81,19 +78,16 @@ peek_token（“+”号）的优先级比当前方法参数precedence的优先�
 ```rust,noplaypen
 // src/parser/parser.rs
 
-    fn parse_prefix_expression(&mut self) -> Option<Expression> {
+    fn parse_prefix_expression(&mut self) -> Result<Expression, String> {
         let token = self.cur_token.clone();
         let operator = self.cur_token.literal.clone();
         self.next_token();
-        let right = self.parse_expression(Precedence::PREFIX);
-        if right.is_none() {
-            return None;
-        }
+        let right = self.parse_expression(Precedence::PREFIX)?;
 
-        Some(Expression::PrefixExpression(PrefixExpression {
+        Ok(Expression::PrefixExpression(PrefixExpression {
             token: token,
             operator: operator,
-            right: Box::new(right.unwrap()),
+            right: Box::new(right),
         }))
     }
 ```
