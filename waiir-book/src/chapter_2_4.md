@@ -2,7 +2,7 @@
 
 继续扩展test_next_token测试用例：
 ```rust,noplaypen
-// src/lexer_test.rs
+// src/lexer/lexer_test.rs
 
 fn test_next_token() {
     let input = "
@@ -19,11 +19,31 @@ let result = add(five, ten);
 ";
 // [...]
 ```
-这里省略了后面添加的用于验证的Token序列，您在动手实践时需要根据测试用例补充上去。
+后面添加的用于验证的Token序列：
+```rust,noplaypen
+// src/lexer/lexer.rs
+
+// [...]
+        (TokenType::BANG, "!"),
+        (TokenType::MINUS, "-"),
+        (TokenType::SLASH, "/"),
+        (TokenType::ASTERISK, "*"),
+        (TokenType::INT, "5"),
+        (TokenType::SEMICOLON, ";"),
+        (TokenType::INT, "5"),
+        (TokenType::LT, "<"),
+        (TokenType::INT, "10"),
+        (TokenType::GT, ">"),
+        (TokenType::INT, "5"),
+        (TokenType::SEMICOLON, ";"),
+        (TokenType::EOF, ""),
+    ];        
+// [...]
+```
 
 扩展TokenType，如下：
 ```rust,noplaypen
-// src/token.rs
+// src/token/token.rs
 
 pub enum TokenType {
 // [...]
@@ -37,11 +57,11 @@ pub enum TokenType {
 ```
 测试失败的信息如下：
 ```
-thread 'lexer::tests::test_next_token' panicked at 'test[44] - tokentype wrong. expected=BANG, got=ILLEGAL', src/lexer_test.rs:190:13
+thread 'lexer::tests::test_next_token' panicked at 'test[44] - tokentype wrong. expected=BANG, got=ILLEGAL', src/lexer/lexer_test.rs:190:13
 ```
 为了支持这些新增加的TokenType，需要扩展我们的词法分析器：
 ```rust,noplaypen
-// src/lexer.rs
+// src/lexer/lexer.rs
 
     pub fn next_token(&mut self) -> Token {
 // [...]
@@ -61,7 +81,7 @@ thread 'lexer::tests::test_next_token' panicked at 'test[44] - tokentype wrong. 
 
 再增加一些新的测试用例。
 ```rust,noplaypen
-// src/lexer_test.rs
+// src/lexer/lexer_test.rs
 
 fn test_next_token() {
     let input = "
@@ -85,11 +105,36 @@ if (5 < 10) {
 }
 ```
 这里用到了if、else、return、true和false。
-您需要根据新增加的测试用例，再次补充验证Token序列。
+新增加测试用例：
+```rusr,noplaypen
+// src/lexer/lexer.rs
+
+// [...]
+        (TokenType::IF, "if"),
+        (TokenType::LPAREN, "("),
+        (TokenType::INT, "5"),
+        (TokenType::LT, "<"),
+        (TokenType::INT, "10"),
+        (TokenType::RPAREN, ")"),
+        (TokenType::LBRACE, "{"),
+        (TokenType::RETURN, "return"),
+        (TokenType::TRUE, "true"),
+        (TokenType::SEMICOLON, ";"),
+        (TokenType::RBRACE, "}"),
+        (TokenType::ELSE, "else"),
+        (TokenType::LBRACE, "{"),
+        (TokenType::RETURN, "return"),
+        (TokenType::FALSE, "false"),
+        (TokenType::SEMICOLON, ";"),
+        (TokenType::RBRACE, "}"),
+        (TokenType::EOF, ""),
+    ];        
+// [...]        
+```
 
 然后扩展TokenType如下：
 ```rust,noplaypen
-// src/token.rs
+// src/token/token.rs
 
 pub enum TokenType {
 // [...]
@@ -102,7 +147,7 @@ pub enum TokenType {
 ```
 新加的这几个TokenType都是关键字，需要扩展lookup_ident函数：
 ```rust,noplaypen
-// src/token.rs
+// src/token/token.rs
 
 pub fn lookup_ident(ident: &str) -> TokenType {
     match ident {
@@ -121,7 +166,7 @@ pub fn lookup_ident(ident: &str) -> TokenType {
 
 下面试一下“==”和“!=”操作符：
 ```rust,noplaypen
-// src/lexer_test.rs
+// src/lexer/lexer_test.rs
 
 fn test_next_token() {
     let input = "
@@ -148,11 +193,27 @@ if (5 < 10) {
 // [...]
 }
 ```
-请您自行添加验证Token序列。
+添加验证Token序列：
+```rust,noplaypen
+// src/lexer/lexer.rs
+
+// [...]
+        (TokenType::INT, "10"),
+        (TokenType::EQ, "=="),
+        (TokenType::INT, "10"),
+        (TokenType::SEMICOLON, ";"),
+        (TokenType::INT, "10"),
+        (TokenType::NOTEQ, "!="),
+        (TokenType::INT, "9"),
+        (TokenType::SEMICOLON, ";"),
+        (TokenType::EOF, ""),
+    ];        
+// [...]     
+```
 
 由于只看当前字符已经不能确定是“=”还是“==”，是“!”还是“!=”，需要扩展词法分析器，向前多看一个字符。首先需要增加一个peek_char方法。
 ```rust,noplaypen
-// src/lexer.rs
+// src/lexer/lexer.rs
 
     fn peek_char(&mut self) -> u8 {
         if self.read_position >= self.input.len() {
@@ -166,7 +227,7 @@ if (5 < 10) {
 
 增加“==”和“!=”Token类型。
 ```rust,noplaypen
-// src/token.rs
+// src/token/token.rs
 
 pub enum TokenType {
 // [...]
@@ -176,12 +237,12 @@ pub enum TokenType {
 ```
 测试失败的信息如下：
 ```
-thread 'lexer::tests::test_next_token' panicked at 'test[74] - tokentype wrong. expected=EQ, got=ASSIGN', src/lexer_test.rs:238:13
+thread 'lexer::tests::test_next_token' panicked at 'test[74] - tokentype wrong. expected=EQ, got=ASSIGN', src/lexer/lexer_test.rs:238:13
 ```
 
 修改next_token方法，如下：
 ```rust,noplaypen
-// src/lexer.rs
+// src/lexer/lexer.rs
 
     pub fn next_token(&mut self) -> Token {
 // [...]

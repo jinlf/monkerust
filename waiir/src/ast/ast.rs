@@ -1,4 +1,4 @@
-// src/ast.rs
+// src/ast/ast.rs
 
 use crate::token::*;
 use std::collections::*;

@@ -1,4 +1,4 @@
-// src/token.rs
+// src/token/token.rs
 
 #[derive(Debug, Clone)]
 pub struct Token {

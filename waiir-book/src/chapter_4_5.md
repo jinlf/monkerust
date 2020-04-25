@@ -134,7 +134,7 @@ use super::evaluator::*;
 有了eval函数，我们可以将RPPL改成真正的REPL（读入-求值-打印-循环）。
 
 ```rust,noplaypen
-// src/repl.rs
+// src/repl/repl.rs
 
 use super::evaluator::*;
 use super::object::*;

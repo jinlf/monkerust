@@ -129,7 +129,7 @@ x + 10;
 
 定义如下：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug)]
 pub struct ExpressionStatement {
@@ -144,7 +144,7 @@ impl NodeTrait for ExpressionStatement {
 ```
 加入Statement：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug)]
 pub enum Statement {
@@ -239,7 +239,7 @@ impl NodeTrait for ExpressionStatement {
 ```
 下面写AST的一个测试用例：
 ```rust,noplaypen
-// src/ast_test.rs
+// src/ast/ast_test.rs
 
 use super::ast::*;
 use super::token::*;
@@ -304,7 +304,7 @@ if (foobar) {
 
 从测试用例开始：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 #[test]
 fn test_identifier_expression() {
@@ -357,7 +357,7 @@ fn test_identifier_expression() {
 
 当然，测试失败：
 ```
-thread 'parser::tests::test_identifier_expression' panicked at 'program has not enough statements. got=0', src/parser_test.rs:257:13
+thread 'parser::tests::test_identifier_expression' panicked at 'program has not enough statements. got=0', src/parser/parser_test.rs:257:13
 ```
 
 修改parse_statement方法：
@@ -397,7 +397,7 @@ thread 'parser::tests::test_identifier_expression' panicked at 'program has not 
 ```
 这里需要考虑运算符的优先级了，定义如下：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
 pub enum Precedence {
     LOWEST,
@@ -411,7 +411,7 @@ pub enum Precedence {
 ```
 增加如下方法的实现：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
         let left_exp: Option<Expression>;
@@ -448,7 +448,7 @@ add(5, 10);
 
 测试用例如下：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 #[test]
 fn test_integer_literal_expression() {
@@ -498,7 +498,7 @@ fn test_integer_literal_expression() {
 
 整数字面量的定义如下：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug)]
 pub struct IntegerLiteral {
@@ -538,7 +538,7 @@ impl NodeTrait for Expression {
 
 新增解析代码：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_integer_literal(&mut self) -> Option<Expression> {
         if let Ok(value) = self.cur_token.literal.parse::<i64>() {
@@ -557,12 +557,12 @@ impl NodeTrait for Expression {
 ```
 测试结果失败！
 ```
-thread 'parser::tests::test_integer_literal_expression' panicked at 'program has not enough statements. got=0', src/parser_test.rs:367:13
+thread 'parser::tests::test_integer_literal_expression' panicked at 'program has not enough statements. got=0', src/parser/parser_test.rs:367:13
 ```
 
 在parse_expression方法中增加对整数字面量的支持：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
         let left_exp: Option<Expression>;
@@ -598,7 +598,7 @@ Monkey中的前缀操作符是“!”和“-”，使用如下：
 
 测试用例：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 #[test]
 fn test_parsing_prefix_expression() {
@@ -654,7 +654,7 @@ fn test_parsing_prefix_expression() {
 ```
 为了提高测试代码的重用性，定义测试整数字面量的函数：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 fn test_integer_literal(il: &Expression, expected_value: i64) {
     if let Expression::IntegerLiteral(IntegerLiteral { token, value }) = il {
@@ -678,7 +678,7 @@ fn test_integer_literal(il: &Expression, expected_value: i64) {
 ```
 前缀表达式的定义如下：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug)]
 pub struct PrefixExpression {
@@ -718,11 +718,11 @@ impl NodeTrait for Expression {
 
 测试错误：
 ```
-thread 'parser::tests::test_parsing_prefix_expression' panicked at 'stmt is not PrefixExpression. got=IntegerLiteral(IntegerLiteral { token: Token { tk_type: INT, literal: "5" }, value: 5 })', src/parser_test.rs:434:25
+thread 'parser::tests::test_parsing_prefix_expression' panicked at 'stmt is not PrefixExpression. got=IntegerLiteral(IntegerLiteral { token: Token { tk_type: INT, literal: "5" }, value: 5 })', src/parser/parser_test.rs:434:25
 ```
 增加如下方法：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn no_prefix_parse_fn_error(&mut self, t: TokenType) {
         self.errors
@@ -733,7 +733,7 @@ thread 'parser::tests::test_parsing_prefix_expression' panicked at 'stmt is not 
 
 修改parse_expression方法，使用上面的方法：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
         let left_exp: Option<Expression>;
@@ -753,11 +753,11 @@ thread 'parser::tests::test_parsing_prefix_expression' panicked at 'stmt is not 
 ```
 thread 'parser::tests::test_parsing_prefix_expression' panicked at 'parser has 1 errors
 parser error: "no prefix parse function for BANG found"
-', src/parser_test.rs:281:9
+', src/parser/parser_test.rs:281:9
 ```
 提示很明显，需要为“!”和“-”增加处理代码：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
 // [...]
@@ -810,7 +810,7 @@ parser error: "no prefix parse function for BANG found"
 
 先写测试用例：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 #[test]
 fn test_parsing_infix_expressions() {
@@ -880,7 +880,7 @@ fn test_parsing_infix_expressions() {
 
 定义中缀表达式：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug)]
 pub struct InfixExpression {
@@ -927,14 +927,14 @@ impl NodeTrait for Expression {
 ```
 thread 'parser::tests::test_parsing_infix_expressions' panicked at 'parser has 1 errors
 parser error: "no prefix parse function for PLUS found"
-', src/parser_test.rs:298:9
+', src/parser/parser_test.rs:298:9
 ```
 提示我们没有处理“+”号的代码。
 
 
 这里用到了优先级，需要实现一个Token的优先级查表：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn peek_precedence(&self) -> Precedence {
         get_precedence(&self.peek_token.tk_type)
@@ -957,7 +957,7 @@ fn get_precedence(t: &TokenType) -> Precedence {
 
 下面是parse_infix_expression代码
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_infix_expression(&mut self, left: Expression) -> Option<Expression> {
         let token = self.cur_token.clone();
@@ -980,7 +980,7 @@ fn get_precedence(t: &TokenType) -> Precedence {
 
 需要修改parse_expression支持中缀表达式：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
         let mut left_exp: Option<Expression>;
@@ -1018,7 +1018,7 @@ fn get_precedence(t: &TokenType) -> Precedence {
 
 另外，由于这里有precedence的比较，需要修改Precedence的定义，加上PartialOrd和PartialEq属性，由此产生的优先级排序正好满足我们的需求。
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
 #[derive(PartialOrd, PartialEq)]
 pub enum Precedence {
@@ -1035,7 +1035,7 @@ pub enum Precedence {
 
 写一个测试操作符优先级的用例：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 #[test]
 fn test_operator_precedence_parsing() {

@@ -3,7 +3,7 @@
 如果说我们之前的REPL其实是RLPL（读入-词法分析-打印-循环），那现在我们可以把词法分析器换成解析器，实现RPPL（读入-解析-打印-循环）。
 
 ```rust,noplaypen
-// src/repl.rs
+// src/repl/repl.rs
 
 use super::ast::*;
 use super::lexer::*;
@@ -55,7 +55,7 @@ let x = ((((1 * 2) * 3) * 4) * 5);
 ```
 根据传统，加入Logo
 ```rust,noplaypen
-// src/repl.rs
+// src/repl/repl.rs
 
 const MONKEY_FACE: &str = r#"
             __,__

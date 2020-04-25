@@ -4,10 +4,17 @@ REPL表示“Read Eval Print Loop”，有时称做控制台，有时也称做�
 
 我们当前还不知道怎样求值，但我们可以把Monkey源代码的Token打印出来，这样实现的REPL如下：
 ```rust,noplaypen
-// src/repl.rs
+// src/repl/mod.rs
 
-use super::lexer::*;
-use super::token::*;
+mod repl;
+pub use repl::*;
+```
+
+```rust,noplaypen
+// src/repl/repl.rs
+
+use crate::lexer::*;
+use crate::token::*;
 use std::io::*;
 
 const PROMPT: &str = ">> ";
@@ -32,17 +39,13 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
 }
 ```
 
-在lib.rs中添加如下行：
-```rust,noplaypen
-// src/lib.rs
-
-pub mod repl;
-```
-
-将main函数修改如下：
+在main.rs中添加如下行：
 ```rust,noplaypen
 // src/main.rs
 
+mod repl;
+
+// [...]
 fn main() {
     println!("Hello, This is the Monkey programming language!");
     println!("Feel free to type in commands");
@@ -52,7 +55,7 @@ fn main() {
 
 为了能够输出Token，还需要为Token添加Debug属性：
 ```rust,noplaypen
-// src/token.rs
+// src/token/token.rs
 
 #[derive(Debug)]
 pub struct Token {

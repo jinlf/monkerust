@@ -1,4 +1,4 @@
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 use crate::ast::*;
 use crate::lexer::*;

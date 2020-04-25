@@ -4,9 +4,16 @@
 
 遵循测试驱动开发（Test-Driven Development，简称TDD）的原则，先写单元测试用例：
 ```rust,noplaypen
-// src/lexer_test.rs
+// src/lexer/mod.rs
 
-use super::token::*;
+#[cfg(test)]
+mod lexer_test;
+```
+
+```rust,noplaypen
+// src/lexer/lexer_test.rs
+
+use crate::token::*;
 
 #[test]
 fn test_next_token() {
@@ -46,20 +53,14 @@ fn test_next_token() {
 ```
 上述代码中的#[test]属性表示下面的函数是个测试函数，在自动化测试时会执行。代码的功能是将一个字符串作为输入，让词法分析器分析并使用断言验证输出的结果与预期结果是否一致。
 
-为了支持Rust的自动化测试，首先需要将工程文件补充完整。创建src/lib.js文件，内容如下：
-```rust,noplaypen
-// src/lib.rs
-
-pub mod token;
-
-#[cfg(test)]
-mod lexer_test;
-```
-在src/main.rs文件头部添加：
+为了支持Rust的自动化测试，首先需要在src/main.rs文件头部添加：
 ```rust,noplaypen
 // src/main.rs
 
-include!("lib.rs");
+mod lexer;
+mod token;
+
+// [...]
 ```
 
 这样就可以在命令行下执行Rust的自动化测试命令：
@@ -70,18 +71,25 @@ $ cargo test
 
 首先补充词法分析器的定义和new方法，如下：
 ```rust,noplaypen
-// src/lexer.rs
+// src/lexer/mod.rs
 
-pub struct Lexer<'a> {
-    input: &'a str,
+mod lexer;
+pub use lexer::*;
+```
+
+```rust,noplaypen
+// src/lexer/lexer.rs
+
+pub struct Lexer {
+    input: String,
     position: usize,      // 当前字符位置
     read_position: usize, // 当前读取位置（在当前字符位置之后）
     ch: u8,               // 当前字符
 }
-impl<'a> Lexer<'a> {
-    pub fn new(input: &'a str) -> Lexer<'a> {
+impl Lexer {
+    pub fn new(input: &str) -> Lexer {
         Lexer {
-            input: input,
+            input: String::from(input),
             position: 0,
             read_position: 0,
             ch: 0,
@@ -89,20 +97,12 @@ impl<'a> Lexer<'a> {
     }
 }
 ```
-在lib.rs中加入：
-```rust,noplaypen
-// src/lib.rs
-
-pub mod lexer;
-```
-
-这里将词法分析器中的input做成了字符串引用，避免运行时对Monkey源代码的内存拷贝，需要定义生命周期，即代码中的'a。
 
 这里使用read_position是为了向前看若干字符。
 
 定义词法分析器的read_char方法如下：
 ```rust,noplaypen
-// src/lexer.rs
+// src/lexer/lexer.rs
 
     pub fn read_char(&mut self) {
         if self.read_position >= self.input.len() {
@@ -120,11 +120,11 @@ read_char方法的目的是读取下一个字符，并前进一个字符。如�
 
 在new方法中调用read_char方法，可以改成：
 ```rust,noplaypen
-// src/lexer.rs
+// src/lexer/lexer.rs
 
-    pub fn new(input: &'a str) -> Lexer<'a> {
+    pub fn new(input: &str) -> Lexer {
         let mut l = Lexer {
-            input: input,
+            input: String::from(input),
             position: 0,
             read_position: 0,
             ch: 0,
@@ -137,9 +137,11 @@ read_char方法的目的是读取下一个字符，并前进一个字符。如�
 
 下面来实现词法分析器的next_token方法：
 ```rust,noplaypen
-// src/lexer.rs
-use super::token::*;
+// src/lexer/lexer.rs
 
+use crate::token::*;
+
+// [...]
     pub fn next_token(&mut self) -> Token {
         let tok: Token;
 
@@ -177,9 +179,9 @@ next_token方法的功能就是根据当前字符，返回下一个Token。
 
 在lexer_test.rs中加入：
 ```rust,noplaypen
-// src/lexer_test.rs
+// src/lexer/lexer_test.rs
 
-use super::lexer::*;
+use crate::lexer::*;
 ```
 再次执行
 ```
@@ -188,7 +190,7 @@ cargo test
 还是出错：
 ```
 error[E0369]: binary operation `==` cannot be applied to type `token::TokenType`
-  --> src/lexer.rs:89:29
+  --> src/lexer/lexer.rs:89:29
    |
 89 |                 tok.tk_type == tt.0,
    |                 ----------- ^^ ---- token::TokenType
@@ -199,7 +201,7 @@ error[E0369]: binary operation `==` cannot be applied to type `token::TokenType`
 ```
 这是因为TokenType没有实现运算符"=="不能直接比较。解决的方法是在TokenType定义上加上PartialEq属性，另外为了打印输出TokenType，还需要加上Debug属性，如下：
 ```rust,noplaypen
-// src/token.rs
+// src/token/token.rs
 
 #[derive(PartialEq, Debug)]
 pub enum TokenType {
@@ -229,7 +231,7 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 
 修改测试用例，测试本章前面提到的Monkey代码：
 ```rust,noplaypen
-// src/lexer_test.rs
+// src/lexer/lexer_test.rs
 
 fn test_next_token() {
     let input = "
@@ -288,7 +290,7 @@ let result = add(five, ten);
 
 支持标识符的代码如下：
 ```rust,noplaypen
-// src/lexer.rs
+// src/lexer/lexer.rs
 
     pub fn next_token(&mut self) -> Token {
         let tok: Token;
@@ -299,7 +301,7 @@ let result = add(five, ten);
                 if is_letter(self.ch) {
                     tok = Token {
                         tk_type: TokenType::IDENT,
-                        literal: self.read_identifier(),
+                        literal: String::from(self.read_identifier()),
                     };
                     return tok;
                 }
@@ -309,12 +311,12 @@ let result = add(five, ten);
 // [...] 
     }
 
-    fn read_identifier(&mut self) -> String {
+    fn read_identifier(&mut self) -> &str {
         let position = self.position;
         while is_letter(self.ch) {
             self.read_char();
         }
-        String::from(&self.input[position..self.position])
+        &self.input[position..self.position]
     }      
 // [...]
 fn is_letter(ch: u8) -> bool {
@@ -329,7 +331,7 @@ is_letter函数检查是否是字符和下划线，这是标识符中支持的�
 
 需要支持关键字，在token.rs中实现一个关键字查找函数：
 ```rust,noplaypen
-// src/token.rs
+// src/token/token.rs
 
 pub fn lookup_ident(ident: &str) -> TokenType {
     match ident {
@@ -343,7 +345,7 @@ pub fn lookup_ident(ident: &str) -> TokenType {
 
 这样，处理标识符的代码就应该改成：
 ```rust,noplaypen
-// src/lexer.rs
+// src/lexer/lexer.rs
 
     pub fn next_token(&mut self) -> Token {
         let tok: Token;
@@ -355,7 +357,7 @@ pub fn lookup_ident(ident: &str) -> TokenType {
                     let literal = self.read_identifier();
                     tok = Token {
                         tk_type: lookup_ident(&literal),
-                        literal: literal,
+                        literal: String::from(literal),
                     };
                     return tok;
                 }
@@ -370,11 +372,11 @@ pub fn lookup_ident(ident: &str) -> TokenType {
 执行cargo test，仍然报错，如下：
 ```
 ---- lexer::tests::test_next_token stdout ----
-thread 'lexer::tests::test_next_token' panicked at 'test[8] - tokentype wrong. expected=LET, got=ILLEGAL', src/lexer_test.rs:141:13
+thread 'lexer::tests::test_next_token' panicked at 'test[8] - tokentype wrong. expected=LET, got=ILLEGAL', src/lexer/lexer_test.rs:141:13
 ```
 原因是我们的词法分析器没有跳过空格、回车等特殊分隔字符，需要处理一下：
 ```rust,noplaypen
-// src/lexer.rs
+// src/lexer/lexer.rs
 
     pub fn next_token(&mut self) -> Token {
         let tok: Token;
@@ -397,7 +399,7 @@ thread 'lexer::tests::test_next_token' panicked at 'test[8] - tokentype wrong. e
 
 下面再加上整数的词法分析：
 ```rust,noplaypen
-// src/lexer.rs
+// src/lexer/lexer.rs
 
     pub fn next_token(&mut self) -> Token {
         let tok: Token;
@@ -411,13 +413,13 @@ thread 'lexer::tests::test_next_token' panicked at 'test[8] - tokentype wrong. e
                     let literal = self.read_identifier();
                     tok = Token {
                         tk_type: lookup_ident(&literal),
-                        literal: literal,
+                        literal: String::from(literal),
                     };
                     return tok;
                 } else if self.ch.is_ascii_digit() {
                     tok = Token {
                         tk_type: TokenType::INT,
-                        literal: self.read_number(),
+                        literal: String::from(self.read_number()),
                     };
                     return tok;
                 }
@@ -427,12 +429,12 @@ thread 'lexer::tests::test_next_token' panicked at 'test[8] - tokentype wrong. e
 // [...]            
     }
 
-    fn read_number(&mut self) -> String {
+    fn read_number(&mut self) -> &str {
         let position = self.position;
         while self.ch.is_ascii_digit() {
             self.read_char();
         }
-        String::from(&self.input[position..self.position])
+        &self.input[position..self.position]
     }
 ```
 执行cargo test，成功！

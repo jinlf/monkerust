@@ -38,7 +38,7 @@ correct, an integer
 这里有一个词法分析器不支持的符号“:”，需要添加进Token类型中：
 
 ```rust,noplaypne
-// src/token.rs
+// src/token/token.rs
 
 pub enum TokenType {
 // [...]
@@ -48,7 +48,7 @@ pub enum TokenType {
 
 测试用例：
 ```rust,noplaypen
-// src/lexer_test.rs
+// src/lexer/lexer_test.rs
 
 fn test_next_token() {
     let input = "
@@ -69,7 +69,7 @@ fn test_next_token() {
 
 扩展词法分析器：
 ```rust,noplaypen
-// src/lexer.rs
+// src/lexer/lexer.rs
 
     pub fn next_token(&mut self) -> Token {
         let tok: Token;
@@ -92,7 +92,7 @@ fn test_next_token() {
 
 用Rust语言的HashMap来保存这种对应关系，定义如下：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 use std::collections::*;
 
@@ -143,7 +143,7 @@ impl NodeTrait for Expression {
 ```
 测试用例：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 use std::collections::*;
 
@@ -192,7 +192,7 @@ fn test_parsing_hash_literals_string_keys() {
 ```
 需要能够支持内容为空的哈希，测试用例如下：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 #[test]
 fn test_parsing_empty_hash_literal() {
@@ -226,7 +226,7 @@ fn test_parsing_empty_hash_literal() {
 ```
 哈希键和值都可以是表达式，测试用例如下：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 #[test]
 fn test_parsing_hash_literal_with_expressions() {
@@ -305,7 +305,7 @@ fn test_parsing_hash_literal_with_expressions() {
 thread 'parser::tests::test_parsing_empty_hash_literal' panicked at 'parser has 2 errors
 parser error: "no prefix parse function for LBRACE found"
 parser error: "no prefix parse function for RBRACE found"
-', src/parser_test.rs:629:9
+', src/parser/parser_test.rs:629:9
 
 thread 'parser::tests::test_parsing_hash_literal_with_expressions' panicked at 'parser has 7 errors
 parser error: "no prefix parse function for LBRACE found"
@@ -315,7 +315,7 @@ parser error: "no prefix parse function for COLON found"
 parser error: "no prefix parse function for COMMA found"
 parser error: "no prefix parse function for COLON found"
 parser error: "no prefix parse function for RBRACE found"
-', src/parser_test.rs:629:9
+', src/parser/parser_test.rs:629:9
 
 thread 'parser::tests::test_parsing_hash_literals_string_keys' panicked at 'parser has 7 errors
 parser error: "no prefix parse function for LBRACE found"
@@ -325,12 +325,12 @@ parser error: "no prefix parse function for COLON found"
 parser error: "no prefix parse function for COMMA found"
 parser error: "no prefix parse function for COLON found"
 parser error: "no prefix parse function for RBRACE found"
-', src/parser_test.rs:629:9
+', src/parser/parser_test.rs:629:9
 ```
 
 为大括号增加一个前缀解析函数：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
 use std::collections::*;
 
@@ -385,7 +385,7 @@ use std::collections::*;
 这里需要将Expression加入HashMap，这需要为Expression支持PartialEq、Eq和Hash trait，这里我们考虑的实现方式是比较对象字符串表示，以对象的字符串表示作为哈希值，代码如下：
 
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 use std::hash::Hash as StdHash;
 use std::hash::Hasher;

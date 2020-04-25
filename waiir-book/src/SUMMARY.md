@@ -1,6 +1,6 @@
 # Summary
 
-- [封面](./cover.md)
+[封面](./cover.md)
 - [介绍](./chapter_1.md)
     - [Monkey编程语言与解释器](./chapter_1_1.md)
     - [为什么选Rust语言？](./chapter_1_2.md)    

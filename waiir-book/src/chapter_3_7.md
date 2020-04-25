@@ -31,7 +31,7 @@ peek_token（“+”号）的优先级比当前方法参数precedence的优先�
 
 位于这个状态后，调用parse_infix_expression，传入的参数left是1。
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_infix_expression(&mut self, left: Expression) -> Option<Expression> {
         let token = self.cur_token.clone();
@@ -79,7 +79,7 @@ peek_token（“+”号）的优先级比当前方法参数precedence的优先�
 
 调用parse_expression，根据“-”调用parse_prefix_expression，代码如下：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_prefix_expression(&mut self) -> Option<Expression> {
         let token = self.cur_token.clone();

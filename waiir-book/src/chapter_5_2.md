@@ -19,7 +19,7 @@ Thorsten Ball
 ```
 首先需要增加Token类型：
 ```rust,noplaypen
-// src/token.rs
+// src/token/token.rs
 
 pub enum TokenType {
 // [...]
@@ -29,7 +29,7 @@ pub enum TokenType {
 
 测试用例如下：
 ```rust,noplaypen
-// src/lexer_test.rs
+// src/lexer/lexer_test.rs
 
     fn test_next_token() {
         let input = "
@@ -50,12 +50,12 @@ pub enum TokenType {
 测试失败结果如下：
 
 ```
-thread 'lexer::tests::test_next_token' panicked at 'test[81] - tokentype wrong. expected=STRING, got=ILLEGAL', src/lexer_test.rs:262:13
+thread 'lexer::tests::test_next_token' panicked at 'test[81] - tokentype wrong. expected=STRING, got=ILLEGAL', src/lexer/lexer_test.rs:262:13
 ```
 
 扩展词法分析器：
 ```rust,noplaypen
-// src/lexer.rs
+// src/lexer/lexer.rs
 
     pub fn next_token(&mut self) -> Token {
 // [...]
@@ -94,7 +94,7 @@ thread 'lexer::tests::test_next_token' panicked at 'test[81] - tokentype wrong. 
 首先定义字符串字面量类型：
 
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug, Clone)]
 pub struct StringLiteral {
@@ -132,7 +132,7 @@ impl NodeTrait for Expression {
 
 增加测试用例：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 #[test]
 fn test_string_literal_expression() {
@@ -173,12 +173,12 @@ fn test_string_literal_expression() {
 thread 'parser::tests::test_string_literal_expression' panicked at 'parser has 2 errors
 parser error: "no prefix parse function for STRING found"
 parser error: "no prefix parse function for SEMICOLON found"
-', src/parser_test.rs:549:9
+', src/parser/parser_test.rs:549:9
 ```
 
 为字符串Token增加前缀解析函数：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
         let mut left_exp: Option<Expression>;

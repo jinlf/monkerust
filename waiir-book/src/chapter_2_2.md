@@ -14,7 +14,14 @@ let result = add(five, ten);
 
 用Rust语言定义Token及Token类型如下：
 ```rust,noplaypen
-// src/token.rs
+// src/token/mod.rs
+
+mod token;
+pub use token::*;
+```
+
+```rust,noplaypen
+// src/token/token.rs
 
 pub struct Token {
     pub tk_type: TokenType,

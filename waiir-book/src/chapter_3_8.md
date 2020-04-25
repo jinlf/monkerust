@@ -2,7 +2,7 @@
 
 类似于test_integer_literal，我们再编写一个辅助测试的函数：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 fn test_identifier(exp: &Expression, expected_value: String) {
     if let Expression::Identifier(Identifier { token, value }) = exp {
@@ -27,7 +27,7 @@ fn test_identifier(exp: &Expression, expected_value: String) {
 
 下面用这个函数来做测试：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 fn test_literal_expression(exp: &Expression, expected: &dyn std::any::Any) {
     if let Some(v) = expected.downcast_ref::<i64>() {
@@ -80,7 +80,7 @@ let barfoo = false;
 ```
 定义如下：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug)]
 pub struct BooleanLiteral {
@@ -120,7 +120,7 @@ impl NodeTrait for Expression {
 
 在parse_expression中增加对布尔值字面量的支持：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
         let mut left_exp: Option<Expression>;
@@ -133,7 +133,7 @@ impl NodeTrait for Expression {
 ```
 
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_boolean_literal(&self) -> Option<Expression> {
         Some(Expression::BooleanLiteral(BooleanLiteral {
@@ -147,7 +147,7 @@ impl NodeTrait for Expression {
 
 增加一些测试用例测试布尔值字面量：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 fn test_operator_precedence_parsing() {
     let tests = [
@@ -162,7 +162,7 @@ fn test_operator_precedence_parsing() {
 
 修改test_literal_expression，增加对布尔值字面量的支持：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 fn test_literal_expression(exp: &Expression, expected: &dyn std::any::Any) {
 // [...]
@@ -193,7 +193,7 @@ fn test_boolean_literal(exp: &Expression, expected_value: bool) {
 ```
 为了能够使用test_literal_expression方法，需要将test_parsing_infix_expressions重构：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 fn test_parsing_infix_expressions() {
     let tests: [(&str, Box<dyn std::any::Any>, &str, Box<dyn std::any::Any>); 11] = [
@@ -248,7 +248,7 @@ fn test_parsing_infix_expressions() {
 
 同样重构test_parsing_infix_expression 
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 fn test_parsing_prefix_expression() {
     let tests: [(&str, &str, Box<dyn std::any::Any>); 4] = [
@@ -289,7 +289,7 @@ Monkey语言中的分组表达式如下：
 
 测试用例
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 fn test_operator_precedence_parsing() {
     let tests = [
@@ -311,7 +311,7 @@ parser error: "no prefix parse function for PLUS found"
 ```
 修改parse_expression如下：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
         let mut left_exp: Option<Expression>;
@@ -324,7 +324,7 @@ parser error: "no prefix parse function for PLUS found"
 ```
 其中
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_grouped_expression(&mut self) -> Option<Expression> {
         self.next_token();
@@ -365,7 +365,7 @@ if (<condition>)<consequence> else <alternative>
 
 定义如下：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug)]
 pub struct IfExpression {
@@ -415,7 +415,7 @@ impl NodeTrait for Expression {
 
 用到的BlockStatement定义如下：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug)]
 pub struct BlockStatement {
@@ -457,7 +457,7 @@ impl NodeTrait for Statement {
 ```
 下面写测试用例：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 #[test]
 fn test_if_expression() {
@@ -544,7 +544,7 @@ if (x < y) { x } else { y }
 ```
 可以编写另一个测试用例test_if_else_expression，与test_if_expression不同的部分如下：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 #[test]
 fn test_if_else_expression() {
@@ -585,7 +585,7 @@ thread 'parser::tests::test_if_expression' panicked at 'parser has 3 errors
 parser error: "no prefix parse function for IF found"
 parser error: "no prefix parse function for LBRACE found"
 parser error: "no prefix parse function for RBRACE found"
-', src/parser_test.rs:372:9
+', src/parser/parser_test.rs:372:9
 ...
 thread 'parser::tests::test_if_else_expression' panicked at 'parser has 6 errors
 parser error: "no prefix parse function for IF found"
@@ -594,11 +594,11 @@ parser error: "no prefix parse function for RBRACE found"
 parser error: "no prefix parse function for ELSE found"
 parser error: "no prefix parse function for LBRACE found"
 parser error: "no prefix parse function for RBRACE found"
-', src/parser_test.rs:372:9
+', src/parser/parser_test.rs:372:9
 ```
 修改parse_expression如下：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
         let mut left_exp: Option<Expression>;
@@ -611,7 +611,7 @@ parser error: "no prefix parse function for RBRACE found"
 ```
 其中：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_if_expression(&mut self) -> Option<Expression> {
         let token = self.cur_token.clone();
@@ -718,7 +718,7 @@ myFunc(x, y, fn(x, y) { return x > y; });
 
 定义如下：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug)]
 pub struct FunctionLiteral {
@@ -767,7 +767,7 @@ impl NodeTrait for Expression {
 
 测试用例：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 #[test]
 fn test_function_literal_parsing() {
@@ -856,7 +856,7 @@ fn test_function_literal_parsing() {
 ```
 由于这里需要对Identifier类型的parameters项进行clone，下面就增加Clone属性。
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug, Clone)]
 pub struct Identifier {
@@ -872,12 +872,12 @@ parser error: "no prefix parse function for COMMA found"
 parser error: "no prefix parse function for RPAREN found"
 parser error: "no prefix parse function for LBRACE found"
 parser error: "no prefix parse function for RBRACE found"
-', src/parser_test.rs:439:9
+', src/parser/parser_test.rs:439:9
 ```
 
 需要修改parse_expression方法支持函数字面量
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
         let mut left_exp: Option<Expression>;
@@ -947,7 +947,7 @@ parser error: "no prefix parse function for RBRACE found"
 ```
 增加测试用例
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 #[test]
 fn test_function_parameter_parsing() {
@@ -1028,7 +1028,7 @@ callsFunction(2, 3, fn(x, y) { x + y; });
 
 定义如下：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug)]
 pub struct CallExpression {
@@ -1074,7 +1074,7 @@ impl NodeTrait for Expression {
 ```
 测试用例：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 #[test]
 fn test_call_expression_parsing() {
@@ -1152,11 +1152,11 @@ parser error: "no prefix parse function for COMMA found"
 parser error: "no prefix parse function for COMMA found"
 parser error: "no prefix parse function for RPAREN found"
 parser error: "no prefix parse function for SEMICOLON found"
-', src/parser_test.rs:497:9
+', src/parser/parser_test.rs:497:9
 ```
 在中缀操作符解析时加上左括号的处理：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
 // [...]
@@ -1227,11 +1227,11 @@ parser error: "no prefix parse function for COMMA found"
 parser error: "no prefix parse function for COMMA found"
 parser error: "no prefix parse function for RPAREN found"
 parser error: "no prefix parse function for SEMICOLON found"
-', src/parser_test.rs:546:9
+', src/parser/parser_test.rs:546:9
 ```
 出现此错误的原因是中缀处理时没查到对应的优先级，修改get_precedence函数：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
 fn get_precedence(t: &TokenType) -> Precedence {
     match t {
@@ -1243,7 +1243,7 @@ fn get_precedence(t: &TokenType) -> Precedence {
 ```
 为了验证CALL优先级是最高优先级，扩展测试用例：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 fn test_operator_precedence_parsing() {
     let tests = [
@@ -1267,7 +1267,7 @@ fn test_operator_precedence_parsing() {
 
 删除ast.rs中的TODO
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug)]
 pub enum Expression {
@@ -1309,7 +1309,7 @@ impl NodeTrait for Expression {
 ```
 修改parse_let_statement和parse_return_statement。
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_let_statement(&mut self) -> Option<LetStatement> {
         let token = self.cur_token.clone();

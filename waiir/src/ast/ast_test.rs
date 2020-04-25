@@ -1,4 +1,4 @@
-// src/ast_test.rs
+// src/ast/ast_test.rs
 
 use crate::ast::*;
 use crate::token::*;

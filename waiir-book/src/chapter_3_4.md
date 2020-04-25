@@ -14,10 +14,17 @@ let anotherName = barfoo;
 
 定义抽象语法树节点：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/mod.rs
+
+mod ast;
+pub use ast::*;
+```
+
+```rust,noplaypen
+// src/ast/ast.rs
 
 pub trait NodeTrait {
-    fn token_literal(&self) -> String;
+    fn string(&self) -> String;
 }
 
 pub enum Node {
@@ -27,15 +34,15 @@ pub enum Node {
 
 pub enum Statement {}
 impl NodeTrait for Statement {
-    fn token_literal(&self) -> String {
-        String::new() //TODO
+    fn string(&self) -> String {
+        String::new()   //TODO
     }
 }
 
 pub enum Expression {}
 impl NodeTrait for Expression {
-    fn token_literal(&self) -> String {
-        String::new() //TODO
+    fn string(&self) -> String {
+        String::new()   //TODO
     }
 }
 ```
@@ -47,24 +54,24 @@ Rust语言具有强大的enum和match匹配能力，本文用enum来定义Node�
 
 定义Program：
 ```rust,noplaypen
-// src/ast.rs 
+// src/ast/ast.rs 
 
 pub struct Program {
     pub statements: Vec<Statement>,
 }
 impl NodeTrait for Program {
-    fn token_literal(&self) -> String {
-        if self.statements.len() > 0 {
-            self.statements[0].token_literal()
-        } else {
-            String::new()
+    fn string(&self) -> String {
+        let mut out = String::new();
+        for s in self.statements.iter() {
+            out.push_str(&s.string());
         }
+        out
     }
 }
 ```
 在Node枚举中加入Program：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 pub enum Node {
     Program(Program),
@@ -76,18 +83,23 @@ Program节点是所有AST的根节点，包含一系列Statement节点。
 
 下面定义let语句：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
-use super::token::*;
-
+use crate::token::*;
+// [...]
 pub struct LetStatement {
     pub token: Token,
     pub name: Identifier,
     pub value: Expression,
 }
 impl NodeTrait for LetStatement {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
+    fn string(&self) -> String {
+        format!(
+            "{} {} = {};",
+            self.token.literal,
+            self.name.string(),
+            self.value.string(),
+        )
     }
 }
 
@@ -96,8 +108,8 @@ pub struct Identifier {
     pub value: String,
 }
 impl NodeTrait for Identifier {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
+    fn string(&self) -> String {
+        self.value.clone()
     }
 }
 ```
@@ -105,15 +117,15 @@ LetStatement节点包含name和value两个成员，其中name表示绑定的标�
 
 将LetStatement加入Statement，将Identifier加入Expression，如下：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 pub enum Statement {
     LetStatement(LetStatement),
 }
 impl NodeTrait for Statement {
-    fn token_literal(&self) -> String {
+    fn string(&self) -> String {
         match self {
-            Statement::LetStatement(let_stmt) => let_stmt.token_literal(),
+            Statement::LetStatement(let_stmt) => let_stmt.string(),
         }
     }
 }
@@ -121,9 +133,9 @@ pub enum Expression {
     Identifier(Identifier),
 }
 impl NodeTrait for Expression {
-    fn token_literal(&self) -> String {
+    fn string(&self) -> String {
         match self {
-            Expression::Identifier(ident) => ident.token_literal(),
+            Expression::Identifier(ident) => ident.string(),
         }
     }
 }
@@ -151,19 +163,26 @@ let x = 5;
 
 下面我们开始编码解析器：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/mod.rs
 
-use super::ast::*;
-use super::lexer::*;
-use super::token::*;
+mod parser;
+pub use parser::*;
+```
 
-pub struct Parser<'a> {
-    pub l: Lexer<'a>,
+```rust,noplaypen
+// src/parser/parser.rs
+
+use crate::ast::*;
+use crate::lexer::*;
+use crate::token::*;
+
+pub struct Parser {
+    pub l: Lexer,
     pub cur_token: Token,
     pub peek_token: Token,
 }
-impl<'a> Parser<'a> {
-    pub fn new(l: Lexer<'a>) -> Parser<'a> {
+impl Parser {
+    pub fn new(l: Lexer) -> Parser {
         let mut p = Parser {
             l: l,
             cur_token: new_token(TokenType::ILLEGAL, 0),
@@ -179,8 +198,8 @@ impl<'a> Parser<'a> {
         self.peek_token = self.l.next_token();
     }
 
-    pub fn parse_program(&mut self) -> Option<Program> {
-        None
+    pub fn parse_program(&mut self) -> Result<Program, Vec<String>> {
+        Err(vec![String::from("None")])
     }
 }
 ```
@@ -190,7 +209,7 @@ impl<'a> Parser<'a> {
 
 由于这里需要调用Token的clone方法，修改Token和TokenType的属性如下：
 ```rust,noplaypen
-// src/token.rs
+// src/token/token.rs
 
 #[derive(Debug, Clone)]
 pub struct Token {
@@ -282,11 +301,18 @@ function parseOperatorExpression() {
 
 下面我们继续开发，先写测试用例：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/mod.rs
 
-use super::ast::*;
-use super::lexer::*;
-use super::parser::*;
+#[cfg(test)]
+mod parser_test;
+```
+
+```rust,noplaypen
+// src/parser/parser_test.rs
+
+use crate::ast::*;
+use crate::lexer::*;
+use crate::parser::*;
 
 #[test]
 fn test_let_statements() {
@@ -297,28 +323,36 @@ let foobar = 838383;
 ";
     let l = Lexer::new(input);
     let mut p = Parser::new(l);
-    let program = p.parse_program();
-    if let Some(Program { statements }) = program {
-        assert!(
-            statements.len() == 3,
-            "program.statements does not contain 3 statements. got={}",
-            statements.len()
-        );
+    match p.parse_program() {
+        Ok(Program { statements }) => {
+            assert!(
+                statements.len() == 3,
+                "program.statements does not contain 3 statements. got={}",
+                statements.len()
+            );
 
-        let tests = ["x", "y", "foobar"];
-        for (i, tt) in tests.iter().enumerate() {
-            test_let_statement(&statements[i], tt);
+            let tests = ["x", "y", "foobar"];
+            for (i, tt) in tests.iter().enumerate() {
+                test_let_statement(&statements[i], tt);
+            }
         }
-    } else {
-        assert!(false, "parse_program() returned None");
+        Err(errors) => panic_with_errors(errors),
     }
+}
+
+fn panic_with_errors(errors: Vec<String>) {
+    let mut messages = Vec::new();
+    for msg in errors.into_iter() {
+        messages.push(msg);
+    }
+    panic!("parser error: {}", messages.join("\n"));
 }
 
 fn test_let_statement(s: &Statement, expected_name: &str) {
     assert!(
-        s.token_literal() == "let",
+        &s.string()[0..3] == "let",
         "s.token_literal not 'let'. got={}",
-        s.token_literal()
+        s.string()
     );
 
     if let Statement::LetStatement(LetStatement {
@@ -334,13 +368,13 @@ fn test_let_statement(s: &Statement, expected_name: &str) {
         );
 
         assert!(
-            name.token_literal() == expected_name,
+            name.token.literal == expected_name,
             "s.name not '{}'. got={}",
             expected_name,
-            name.token_literal()
+            name.token.literal
         );
     } else {
-        assert!(false, "s not LetStatement. got={:?}", s);
+        panic!("s not LetStatement. got={:?}", s);
     }
 }
 ```
@@ -350,7 +384,7 @@ fn test_let_statement(s: &Statement, expected_name: &str) {
 
 测试中需要打印输出Statement，因此需要添加Statement的Debug属性，进而需要添加Expression, LetStatement和Identifier的Debug属性：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug)]
 pub enum Statement {
@@ -375,112 +409,107 @@ pub struct Identifier {
     pub value: String,
 }
 ```
-为了支持测试，需要修改lib.rs，加入下面几行。
+为了支持测试，需要修改main.rs，加入下面几行。
 ```rust,noplaypen
-// src/lib.rs
+// src/main.rs
 
-pub mod ast;
-pub mod parser;
-
-#[cfg(test)]
-mod parser_test;
+mod ast;
+mod parser;
 ```
 测试失败的信息如下：
 ```
-thread 'parser::tests::test_let_statements' panicked at 'parse_program() returned None', src/parser_test.rs:59:13
+thread 'parser::tests::test_let_statements' panicked at 'parser error: None', src/parser/parser_test.rs:59:13
 ```
 必然的，因为parse_program还没实现呢。
 
 实现如下：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
-    pub fn parse_program(&mut self) -> Option<Program> {
+    pub fn parse_program(&mut self) -> Result<Program, Vec<String>> {
         let mut statements: Vec<Statement> = Vec::new();
-
+        let mut errors = Vec::new();
         while self.cur_token.tk_type != TokenType::EOF {
-            if let Some(stmt) = self.parse_statement() {
-                statements.push(stmt);
+            match self.parse_statement() {
+                Ok(stmt) => statements.push(stmt),
+                Err(err) => errors.push(err),
             }
             self.next_token();
         }
+        if errors.len() != 0 {
+            return Err(errors);
+        }
 
-        Some(Program {
+        Ok(Program {
             statements: statements,
         })
     }
 
-    fn parse_statement(&mut self) -> Option<Statement> {
+    fn parse_statement(&mut self) -> Result<Statement, String> {
         match self.cur_token.tk_type {
-            TokenType::LET => {
-                if let Some(stmt) = self.parse_let_statement() {
-                    return Some(Statement::LetStatement(stmt));
-                }
-                None
-            }
-            _ => None,
+            TokenType::LET => self.parse_let_statement(),
+            _ => Err(String::new()),
         }
     }
 
-    fn parse_let_statement(&mut self) -> Option<LetStatement> {
+    fn parse_let_statement(&mut self) -> Result<Statement, String> {
         let token = self.cur_token.clone();
-        if !self.expect_peek(TokenType::IDENT) {
-            return None;
-        }
+
+        self.expect_peek(&TokenType::IDENT)?;
 
         let name = Identifier {
             token: self.cur_token.clone(),
             value: self.cur_token.literal.clone(),
         };
 
-        if !self.expect_peek(TokenType::ASSIGN) {
-            return None;
-        }
+        self.expect_peek(&TokenType::ASSIGN)?;
+
+        self.next_token();
 
         // TODO: 我们将跳过分号之前的表达式
-        while !self.cur_token_is(TokenType::SEMICOLON) {
-            if self.cur_token_is(TokenType::EOF) {
-                return None;
+        while !self.cur_token_is(&TokenType::SEMICOLON) {
+            if self.cur_token_is(&TokenType::EOF) {
+                return Err(String::new());
             }
             self.next_token();
         }
 
-        Some(LetStatement {
+        Ok(Statement::LetStatement(LetStatement {
             token: token,
             name: name,
-            value: Expression::MockExpression { v: 0 },
-        })
+            value: Expression::MockExpression,
+        }))
     }
 
-    fn cur_token_is(&self, t: TokenType) -> bool {
-        self.cur_token.tk_type == t
+    fn cur_token_is(&self, t: &TokenType) -> bool {
+        &self.cur_token.tk_type == t
     }
-    fn peek_token_is(&self, t: TokenType) -> bool {
-        self.peek_token.tk_type == t
+    fn peek_token_is(&self, t: &TokenType) -> bool {
+        &self.peek_token.tk_type == t
     }
-    fn expect_peek(&mut self, t: TokenType) -> bool {
+    fn expect_peek(&mut self, t: &TokenType) -> Result<(), String> {
         if self.peek_token_is(t) {
             self.next_token();
-            true
+            Ok(())
         } else {
-            false
+            Err(String::new())
         }
     }
 ```
 由于LetStatement的value是Expression，目前为止，我们还没有能解析Expression的能力，只能跳过，我这里做了一个占位用的MockExpression定义，未来需要移除，代码如下：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug)]
 pub enum Expression {
     Identifier(Identifier),
-    MockExpression { v: i32 }, //TODO remove
+    MockExpression, //TODO remove
 }
 impl NodeTrait for Expression {
     fn token_literal(&self) -> String {
         match self {
             Expression::Identifier(ident) => ident.token_literal(),
-            Expression::MockExpression { v: _ } => String::new(), //TODO remove
+            Expression::MockExpression => String::new(), //TODO remove
         }
     }
 }
@@ -491,70 +520,26 @@ impl NodeTrait for Expression {
 
 为了更好地调试，我们在继续工作之前先为解析器加入一些错误处理的能力：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
-pub struct Parser<'a> {
-    pub l: Lexer<'a>,
-    pub cur_token: Token,
-    pub peek_token: Token,
-    pub errors: Vec<String>,
-}
-
-impl<'a> Parser<'a> {
-    pub fn new(l: Lexer<'a>) -> Parser<'a> {
-        let mut p = Parser {
-            l: l,
-            cur_token: new_token(TokenType::ILLEGAL, 0),
-            peek_token: new_token(TokenType::ILLEGAL, 0),
-            errors: Vec::new(),
-        };
-// [...]
-    }
-
-    fn peek_error(&mut self, t: TokenType) {
-        let msg = format!(
+    fn peek_error(&mut self, t: &TokenType) -> String {
+        format!(
             "expected next token to be {:?}, got {:?} instead",
             t, self.peek_token.tk_type
-        );
-        self.errors.push(msg);
+        )
     }
-}
-```
-这样，测试用例就可以改为：
-```rust,noplaypen
-// src/parser_test.rs
-
-fn test_let_statements() {
-// [...]
-    let program = p.parse_program();
-    check_parser_errors(&mut p);
-
-// [...]
-}
-
-fn check_parser_errors(p: &mut Parser) {
-    if p.errors.len() == 0 {
-        return;
-    }
-
-    let mut msgs = String::from(format!("parser has {} errors\n", p.errors.len()));
-    for msg in p.errors.iter() {
-        msgs.push_str(&format!("parser error: {:?}\n", msg));
-    }
-    assert!(false, msgs);
 }
 ```
 修改expect_peek，加上收集错误的代码调用：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
-    fn expect_peek(&mut self, t: TokenType) -> bool {
-        if self.peek_token_is(t.clone()) {
+    fn expect_peek(&mut self, t: &TokenType) -> Result<(), String> {
+        if self.peek_token_is(t) {
             self.next_token();
-            true
+            Ok(())
         } else {
-            self.peek_error(t);
-            false
+            Err(self.peek_error(t))
         }
     }
 ```
@@ -562,7 +547,7 @@ fn check_parser_errors(p: &mut Parser) {
 
 为了测试一下解析错误的情况，可以临时修改测试用例：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn test_let_statements() {
         let input = "
@@ -575,7 +560,9 @@ let 838383;
 ```
 thread 'parser::tests::test_let_statements' panicked at 'parser has 3 errors
 parser error: "expected next token to be ASSIGN, got INT instead"
+
 parser error: "expected next token to be IDENT, got ASSIGN instead"
+
 parser error: "expected next token to be IDENT, got INT instead"
 ```
 我们刚刚加的错误处理起效了。

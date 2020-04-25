@@ -12,7 +12,7 @@ return <expression>;
 ```
 定义return语句：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug)]
 pub struct ReturnStatement {
@@ -27,7 +27,7 @@ impl NodeTrait for ReturnStatement {
 ```
 将RetrunStatement加入Statement：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug)]
 pub enum Statement {
@@ -46,7 +46,7 @@ impl NodeTrait for Statement {
 
 先写测试用例：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 #[test]
 fn test_return_statement() {
@@ -85,12 +85,12 @@ return 993322;
 ```
 测试必然失败，信息如下：
 ```
-thread 'parser::tests::test_return_statement' panicked at 'program.statements does not contain 3 statements. got=0', src/parser_test.rs:192:13
+thread 'parser::tests::test_return_statement' panicked at 'program.statements does not contain 3 statements. got=0', src/parser/parser_test.rs:192:13
 ```
 
 修改parse_statement来支持return语句。
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.cur_token.tk_type {

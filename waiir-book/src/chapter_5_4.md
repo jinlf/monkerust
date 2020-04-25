@@ -37,7 +37,7 @@ three
 
 需要增加两种Token：
 ```rust,noplaypen
-// src/token.rs
+// src/token/token.rs
 
 pub enum TokenType {
 // [...]
@@ -48,7 +48,7 @@ pub enum TokenType {
 
 测试用例如下：
 ```rust,noplaypen
-// src/lexer_test.rs
+// src/lexer/lexer_test.rs
 
 fn test_next_token() {
     let input = "
@@ -70,7 +70,7 @@ fn test_next_token() {
 
 扩展词法分析器：
 ```rust,noplaypen
-// src/lexer.rs
+// src/lexer/lexer.rs
 
     pub fn next_token(&mut self) -> Token {
 // [...]
@@ -89,7 +89,7 @@ Monkey中的数组字面量是用逗号分隔，用中括号包围的一系列�
 
 定义如下：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug, Clone)]
 pub struct ArrayLiteral {
@@ -134,7 +134,7 @@ impl NodeTrait for Expression {
 
 增加测试用例：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 #[test]
 fn test_parsing_array_literals() {
@@ -183,7 +183,7 @@ fn test_parsing_array_literals() {
 
 需要为左中括号Token增加前缀解析函数：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
         let mut left_exp: Option<Expression>;
@@ -244,7 +244,7 @@ fn test_parsing_array_literals() {
 
 parse_expression_list更加通用，可以用来替换之前编写的parse_call_arguments，修改后的结果如下：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_call_expression(&mut self, function: Expression) -> Option<Expression> {
         let token = self.cur_token.clone();
@@ -289,7 +289,7 @@ returnsArray()[1];
 
 定义AST节点：
 ```rust,noplaypen
-// src/ast.rs
+// src/ast/ast.rs
 
 #[derive(Debug, Clone)]
 pub struct IndexExpression {
@@ -328,7 +328,7 @@ impl NodeTrait for Expression {
 
 测试用例如下：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 #[test]
 fn test_parsing_index_expressions() {
@@ -371,7 +371,7 @@ fn test_parsing_index_expressions() {
 
 索引操作符有最高优先级，增加测试用例：
 ```rust,noplaypen
-// src/parser_test.rs
+// src/parser/parser_test.rs
 
 fn test_operator_precedence_parsing() {
     let tests = [
@@ -389,13 +389,13 @@ fn test_operator_precedence_parsing() {
 ```
 测试失败结果如下：
 ```
-thread 'parser::tests::test_parsing_index_expressions' panicked at 'exp not IndexExpression. got=Identifier(Identifier { token: Token { tk_type: IDENT, literal: "myArray" }, value: "myArray" })', src/parser_test.rs:1486:21
-thread 'parser::tests::test_operator_precedence_parsing' panicked at 'expected="((a * ([1, 2, 3, 4][(b * c)])) * d)", got="(a * [1, 2, 3, 4])([(b * c)] * d)"', src/parser_test.rs:928:13
+thread 'parser::tests::test_parsing_index_expressions' panicked at 'exp not IndexExpression. got=Identifier(Identifier { token: Token { tk_type: IDENT, literal: "myArray" }, value: "myArray" })', src/parser/parser_test.rs:1486:21
+thread 'parser::tests::test_operator_precedence_parsing' panicked at 'expected="((a * ([1, 2, 3, 4][(b * c)])) * d)", got="(a * [1, 2, 3, 4])([(b * c)] * d)"', src/parser/parser_test.rs:928:13
 ```
 
 需要为索引表达式中的左中括号增加中缀解析函数：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
 // [...]
@@ -435,12 +435,12 @@ thread 'parser::tests::test_operator_precedence_parsing' panicked at 'expected="
 ```
 测试结果还是不正确：
 ```
-thread 'parser::tests::test_parsing_index_expressions' panicked at 'exp not IndexExpression. got=Identifier(Identifier { token: Token { tk_type: IDENT, literal: "myArray" }, value: "myArray" })', src/parser_test.rs:1510:21
-thread 'parser::tests::test_operator_precedence_parsing' panicked at 'expected="((a * ([1, 2, 3, 4][(b * c)])) * d)", got="(a * [1, 2, 3, 4])([(b * c)] * d)"', src/parser_test.rs:952:13
+thread 'parser::tests::test_parsing_index_expressions' panicked at 'exp not IndexExpression. got=Identifier(Identifier { token: Token { tk_type: IDENT, literal: "myArray" }, value: "myArray" })', src/parser/parser_test.rs:1510:21
+thread 'parser::tests::test_operator_precedence_parsing' panicked at 'expected="((a * ([1, 2, 3, 4][(b * c)])) * d)", got="(a * [1, 2, 3, 4])([(b * c)] * d)"', src/parser/parser_test.rs:952:13
 ```
 是的，需要添加优先级及其映射：
 ```rust,noplaypen
-// src/parser.rs
+// src/parser/parser.rs
 
 pub enum Precedence {
 // [...]

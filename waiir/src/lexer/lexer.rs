@@ -1,4 +1,4 @@
-// src/lexer.rs
+// src/lexer/lexer.rs
 
 use crate::token::*;
 
