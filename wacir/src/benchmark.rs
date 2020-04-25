@@ -93,7 +93,7 @@ fn main() {
                         _ => {}
                     }
                     duration = now.elapsed().unwrap().as_millis();
-                    result = machine.last_popped_stack_elem().unwrap();
+                    result = machine.last_popped_stack_elem.unwrap();
                 }
                 "eval" => {
                     let env = Rc::new(RefCell::new(new_environment()));

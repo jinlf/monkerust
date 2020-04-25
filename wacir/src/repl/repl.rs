@@ -47,7 +47,7 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
                         let mut machine = Vm::new_with_globals_store(code, Rc::clone(&globals));
                         match machine.run() {
                             Ok(_) => {
-                                if let Some(last_popped) = machine.last_popped_stack_elem() {
+                                if let Some(last_popped) = machine.last_popped_stack_elem {
                                     writeln!(output, "{}", last_popped.inspect()).unwrap();
                                 }
                             }

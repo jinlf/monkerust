@@ -43,7 +43,7 @@ fn run_vm_tests(tests: Vec<VmTestCase>) {
                         let mut vm = Vm::new(comp.bytecode());
                         match vm.run() {
                             Ok(_) => {
-                                let stack_elem = vm.last_popped_stack_elem();
+                                let stack_elem = vm.last_popped_stack_elem;
                                 test_expected_object(&tt.expected, &stack_elem.unwrap());
                             }
                             Err(err) => test_expected_object(

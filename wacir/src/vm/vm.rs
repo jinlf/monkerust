@@ -25,6 +25,7 @@ pub struct Vm {
     globals: Rc<RefCell<Vec<Option<Object>>>>,
     frames: Vec<Frame>,
     frame_index: usize,
+    pub last_popped_stack_elem: Option<Object>,
 }
 impl Vm {
     pub fn new(bytecode: Bytecode) -> Vm {
@@ -60,16 +61,17 @@ impl Vm {
             globals: Rc::new(RefCell::new(vec![None; GLOBALS_SIZE])),
             frames: frames,
             frame_index: 1,
+            last_popped_stack_elem: None,
         }
     }
 
-    pub fn stack_top(&self) -> Option<Object> {
-        if self.sp == 0 {
-            None
-        } else {
-            self.stack[(self.sp - 1) as usize].clone()
-        }
-    }
+    // pub fn stack_top(&self) -> Option<Object> {
+    //     if self.sp == 0 {
+    //         None
+    //     } else {
+    //         self.stack[(self.sp - 1) as usize].clone()
+    //     }
+    // }
 
     pub fn run(&mut self) -> Result<(), String> {
         let mut ip: usize;
@@ -131,7 +133,7 @@ impl Vm {
                     let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
                     let global_index = read_u16(src) as usize;
                     self.current_frame().ip += 2;
-                    self.globals.borrow_mut()[global_index] = self.pop().clone();
+                    self.globals.borrow_mut()[global_index] = self.pop();
                 }
                 Opcode::OpGetGlobal => {
                     let src = ins.0[(ip + 1)..(ip + 3)].try_into().expect("wrong size");
@@ -162,21 +164,19 @@ impl Vm {
                     self.push(hash)?;
                 }
                 Opcode::OpIndex => {
-                    let index = self.pop().clone();
-                    let left = self.pop().clone();
+                    let index = self.pop();
+                    let left = self.pop();
                     self.execute_index_expression(&left, &index)?;
                 }
                 Opcode::OpCall => {
                     let num_args = ins.0[ip + 1] as usize;
                     self.current_frame().ip += 1;
-
                     self.execute_call(num_args)?;
                 }
                 Opcode::OpReturnValue => {
-                    let return_value = self.pop().clone();
+                    let return_value = self.pop();
                     let base_pointer = self.pop_frame().base_pointer;
                     self.sp = base_pointer - 1;
-
                     self.push(return_value.unwrap())?;
                 }
                 Opcode::OpReturn => {
@@ -190,7 +190,7 @@ impl Vm {
                     self.current_frame().ip += 1;
 
                     let base_pointer = self.current_frame().base_pointer;
-                    self.stack[base_pointer + local_index] = self.pop().clone();
+                    self.stack[base_pointer + local_index] = self.pop();
                 }
                 Opcode::OpGetLocal => {
                     let local_index = ins.0[ip + 1] as usize;
@@ -239,28 +239,29 @@ impl Vm {
         Ok(())
     }
 
-    pub fn pop(&mut self) -> &Option<Object> {
-        let o = &self.stack[self.sp - 1];
+    pub fn pop(&mut self) -> Option<Object> {
+        let o = std::mem::replace(&mut self.stack[self.sp - 1], None);
+        self.last_popped_stack_elem = o.clone();
         self.sp -= 1;
-        &o
+        o
     }
 
-    pub fn last_popped_stack_elem(&self) -> Option<Object> {
-        self.stack[self.sp].clone()
-    }
+    // pub fn last_popped_stack_elem(&self) -> Option<Object> {
+    //     self.stack[self.sp].clone()
+    // }
 
     fn execute_binary_operation(&mut self, op: Opcode) -> Result<(), String> {
-        let right = self.pop().clone();
-        let left = self.pop().clone();
-        if let Some(Object::Integer(Integer { value })) = left {
+        let right = self.pop();
+        let left = self.pop();
+        if let Some(Object::Integer(Integer { value })) = &left {
             let left_value = value;
-            if let Some(Object::Integer(Integer { value })) = right {
+            if let Some(Object::Integer(Integer { value })) = &right {
                 let right_value = value;
-                return self.execute_binary_integer_operation(op, left_value, right_value);
+                return self.execute_binary_integer_operation(op, *left_value, *right_value);
             }
-        } else if let Some(Object::StringObj(StringObj { value })) = left.clone() {
+        } else if let Some(Object::StringObj(StringObj { value })) = &left {
             let left_value = value;
-            if let Some(Object::StringObj(StringObj { value })) = right.clone() {
+            if let Some(Object::StringObj(StringObj { value })) = &right {
                 let right_value = value;
                 return self.execute_binary_string_operation(op, left_value, right_value);
             }
@@ -290,8 +291,8 @@ impl Vm {
     }
 
     fn execute_comparison(&mut self, op: Opcode) -> Result<(), String> {
-        let right = self.pop().clone();
-        let left = self.pop().clone();
+        let right = self.pop();
+        let left = self.pop();
 
         if let Some(Object::Integer(Integer { value })) = right {
             let right_value = value;
@@ -337,7 +338,7 @@ impl Vm {
         }
     }
     fn execute_minus_operator(&mut self) -> Result<(), String> {
-        let operand = self.pop().clone();
+        let operand = self.pop();
         match operand {
             Some(Object::Integer(Integer { value })) => {
                 return self.push(Object::Integer(Integer { value: -value }));
@@ -386,14 +387,15 @@ impl Vm {
             globals: Rc::clone(&s),
             frames: frames,
             frame_index: 1,
+            last_popped_stack_elem: None,
         }
     }
 
     fn execute_binary_string_operation(
         &mut self,
         op: Opcode,
-        left: String,
-        right: String,
+        left: &str,
+        right: &str,
     ) -> Result<(), String> {
         if op != Opcode::OpAdd {
             return Err(format!("unknown string operator: {:?}", op));
@@ -403,11 +405,11 @@ impl Vm {
         }))
     }
 
-    fn build_array(&self, start_index: usize, end_index: usize) -> Object {
+    fn build_array(&mut self, start_index: usize, end_index: usize) -> Object {
         let mut elements: Vec<Object> = vec![NULL; end_index - start_index];
         let mut i = start_index;
         while i < end_index {
-            elements[i - start_index] = self.stack[i].as_ref().unwrap().clone();
+            elements[i - start_index] = std::mem::replace(&mut self.stack[i], None).unwrap();
             i += 1;
         }
         Object::Array(Array { elements: elements })
@@ -448,7 +450,7 @@ impl Vm {
         left: &Option<Object>,
         index: &Option<Object>,
     ) -> Result<(), String> {
-        if let Some(Object::Array(Array { elements })) = left.clone() {
+        if let Some(Object::Array(Array { elements })) = left {
             if let Some(Object::Integer(Integer { value })) = index {
                 return self.execute_array_index(elements, *value);
             }
@@ -458,7 +460,7 @@ impl Vm {
         Err(format!("index operator not supported: {}", get_type(&left)))
     }
 
-    fn execute_array_index(&mut self, elements: Vec<Object>, index: i64) -> Result<(), String> {
+    fn execute_array_index(&mut self, elements: &Vec<Object>, index: i64) -> Result<(), String> {
         let max = elements.len() as i64 - 1;
         if index < 0 || index > max {
             return self.push(NULL);
@@ -472,7 +474,7 @@ impl Vm {
         pairs: &HashMap<HashKey, Object>,
         index: &Option<Object>,
     ) -> Result<(), String> {
-        if let Some(key) = index.clone() {
+        if let Some(key) = index {
             if let Some(hash_key) = key.as_hashable() {
                 if let Some(value) = pairs.get(&hash_key.hash_key()) {
                     return self.push(value.clone());
@@ -496,9 +498,9 @@ impl Vm {
         self.frame_index += 1;
     }
 
-    fn pop_frame(&mut self) -> &Frame {
+    fn pop_frame(&mut self) -> Frame {
         self.frame_index -= 1;
-        &self.frames[self.frame_index]
+        self.frames[self.frame_index].clone()
     }
 
     // fn call_function(&mut self, func: CompiledFunction, num_args: usize) -> Result<(), String> {
@@ -518,19 +520,18 @@ impl Vm {
     fn execute_call(&mut self, num_args: usize) -> Result<(), String> {
         let callee = self.stack[self.sp - 1 - num_args].clone();
         if let Some(Object::Closure(cl)) = callee {
-            return self.call_closure(cl, num_args);
+            return self.call_closure(&cl, num_args);
         } else if let Some(Object::Builtin(builtin)) = callee {
-            return self.call_builtin(builtin, num_args);
+            return self.call_builtin(&builtin, num_args);
         } else {
             return Err(format!("calling non-function and no-built-in"));
         }
     }
 
-    fn call_builtin(&mut self, builtin: Builtin, num_args: usize) -> Result<(), String> {
-        let args = &self.stack[(self.sp - num_args)..self.sp];
+    fn call_builtin(&mut self, builtin: &Builtin, num_args: usize) -> Result<(), String> {
         let mut v: Vec<Object> = Vec::new();
-        for arg in args.iter() {
-            v.push(arg.as_ref().unwrap().clone());
+        for i in 0..num_args {
+            v.push(std::mem::replace(&mut self.stack[self.sp - num_args + i], None).unwrap());
         }
         let func = builtin.func;
         let result = func(&v)?;
@@ -539,7 +540,7 @@ impl Vm {
         Ok(())
     }
 
-    fn call_closure(&mut self, cl: Closure, num_args: usize) -> Result<(), String> {
+    fn call_closure(&mut self, cl: &Closure, num_args: usize) -> Result<(), String> {
         if num_args != cl.func.num_parameters {
             return Err(format!(
                 "wrong number of arguments: want={}, got={}",
@@ -548,7 +549,7 @@ impl Vm {
         }
 
         let num_locals = cl.func.num_locals;
-        let frame = Frame::new(cl, self.sp - num_args);
+        let frame = Frame::new(cl.clone(), self.sp - num_args);
         let base_pointer = frame.base_pointer;
         self.push_frame(frame);
         self.sp = base_pointer + num_locals;
