@@ -362,16 +362,9 @@ pub fn make(op: Opcode, operands: &Vec<i64>) -> Instructions {
         for (i, o) in operands.iter().enumerate() {
             let width = def.operand_widths[i];
             match width {
-                2 => {
-                    let two = *o as u16;
-                    instruction.put_be_u16(offset, two);
-                }
-                1 => {
-                    instruction.0[offset] = (*o) as u8;
-                }
-                _ => {
-                    // error
-                }
+                2 => instruction.put_be_u16(offset, *o as u16),
+                1 => instruction.0[offset] = (*o) as u8,
+                _ => panic!("Unsupported operand width"),
             }
             offset += width;
         }
@@ -391,12 +384,8 @@ pub fn read_operands(def: &Definition, ins: &[u8]) -> (Vec<i64>, usize) {
                 let src = ins[offset..offset + 2].try_into().expect("wrong size");
                 operands[i] = read_u16(src) as i64
             }
-            1 => {
-                operands[i] = ins[offset] as i64;
-            }
-            _ => {
-                // error
-            }
+            1 => operands[i] = ins[offset] as i64,
+            _ => panic!("Unsupported operand width"),
         }
         offset += width;
     }

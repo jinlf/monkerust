@@ -388,28 +388,28 @@ impl Parser {
         }))
     }
 
-    // fn parse_call_arguments(&mut self) -> Result<Vec<Expression>, String> {
-    //     let mut args: Vec<Expression> = Vec::new();
-    //     if self.peek_token_is(TokenType::RPAREN) {
-    //         self.next_token();
-    //         return Ok(args);
-    //     }
+    fn parse_call_arguments(&mut self) -> Result<Vec<Expression>, String> {
+        let mut args: Vec<Expression> = Vec::new();
+        if self.peek_token_is(TokenType::RPAREN) {
+            self.next_token();
+            return Ok(args);
+        }
 
-    //     self.next_token();
-    //     let arg = self.parse_expression(Precedence::LOWEST)?;
-    //     args.push(arg);
+        self.next_token();
+        let arg = self.parse_expression(Precedence::LOWEST)?;
+        args.push(arg);
 
-    //     while self.peek_token_is(TokenType::COMMA) {
-    //         self.next_token();
-    //         self.next_token();
-    //         let arg = self.parse_expression(Precedence::LOWEST)?;
-    //         args.push(arg);
-    //     }
+        while self.peek_token_is(TokenType::COMMA) {
+            self.next_token();
+            self.next_token();
+            let arg = self.parse_expression(Precedence::LOWEST)?;
+            args.push(arg);
+        }
 
-    //     self.expect_peek(TokenType::RPAREN)?;
+        self.expect_peek(TokenType::RPAREN)?;
 
-    //     Ok(args)
-    // }
+        Ok(args)
+    }
 
     fn parse_string_literal(&self) -> Result<Expression, String> {
         Ok(Expression::StringLiteral(StringLiteral {

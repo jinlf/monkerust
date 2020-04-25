@@ -63,13 +63,13 @@ impl Vm {
         }
     }
 
-    // pub fn stack_top(&self) -> Option<Object> {
-    //     if self.sp == 0 {
-    //         None
-    //     } else {
-    //         self.stack[(self.sp - 1) as usize].clone()
-    //     }
-    // }
+    pub fn stack_top(&self) -> Option<Object> {
+        if self.sp == 0 {
+            None
+        } else {
+            self.stack[(self.sp - 1) as usize].clone()
+        }
+    }
 
     pub fn run(&mut self) -> Result<(), String> {
         let mut ip: usize;
@@ -512,7 +512,7 @@ impl Vm {
     //     let frame = Frame::new(func.clone(), self.sp - num_args);
     //     self.sp = frame.base_pointer + func.num_locals;
     //     self.push_frame(frame);
-    //     return Ok(String::new());
+    //     return Ok(());
     // }
 
     fn execute_call(&mut self, num_args: usize) -> Result<(), String> {

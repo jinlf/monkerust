@@ -311,18 +311,18 @@ impl Compiler {
         self.scopes[self.scope_index].last_instruction = Some(last);
     }
 
-    // fn last_instruction_is_pop(&self) -> bool {
-    //     if let Some(EmittedInstruction {
-    //         opcode,
-    //         position: _,
-    //     }) = self.scopes[self.scope_index].last_instruction
-    //     {
-    //         if opcode == Opcode::OpPop {
-    //             return true;
-    //         }
-    //     }
-    //     false
-    // }
+    fn last_instruction_is_pop(&self) -> bool {
+        if let Some(EmittedInstruction {
+            opcode,
+            position: _,
+        }) = &self.scopes[self.scope_index].last_instruction
+        {
+            if *opcode == Opcode::OpPop {
+                return true;
+            }
+        }
+        false
+    }
 
     fn remove_last_pop(&mut self) {
         let last = self.scopes[self.scope_index].last_instruction.clone();
