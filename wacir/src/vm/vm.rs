@@ -120,7 +120,7 @@ impl Vm {
                     let pos = read_u16(src) as i64;
                     self.current_frame().ip += 2;
                     let condition = self.pop();
-                    if !is_truthy(condition) {
+                    if !is_truthy(&condition) {
                         self.current_frame().ip = pos - 1;
                     }
                 }
