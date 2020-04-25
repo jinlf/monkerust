@@ -9,8 +9,16 @@ default-run = "wacir"
 
 [dependencies]
 lazy_static = "1.4.0"
+mimalloc = { version = "*", default-features = false }
 
 
 [[bin]]
 name = "benchmark"
 path = "src/benchmark.rs"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+debug = true
+

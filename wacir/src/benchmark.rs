@@ -1,5 +1,8 @@
 // src/benchmark.rs
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 #[macro_use]
 extern crate lazy_static;
 
@@ -59,7 +62,7 @@ fn main() {
             }
         } 
     };
-    fibonacci(20);
+    fibonacci(35);
     ";
 
     let result: Object;

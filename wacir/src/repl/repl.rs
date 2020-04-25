@@ -48,16 +48,19 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
                         match machine.run() {
                             Ok(_) => {
                                 if let Some(last_popped) = machine.last_popped_stack_elem() {
-                                    writeln!(output, "{}", last_popped.inspect());
+                                    writeln!(output, "{}", last_popped.inspect()).unwrap();
                                 }
                             }
                             Err(err) => {
-                                writeln!(output, "Woops! Executing bytecode failed:\n {}", err);
+                                writeln!(output, "{}", MONKEY_FACE).unwrap();
+                                writeln!(output, "Woops! Executing bytecode failed:\n {}", err)
+                                    .unwrap();
                             }
                         }
                     }
                     Err(err) => {
-                        writeln!(output, "Woops! Compilation failed:\n {}", err);
+                        writeln!(output, "{}", MONKEY_FACE).unwrap();
+                        writeln!(output, "Woops! Compilation failed:\n {}", err).unwrap();
                     }
                 }
             }
