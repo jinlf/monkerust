@@ -16,7 +16,7 @@ pub enum SymbolScope {
 pub struct Symbol {
     pub name: String,
     pub scope: SymbolScope,
-    pub index: i64,
+    pub index: isize,
 }
 
 pub struct SymbolTable {
@@ -43,7 +43,7 @@ impl SymbolTable {
         let symbol = Symbol {
             name: String::from(name),
             scope: scope,
-            index: self.num_definitions as i64,
+            index: self.num_definitions as isize,
         };
         self.store.insert(String::from(name), symbol);
         self.num_definitions += 1;
@@ -92,7 +92,7 @@ impl SymbolTable {
         let symbol = Symbol {
             name: String::from(name),
             scope: SymbolScope::BuiltinScope,
-            index: index as i64,
+            index: index as isize,
         };
         self.store.insert(String::from(name), symbol.clone());
         symbol
@@ -105,7 +105,7 @@ impl SymbolTable {
         let symbol = Symbol {
             name: original_name.clone(),
             scope: SymbolScope::FreeScope,
-            index: self.free_symbols.len() as i64 - 1,
+            index: self.free_symbols.len() as isize - 1,
         };
         self.store.insert(original_name, symbol.clone());
         symbol

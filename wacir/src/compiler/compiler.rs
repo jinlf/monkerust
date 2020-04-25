@@ -130,7 +130,7 @@ impl Compiler {
                 let jump_pos = self.emit(Opcode::OpJump, vec![9999]);
 
                 let after_consequence_pos = self.current_instructions().0.len();
-                self.change_operand(jump_not_truthy_pos, after_consequence_pos as i64);
+                self.change_operand(jump_not_truthy_pos, after_consequence_pos as isize);
 
                 if let Some(a) = alternative {
                     self.compile(Node::Statement(Statement::BlockStatement(a)))?;
@@ -141,7 +141,7 @@ impl Compiler {
                     self.emit(Opcode::OpNull, Vec::new());
                 }
                 let after_alternative_pos = self.current_instructions().0.len();
-                self.change_operand(jump_pos, after_alternative_pos as i64);
+                self.change_operand(jump_pos, after_alternative_pos as isize);
             }
             Node::Statement(Statement::BlockStatement(BlockStatement {
                 token: _,
@@ -180,7 +180,7 @@ impl Compiler {
                 self.emit(Opcode::OpConstant, vec![index]);
             }
             Node::Expression(Expression::ArrayLiteral(ArrayLiteral { token: _, elements })) => {
-                let len = elements.len() as i64;
+                let len = elements.len() as isize;
                 for el in elements {
                     self.compile(Node::Expression(el))?;
                 }
@@ -197,7 +197,7 @@ impl Compiler {
                     self.compile(Node::Expression(v))?;
                 }
 
-                self.emit(Opcode::OpHash, vec![(pairs.len() * 2) as i64]);
+                self.emit(Opcode::OpHash, vec![(pairs.len() * 2) as isize]);
             }
             Node::Expression(Expression::IndexExpression(IndexExpression {
                 token: _,
@@ -243,7 +243,10 @@ impl Compiler {
                     num_parameters: parameters.len(),
                 };
                 let fn_index = self.add_constant(Object::CompiledFunction(compiled_fn));
-                self.emit(Opcode::OpClosure, vec![fn_index, free_symbols.len() as i64]);
+                self.emit(
+                    Opcode::OpClosure,
+                    vec![fn_index, free_symbols.len() as isize],
+                );
             }
             Node::Statement(Statement::ReturnStatement(ReturnStatement {
                 token: _,
@@ -262,7 +265,7 @@ impl Compiler {
                 for a in arguments {
                     self.compile(Node::Expression(a))?;
                 }
-                self.emit(Opcode::OpCall, vec![len as i64]);
+                self.emit(Opcode::OpCall, vec![len as isize]);
             }
         }
         Ok(())
@@ -275,12 +278,12 @@ impl Compiler {
         }
     }
 
-    fn add_constant(&mut self, obj: Object) -> i64 {
+    fn add_constant(&mut self, obj: Object) -> isize {
         self.constants.borrow_mut().push(obj);
-        self.constants.borrow().len() as i64 - 1
+        self.constants.borrow().len() as isize - 1
     }
 
-    pub fn emit(&mut self, op: Opcode, operands: Vec<i64>) -> usize {
+    pub fn emit(&mut self, op: Opcode, operands: Vec<isize>) -> usize {
         let ins = make(op.clone(), &operands);
         let pos = self.add_instruction(ins.0);
 
@@ -301,14 +304,13 @@ impl Compiler {
     }
 
     fn set_last_instruction(&mut self, op: Opcode, pos: usize) {
-        let previous = self.scopes[self.scope_index].last_instruction.clone();
-        let last = EmittedInstruction {
-            opcode: op,
-            position: pos,
-        };
-
-        self.scopes[self.scope_index].previous_instruction = previous;
-        self.scopes[self.scope_index].last_instruction = Some(last);
+        self.scopes[self.scope_index].previous_instruction = std::mem::replace(
+            &mut self.scopes[self.scope_index].last_instruction,
+            Some(EmittedInstruction {
+                opcode: op,
+                position: pos,
+            }),
+        );
     }
 
     fn last_instruction_is_pop(&self) -> bool {
@@ -333,6 +335,7 @@ impl Compiler {
         new_ins
             .0
             .extend_from_slice(&old_ins.0[..(last.unwrap().position)]); // TODO: can unwrap?
+
         self.scopes[self.scope_index].instructions = new_ins;
         self.scopes[self.scope_index].last_instruction = previous;
     }
@@ -343,7 +346,7 @@ impl Compiler {
         ins.0[pos..(pos + length)].copy_from_slice(&new_instruction.0)
     }
 
-    fn change_operand(&mut self, op_pos: usize, operand: i64) {
+    fn change_operand(&mut self, op_pos: usize, operand: isize) {
         let op = Opcode::from(self.current_instructions().0[op_pos]);
         let new_instruction = make(op, &vec![operand]);
 
@@ -401,7 +404,7 @@ impl Compiler {
         }
         self.scopes[self.scope_index]
             .last_instruction
-            .clone()
+            .as_ref()
             .unwrap()
             .opcode
             == op //TODO: can unwrap?
@@ -421,16 +424,16 @@ impl Compiler {
     fn load_symbol(&mut self, s: &Symbol) {
         match s.scope {
             SymbolScope::GlobalScope => {
-                self.emit(Opcode::OpGetGlobal, vec![s.index as i64]);
+                self.emit(Opcode::OpGetGlobal, vec![s.index as isize]);
             }
             SymbolScope::LocalScope => {
-                self.emit(Opcode::OpGetLocal, vec![s.index as i64]);
+                self.emit(Opcode::OpGetLocal, vec![s.index as isize]);
             }
             SymbolScope::BuiltinScope => {
-                self.emit(Opcode::OpGetBuiltin, vec![s.index as i64]);
+                self.emit(Opcode::OpGetBuiltin, vec![s.index as isize]);
             }
             SymbolScope::FreeScope => {
-                self.emit(Opcode::OpGetFree, vec![s.index as i64]);
+                self.emit(Opcode::OpGetFree, vec![s.index as isize]);
             }
         }
     }

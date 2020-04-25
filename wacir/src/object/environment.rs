@@ -5,9 +5,9 @@ use std::cell::*;
 use std::collections::*;
 use std::rc::*;
 
-pub fn new_enclosed_environment(outer: Option<Rc<RefCell<Environment>>>) -> Environment {
+pub fn new_enclosed_environment(outer: Rc<RefCell<Environment>>) -> Environment {
     let mut env = new_environment();
-    env.outer = outer;
+    env.outer = Some(outer);
     env
 }
 

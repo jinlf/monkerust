@@ -305,7 +305,7 @@ fn apply_function(func: Object, args: &mut Vec<Object>) -> Result<Object, String
 }
 
 fn extend_function_env(func: &Function, args: &mut Vec<Object>) -> Environment {
-    let mut env = new_enclosed_environment(Some(Rc::clone(&func.env)));
+    let mut env = new_enclosed_environment(Rc::clone(&func.env));
     for (param_idx, param) in func.parameters.iter().enumerate() {
         env.set(param.value.clone(), args[param_idx].clone());
     }

@@ -41,7 +41,7 @@ impl Instructions {
         out
     }
 
-    fn fmt_instruction(&self, def: &Definition, operands: Vec<i64>) -> String {
+    fn fmt_instruction(&self, def: &Definition, operands: Vec<isize>) -> String {
         let operand_count = def.operand_widths.len();
         if operands.len() != operand_count {
             return format!(
@@ -353,7 +353,7 @@ pub fn lookup<'a>(op: u8) -> Result<&'a Definition<'a>, String> {
     }
 }
 
-pub fn make(op: Opcode, operands: &Vec<i64>) -> Instructions {
+pub fn make(op: Opcode, operands: &Vec<isize>) -> Instructions {
     if let Some(def) = DEFINITIONS.get(&op) {
         let instruction_len = def.operand_widths.iter().fold(1, |acc, w| acc + w);
         let mut instruction = Instructions(vec![0; instruction_len]);
@@ -374,7 +374,7 @@ pub fn make(op: Opcode, operands: &Vec<i64>) -> Instructions {
     }
 }
 
-pub fn read_operands(def: &Definition, ins: &[u8]) -> (Vec<i64>, usize) {
+pub fn read_operands(def: &Definition, ins: &[u8]) -> (Vec<isize>, usize) {
     let mut operands = vec![0; def.operand_widths.len()];
     let mut offset = 0;
 
@@ -382,9 +382,9 @@ pub fn read_operands(def: &Definition, ins: &[u8]) -> (Vec<i64>, usize) {
         match width {
             2 => {
                 let src = ins[offset..offset + 2].try_into().expect("wrong size");
-                operands[i] = read_u16(src) as i64
+                operands[i] = read_u16(src) as isize
             }
-            1 => operands[i] = ins[offset] as i64,
+            1 => operands[i] = ins[offset] as isize,
             _ => panic!("Unsupported operand width"),
         }
         offset += width;

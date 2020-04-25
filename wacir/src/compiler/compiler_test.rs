@@ -163,14 +163,14 @@ fn test_constants(expected: &Vec<ExpectedType>, actual: Rc<RefCell<Vec<Object>>>
 
     for (i, constant) in expected.iter().enumerate() {
         match constant {
-            ExpectedType::I64val(iv) => test_integer_object(*iv as i64, actual.borrow()[i].clone()),
-            ExpectedType::Sval(sv) => test_string_object(sv, actual.borrow()[i].clone()),
+            ExpectedType::I64val(iv) => test_integer_object(*iv as i64, &actual.borrow()[i]),
+            ExpectedType::Sval(sv) => test_string_object(sv, &actual.borrow()[i]),
             ExpectedType::VecInstructions(expected_instructions) => {
                 if let Object::CompiledFunction(CompiledFunction {
                     instructions,
                     num_locals: _,
                     num_parameters: _,
-                }) = actual.borrow()[i].clone()
+                }) = &actual.borrow()[i]
                 {
                     test_instructions(expected_instructions, &instructions);
                 } else {
@@ -186,10 +186,10 @@ fn test_constants(expected: &Vec<ExpectedType>, actual: Rc<RefCell<Vec<Object>>>
     }
 }
 
-fn test_integer_object(expected: i64, actual: Object) {
+fn test_integer_object(expected: i64, actual: &Object) {
     if let Object::Integer(Integer { value }) = actual {
         assert!(
-            value == expected,
+            *value == expected,
             "object has wrong value. got={}, want={}",
             value,
             expected
@@ -402,7 +402,7 @@ fn test_string_expressions() {
     run_compiler_tests(tests);
 }
 
-fn test_string_object(expected: &str, actual: Object) {
+fn test_string_object(expected: &str, actual: &Object) {
     if let Object::StringObj(StringObj { value }) = actual {
         assert!(
             value == expected,
@@ -670,7 +670,7 @@ fn test_compiler_scopes() {
 
     let mut last = compiler.scopes[compiler.scope_index]
         .last_instruction
-        .clone()
+        .as_ref()
         .expect("error");
     assert!(
         last.opcode == Opcode::OpSub,
@@ -715,7 +715,7 @@ fn test_compiler_scopes() {
 
     last = compiler.scopes[compiler.scope_index]
         .last_instruction
-        .clone()
+        .as_ref()
         .expect("error");
     assert!(
         last.opcode == Opcode::OpAdd,
@@ -726,7 +726,7 @@ fn test_compiler_scopes() {
 
     let previous = compiler.scopes[compiler.scope_index]
         .previous_instruction
-        .clone()
+        .as_ref()
         .expect("error");
     assert!(
         previous.opcode == Opcode::OpMul,
