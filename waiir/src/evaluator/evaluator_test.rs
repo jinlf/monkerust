@@ -41,7 +41,7 @@ fn test_eval(input: &str) -> Object {
     let l = Lexer::new(input);
     let mut p = Parser::new(l);
     match p.parse_program() {
-        Ok(program) => evaluate(Node::Program(program), Rc::clone(&env)),
+        Ok(program) => evaluate(program, Rc::clone(&env)),
         Err(errors) => panic!("{:?}", errors),
     }
 }

@@ -9,7 +9,6 @@ mod parser;
 mod repl;
 mod token;
 
-use crate::ast::*;
 use crate::lexer::*;
 use crate::object::*;
 use crate::parser::*;
@@ -38,7 +37,7 @@ fibonacci(30);
   match p.parse_program() {
     Ok(program) => {
       let env = Rc::new(RefCell::new(new_environment()));
-      let result = evaluator::evaluate(Node::Program(program), Rc::clone(&env));
+      let result = evaluator::evaluate(program, Rc::clone(&env));
       println!("result={}", result.inspect());
     }
     Err(err) => panic!("{:?}", err),

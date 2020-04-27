@@ -1,6 +1,5 @@
 // src/repl/repl.rs
 
-use crate::ast::*;
 use crate::evaluator::*;
 use crate::lexer::*;
 use crate::object::*;
@@ -30,7 +29,7 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
                 continue;
             }
             Ok(program) => {
-                let evaluated = evaluate(Node::Program(program), Rc::clone(&env));
+                let evaluated = evaluate(program, Rc::clone(&env));
                 writeln!(output, "{}", evaluated.inspect()).unwrap();
             }
         }

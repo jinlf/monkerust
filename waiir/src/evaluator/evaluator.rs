@@ -11,8 +11,8 @@ pub const TRUE: Boolean = Boolean { value: true };
 pub const FALSE: Boolean = Boolean { value: false };
 pub const NULL: Null = Null {};
 
-pub fn evaluate(node: Node, env: Rc<RefCell<Environment>>) -> Object {
-    match eval(node, env) {
+pub fn evaluate(program: Program, env: Rc<RefCell<Environment>>) -> Object {
+    match eval(Node::Program(program), env) {
         Ok(v) => v,
         Err(err) => Object::ErrorObj(ErrorObj { message: err }),
     }
