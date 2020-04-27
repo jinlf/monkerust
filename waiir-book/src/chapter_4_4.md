@@ -27,16 +27,16 @@ a + a;
 
 定义如下：
 ```rust,noplaypen
-// src/object.rs
+// src/object/object.rs
 
 pub trait ObjectTrait {
-    fn get_type(&self) -> String;
+    fn get_type(&self) -> &str;
     fn inspect(&self) -> String;
 }
 pub enum Object {}
 impl ObjectTrait for Object {
-    fn get_type(&self) -> String {
-        String::new() //TODO, be replaced
+    fn get_type(&self) -> &str {
+        "" //TODO, be replaced
     }
     fn inspect(&self) -> String {
         String::new() //TODO, be replaced
@@ -44,12 +44,13 @@ impl ObjectTrait for Object {
 }
 ```
 
-再在 lib.rs 中增加
+再在 src/object/mod.rs 中增加
 
 ```rust,noplaypen
-// src/lib.rs
+// src/object/mod.rs
 
-pub mod object;
+mod object;
+pub use object::*;
 ```
 
 让我们从最简单的整数、布尔值和空值开始。
@@ -58,14 +59,14 @@ pub mod object;
 
 定义如下：
 ```rust,noplaypen
-// src/object.rs
+// src/object/object.rs
 
 pub struct Integer {
     pub value: i64,
 }
 impl ObjectTrait for Integer {
-    fn get_type(&self) -> String {
-        String::from("INTEGER")
+    fn get_type(&self) -> &str {
+        "INTEGER"
     }
     fn inspect(&self) -> String {
         format!("{}", self.value)
@@ -76,7 +77,7 @@ pub enum Object {
     Integer(Integer),
 }
 impl ObjectTrait for Object {
-    fn get_type(&self) -> String {
+    fn get_type(&self) -> &str {
         match self {
             Object::Integer(i) => i.get_type(),
         }
@@ -94,14 +95,14 @@ impl ObjectTrait for Object {
 
 定义如下：
 ```rust,noplaypen
-// src/object.rs
+// src/object/object.rs
 
 pub struct Boolean {
     pub value: bool,
 }
 impl ObjectTrait for Boolean {
-    fn get_type(&self) -> String {
-        String::from("BOOLEAN")
+    fn get_type(&self) -> &str {
+        "BOOLEAN"
     }
     fn inspect(&self) -> String {
         format!("{}", self.value)
@@ -113,7 +114,7 @@ pub enum Object {
     Boolean(Boolean),
 }
 impl ObjectTrait for Object {
-    fn get_type(&self) -> String {
+    fn get_type(&self) -> &str {
         match self {
             Object::Integer(i) => i.get_type(),
             Object::Boolean(b) => b.get_type(),
@@ -135,12 +136,12 @@ impl ObjectTrait for Object {
 
 定义如下：
 ```rust,noplaypen
-// src/object.rs
+// src/object/object.rs
 
 pub struct Null {}
 impl ObjectTrait for Null {
-    fn get_type(&self) -> String {
-        String::from("NULL")
+    fn get_type(&self) -> &str {
+        "NULL"
     }
     fn inspect(&self) -> String {
         String::from("null")
@@ -153,7 +154,7 @@ pub enum Object {
     Null(Null),
 }
 impl ObjectTrait for Object {
-    fn get_type(&self) -> String {
+    fn get_type(&self) -> &str {
         match self {
             Object::Integer(i) => i.get_type(),
             Object::Boolean(b) => b.get_type(),

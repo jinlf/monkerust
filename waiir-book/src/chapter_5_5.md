@@ -458,7 +458,7 @@ mod object_test;
 ```
 这里我们将能够作为哈希键的Object类型放到一起，定义一个HashKey枚举，定义如下：
 ```rust,noplaypen
-// src/object.rs
+// src/object/object.rs
 
 use std::collections::hash_map::*;
 use std::hash::Hash as StdHash;
@@ -511,7 +511,7 @@ impl StdHash for StringObj {
 
 下面为对象系统添加Hash对象定义：
 ```rust,noplaypen
-// src/object.rs
+// src/object/object.rs
 
 #[derive(Clone)]
 pub struct Hash {
@@ -640,7 +640,7 @@ thread 'evaluator_test::test_hash_literals' panicked at 'eval didn't return Hash
 
 定义如下：
 ```rust,noplaypen
-// src/object.rs
+// src/object/object.rs
 
 pub trait AsHashable {
     fn as_hashable(&self) -> Option<&dyn Hashable>;

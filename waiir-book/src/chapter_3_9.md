@@ -5,9 +5,9 @@
 ```rust,noplaypen
 // src/repl/repl.rs
 
-use super::ast::*;
-use super::lexer::*;
-use super::parser::*;
+use crate::ast::*;
+use crate::lexer::*;
+use crate::parser::*;
 use std::io::*;
 
 const PROMPT: &str = ">> ";
@@ -24,13 +24,9 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
         }
         let l = Lexer::new(&line);
         let mut p = Parser::new(l);
-        let program = p.parse_program();
-        if p.errors.len() != 0 {
-            print_parser_errors(output, &p.errors);
-            continue;
-        }
-        if let Some(prog) = program {
-            writeln!(output, "{}", prog.string()).unwrap();
+        match p.parse_program() {
+            Ok(program) => writeln!(output, "{}", program.string()).unwrap(),
+            Err(errors) => print_parser_errors(output, &errors),
         }
     }
 }

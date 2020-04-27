@@ -461,7 +461,7 @@ fn get_precedence(t: &TokenType) -> Precedence {
 
 扩展对象系统，增加数组对象：
 ```rust,noplaypen
-// src/object.rs
+// src/object/object.rs
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Array {

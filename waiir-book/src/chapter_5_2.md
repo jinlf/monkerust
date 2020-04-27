@@ -207,7 +207,7 @@ parser error: "no prefix parse function for SEMICOLON found"
 
 因为Rust支持字符串类型，封装一下即可：
 ```rust,noplaypen
-// src/object.rs
+// src/object/object.rs
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct StringObj {

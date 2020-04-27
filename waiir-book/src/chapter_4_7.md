@@ -12,7 +12,7 @@ return 10;
 
 定义如下：
 ```rust,noplaypen
-// src/object.rs
+// src/object/object.rs
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ReturnValue {

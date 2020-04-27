@@ -33,7 +33,7 @@
 
 函数对象定义如下：
 ```rust,noplaypen
-// src/object.rs
+// src/object/object.rs
 
 use super::ast::*;
 use super::environment::*;

@@ -1,4 +1,4 @@
-// src/object.rs
+// src/object/object.rs
 
 use crate::ast::*;
 use crate::object::*;

@@ -2,7 +2,7 @@
 
 下面是求值函数的声明。
 ```rust,noplaypen
-fn eval(node: Node) -> Option<Object>
+fn eval(node: Node) -> Result<Object, String>
 ```
 它输入Node节点，输出Object节点，由于Rust语言不支持空值，考虑到求值的各种情况，这里用Option包装了Object。
 
@@ -10,12 +10,12 @@ fn eval(node: Node) -> Option<Object>
 
 测试用例：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
-use super::ast::*;
-use super::lexer::*;
-use super::object::*;
-use super::parser::*;
+use crate::ast::*;
+use crate::lexer::*;
+use crate::object::*;
+use crate::parser::*;
 
 #[test]
 fn test_eval_integer_expression() {
@@ -27,11 +27,13 @@ fn test_eval_integer_expression() {
     }
 }
 
-fn test_eval(input: &str) -> Option<Object> {
+fn test_eval(input: &str) -> Object {
     let l = Lexer::new(input);
     let mut p = Parser::new(l);
-    let program = p.parse_program();
-    eval(Node::Program(program.unwrap()))
+    match p.parse_program() {
+        Ok(program) => eval(Node::Program(program), Rc::clone(&env)),
+        Err(errors) => panic!("{:?}", errors),
+    }
 }
 
 fn test_integer_object(obj: Option<Object>, expected: i64) {
@@ -60,7 +62,7 @@ mod evaluator_test;
 测试失败，因为eval函数没有定义，并且Object对象还不支持打印输出，先解决 Object的输出问题：
 
 ```rust,noplaypen
-// src/object.rs
+// src/object/object.rs
 
 #[derive(Debug)]
 pub enum Object {

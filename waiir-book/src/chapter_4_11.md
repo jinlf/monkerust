@@ -30,7 +30,7 @@ counter(0);
 
 增加如下代码：
 ```rust,noplaypen
-// src/object.rs
+// src/object/object.rs
 
 impl Drop for Integer {
     fn drop(&mut self) {

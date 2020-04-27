@@ -7,14 +7,14 @@
 下面是内置函数类型的Rust声明。
 
 ```rust,noplaypen
-// src/object.rs
+// src/object/object.rs
 
 pub type BuiltinFunction = fn(&Vec<Option<Object>>) -> Option<Object>;
 ```
 
 我们需要把这种内置函数封装到我们的对象系统中，定义如下：
 ```rust,noplaypen
-// src/object.rs
+// src/object/object.rs
 
 pub struct Builtin {
     pub func: BuiltinFunction,
