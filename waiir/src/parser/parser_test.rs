@@ -20,7 +20,7 @@ let x = 5;
 let y = 10;
 let foobar = 838383;
 ";
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -77,7 +77,7 @@ return 5;
 return 10;
 return 993322;
 ";
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -106,7 +106,7 @@ return 993322;
 #[test]
 fn test_identifier_expression() {
     let input = "foobar;";
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -137,8 +137,7 @@ fn test_identifier_expression() {
                     panic!("exp not Identifier. got={:?}", expression);
                 }
             } else {
-                assert!(
-                    false,
+                panic!(
                     "program.statements[0] is not ExpressionStatement. got={:?}",
                     &statements[0]
                 );
@@ -152,7 +151,7 @@ fn test_identifier_expression() {
 fn test_integer_literal_expression() {
     let input = "5;";
 
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -179,8 +178,7 @@ fn test_integer_literal_expression() {
                     panic!("exp not IntegerLiteral. got={:?}", expression);
                 }
             } else {
-                assert!(
-                    false,
+                panic!(
                     "program.statements[0] is not ExpressionStatement. got={:?}",
                     &statements[0]
                 );
@@ -195,33 +193,23 @@ enum ExpectedType {
     Sval(String),
     Bval(bool),
 }
-impl From<i64> for ExpectedType {
-    fn from(v: i64) -> Self {
-        ExpectedType::Ival(v)
-    }
-}
 impl From<&str> for ExpectedType {
     fn from(v: &str) -> Self {
         ExpectedType::Sval(String::from(v))
-    }
-}
-impl From<bool> for ExpectedType {
-    fn from(v: bool) -> Self {
-        ExpectedType::Bval(v)
     }
 }
 
 #[test]
 fn test_parsing_prefix_expression() {
     let tests = vec![
-        ("!5;", "!", ExpectedType::from(5)),
-        ("-15;", "-", ExpectedType::from(15)),
-        ("!true", "!", ExpectedType::from(true)),
-        ("!false", "!", ExpectedType::from(false)),
+        ("!5;", "!", ExpectedType::Ival(5)),
+        ("-15;", "-", ExpectedType::Ival(15)),
+        ("!true", "!", ExpectedType::Bval(true)),
+        ("!false", "!", ExpectedType::Bval(false)),
     ];
 
     for tt in tests.iter() {
-        let l = Lexer::new(tt.0);
+        let l = Lexer::new(String::from(tt.0));
         let mut p = Parser::new(l);
         match p.parse_program() {
             Ok(Program { statements }) => {
@@ -255,8 +243,7 @@ fn test_parsing_prefix_expression() {
                         panic!("stmt is not PrefixExpression. got={:?}", expression);
                     }
                 } else {
-                    assert!(
-                        false,
+                    panic!(
                         "program.statements[0] is not ExpressionStatement. got={:?}",
                         &statements[0]
                     );
@@ -290,46 +277,46 @@ fn test_integer_literal(il: &Expression, expected_value: i64) {
 #[test]
 fn test_parsing_infix_expressions() {
     let tests = vec![
-        ("5 + 5;", ExpectedType::from(5), "+", ExpectedType::from(5)),
-        ("5 - 5;", ExpectedType::from(5), "-", ExpectedType::from(5)),
-        ("5 * 5;", ExpectedType::from(5), "*", ExpectedType::from(5)),
-        ("5 / 5;", ExpectedType::from(5), "/", ExpectedType::from(5)),
-        ("5 > 5;", ExpectedType::from(5), ">", ExpectedType::from(5)),
-        ("5 < 5;", ExpectedType::from(5), "<", ExpectedType::from(5)),
+        ("5 + 5;", ExpectedType::Ival(5), "+", ExpectedType::Ival(5)),
+        ("5 - 5;", ExpectedType::Ival(5), "-", ExpectedType::Ival(5)),
+        ("5 * 5;", ExpectedType::Ival(5), "*", ExpectedType::Ival(5)),
+        ("5 / 5;", ExpectedType::Ival(5), "/", ExpectedType::Ival(5)),
+        ("5 > 5;", ExpectedType::Ival(5), ">", ExpectedType::Ival(5)),
+        ("5 < 5;", ExpectedType::Ival(5), "<", ExpectedType::Ival(5)),
         (
             "5 == 5;",
-            ExpectedType::from(5),
+            ExpectedType::Ival(5),
             "==",
-            ExpectedType::from(5),
+            ExpectedType::Ival(5),
         ),
         (
             "5 != 5;",
-            ExpectedType::from(5),
+            ExpectedType::Ival(5),
             "!=",
-            ExpectedType::from(5),
+            ExpectedType::Ival(5),
         ),
         (
             "true == true",
-            ExpectedType::from(true),
+            ExpectedType::Bval(true),
             "==",
-            ExpectedType::from(true),
+            ExpectedType::Bval(true),
         ),
         (
             "true != false",
-            ExpectedType::from(true),
+            ExpectedType::Bval(true),
             "!=",
-            ExpectedType::from(false),
+            ExpectedType::Bval(false),
         ),
         (
             "false == false",
-            ExpectedType::from(false),
+            ExpectedType::Bval(false),
             "==",
-            ExpectedType::from(false),
+            ExpectedType::Bval(false),
         ),
     ];
 
     for tt in tests.iter() {
-        let l = Lexer::new(tt.0);
+        let l = Lexer::new(String::from(tt.0));
         let mut p = Parser::new(l);
         match p.parse_program() {
             Ok(Program { statements }) => {
@@ -365,8 +352,7 @@ fn test_parsing_infix_expressions() {
                         panic!("exp is not InfixExpression. got={:?}", expression);
                     }
                 } else {
-                    assert!(
-                        false,
+                    panic!(
                         "program.statements[0] is not ExpressionStatement. got={:?}",
                         &statements[0]
                     );
@@ -424,7 +410,7 @@ fn test_operator_precedence_parsing() {
     ];
 
     for tt in tests.iter() {
-        let l = Lexer::new(tt.0);
+        let l = Lexer::new(String::from(tt.0));
         let mut p = Parser::new(l);
         match p.parse_program() {
             Ok(program) => {
@@ -512,7 +498,7 @@ fn test_boolean_literal(exp: &Expression, expected_value: bool) {
 #[test]
 fn test_if_expression() {
     let input = "if (x < y) { x }";
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -561,22 +547,16 @@ fn test_if_expression() {
                             alternative,
                         );
                     } else {
-                        assert!(
-                            false,
+                        panic!(
                             "statements[0] is not ExpressionStatement. got={:?}",
                             &consequence.statements[0]
                         );
                     }
                 } else {
-                    assert!(
-                        false,
-                        "stmt.expression is not IfExpression. got={:?}",
-                        expression
-                    );
+                    panic!("stmt.expression is not IfExpression. got={:?}", expression);
                 }
             } else {
-                assert!(
-                    false,
+                panic!(
                     "program.statements[0] is not ExpressionStatement. got={:?}",
                     &statements[0]
                 );
@@ -590,7 +570,7 @@ fn test_if_expression() {
 fn test_if_else_expression() {
     let input = "if (x < y) { x } else { y }";
 
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -646,8 +626,7 @@ fn test_if_else_expression() {
                             {
                                 test_identifier(expression, "y");
                             } else {
-                                assert!(
-                                    false,
+                                panic!(
                                     "statements[0] is not ExpressionStatement. got={:?}",
                                     &a.statements[0]
                                 );
@@ -656,22 +635,16 @@ fn test_if_else_expression() {
                             panic!("exp alternative.statements was None");
                         }
                     } else {
-                        assert!(
-                            false,
+                        panic!(
                             "statements[0] is not ExpressionStatement. got={:?}",
                             &consequence.statements[0]
                         );
                     }
                 } else {
-                    assert!(
-                        false,
-                        "stmt.expression is not IfExpression. got={:?}",
-                        expression
-                    );
+                    panic!("stmt.expression is not IfExpression. got={:?}", expression);
                 }
             } else {
-                assert!(
-                    false,
+                panic!(
                     "program.statements[0] is not ExpressionStatement. got={:?}",
                     &statements[0]
                 );
@@ -684,7 +657,7 @@ fn test_if_else_expression() {
 #[test]
 fn test_function_literal_parsing() {
     let input = "fn(x, y) { x + y; }";
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -739,22 +712,19 @@ fn test_function_literal_parsing() {
                             &ExpectedType::from("y"),
                         );
                     } else {
-                        assert!(
-                            false,
+                        panic!(
                             "function body stmt is not ExpressionStatement. got={:?}",
                             &body.statements[0]
                         );
                     }
                 } else {
-                    assert!(
-                        false,
+                    panic!(
                         "stmt.expression is not FunctionLiteral. got={:?}",
                         expression
                     );
                 }
             } else {
-                assert!(
-                    false,
+                panic!(
                     "program.statements[0] is not ExpressionStatement. got={:?}",
                     &statements[0]
                 );
@@ -773,7 +743,7 @@ fn test_function_parameter_parsing() {
     ];
 
     for tt in tests.iter() {
-        let l = Lexer::new(tt.0);
+        let l = Lexer::new(String::from(tt.0));
         let mut p = Parser::new(l);
         match p.parse_program() {
             Ok(Program { statements }) => {
@@ -816,7 +786,7 @@ fn test_function_parameter_parsing() {
 fn test_call_expression_parsing() {
     let input = "add(1, 2 * 3, 4 + 5);";
 
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -846,32 +816,27 @@ fn test_call_expression_parsing() {
                         arguments.len()
                     );
 
-                    test_literal_expression(&arguments[0], &ExpectedType::from(1));
+                    test_literal_expression(&arguments[0], &ExpectedType::Ival(1));
                     test_infix_expression(
                         &arguments[1],
-                        &ExpectedType::from(2),
+                        &ExpectedType::Ival(2),
                         "*",
-                        &ExpectedType::from(3),
+                        &ExpectedType::Ival(3),
                     );
                     test_infix_expression(
                         &arguments[2],
-                        &ExpectedType::from(4),
+                        &ExpectedType::Ival(4),
                         "+",
-                        &ExpectedType::from(5),
+                        &ExpectedType::Ival(5),
                     );
                 } else {
-                    assert!(
-                        false,
+                    panic!(
                         "stmt.expression is not CallExpression. got={:?}",
                         expression
                     );
                 }
             } else {
-                assert!(
-                    false,
-                    "stmt is not ExpressionStatement. got={:?}",
-                    &statements[0]
-                );
+                panic!("stmt is not ExpressionStatement. got={:?}", &statements[0]);
             }
         }
         Err(errors) => panic_with_errors(errors),
@@ -881,7 +846,7 @@ fn test_call_expression_parsing() {
 #[test]
 fn test_string_literal_expression() {
     let input = r#""hello world";"#;
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -911,7 +876,7 @@ fn test_string_literal_expression() {
 #[test]
 fn test_parsing_array_literals() {
     let input = "[1, 2 * 2, 3 + 3]";
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -929,15 +894,15 @@ fn test_parsing_array_literals() {
                     test_integer_literal(&elements[0], 1);
                     test_infix_expression(
                         &elements[1],
-                        &ExpectedType::from(2),
+                        &ExpectedType::Ival(2),
                         "*",
-                        &ExpectedType::from(2),
+                        &ExpectedType::Ival(2),
                     );
                     test_infix_expression(
                         &elements[2],
-                        &ExpectedType::from(3),
+                        &ExpectedType::Ival(3),
                         "+",
-                        &ExpectedType::from(3),
+                        &ExpectedType::Ival(3),
                     );
                 } else {
                     panic!("exp not ArrayLiteral. got={:?}", expression);
@@ -953,7 +918,7 @@ fn test_parsing_array_literals() {
 #[test]
 fn test_parsing_index_expressions() {
     let input = "myArray[1 + 1]";
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -971,9 +936,9 @@ fn test_parsing_index_expressions() {
                     test_identifier(left, "myArray");
                     test_infix_expression(
                         index,
-                        &ExpectedType::from(1),
+                        &ExpectedType::Ival(1),
                         "+",
-                        &ExpectedType::from(1),
+                        &ExpectedType::Ival(1),
                     );
                 } else {
                     panic!("exp not IndexExpression. got={:?}", expression);
@@ -989,7 +954,7 @@ fn test_parsing_index_expressions() {
 #[test]
 fn test_parsing_hash_literals_string_keys() {
     let input = r#"{"one": 1, "two": 2, "three": 3}"#;
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -1030,7 +995,7 @@ fn test_parsing_hash_literals_string_keys() {
 #[test]
 fn test_parsing_empty_hash_literal() {
     let input = "{}";
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -1059,7 +1024,7 @@ fn test_parsing_empty_hash_literal() {
 #[test]
 fn test_parsing_hash_literal_with_expressions() {
     let input = r#"{"one": 0 + 1, "two": 10 - 8, "three": 15 / 5}"#;
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -1079,25 +1044,25 @@ fn test_parsing_hash_literal_with_expressions() {
                     tests.insert(String::from("one"), |e| {
                         test_infix_expression(
                             e,
-                            &ExpectedType::from(0),
+                            &ExpectedType::Ival(0),
                             "+",
-                            &ExpectedType::from(1),
+                            &ExpectedType::Ival(1),
                         )
                     });
                     tests.insert(String::from("two"), |e| {
                         test_infix_expression(
                             e,
-                            &ExpectedType::from(10),
+                            &ExpectedType::Ival(10),
                             "-",
-                            &ExpectedType::from(8),
+                            &ExpectedType::Ival(8),
                         )
                     });
                     tests.insert(String::from("three"), |e| {
                         test_infix_expression(
                             e,
-                            &ExpectedType::from(15),
+                            &ExpectedType::Ival(15),
                             "/",
-                            &ExpectedType::from(5),
+                            &ExpectedType::Ival(5),
                         )
                     });
 
@@ -1106,11 +1071,7 @@ fn test_parsing_hash_literal_with_expressions() {
                             if let Some(test_func) = tests.get(&literal.string()) {
                                 test_func(value);
                             } else {
-                                assert!(
-                                    false,
-                                    "No test function for key {:?} found",
-                                    literal.string()
-                                );
+                                panic!("No test function for key {:?} found", literal.string());
                             }
                         } else {
                             panic!("key is not StringLiteral. got={:?}", key);

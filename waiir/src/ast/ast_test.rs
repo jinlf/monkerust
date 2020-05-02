@@ -8,19 +8,19 @@ fn test_string() {
     let program = Program {
         statements: vec![Statement::LetStatement(LetStatement {
             token: Token {
-                tk_type: TokenType::LET,
+                r#type: TokenType::LET,
                 literal: String::from("let"),
             },
             name: Identifier {
                 token: Token {
-                    tk_type: TokenType::IDENT,
+                    r#type: TokenType::IDENT,
                     literal: String::from("myVar"),
                 },
                 value: String::from("myVar"),
             },
             value: Expression::Identifier(Identifier {
                 token: Token {
-                    tk_type: TokenType::IDENT,
+                    r#type: TokenType::IDENT,
                     literal: String::from("anotherVar"),
                 },
                 value: String::from("anotherVar"),

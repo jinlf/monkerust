@@ -21,16 +21,15 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
         if scanner.read_line(&mut line).is_err() {
             return;
         }
-        let l = Lexer::new(&line);
+        let l = Lexer::new(line);
         let mut p = Parser::new(l);
         match p.parse_program() {
+            Ok(program) => {
+                writeln!(output, "{}", evaluate(program, Rc::clone(&env)).inspect()).unwrap();
+            }
             Err(errors) => {
                 print_parser_errors(output, &errors);
                 continue;
-            }
-            Ok(program) => {
-                let evaluated = evaluate(program, Rc::clone(&env));
-                writeln!(output, "{}", evaluated.inspect()).unwrap();
             }
         }
     }

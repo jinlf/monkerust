@@ -175,19 +175,19 @@ fn test_string() {
     let program = Program {
         statements: vec![Statement::LetStatement(LetStatement {
             token: Token {
-                tk_type: TokenType::LET,
+                r#type: TokenType::LET,
                 literal: String::from("let"),
             },
             name: Identifier {
                 token: Token {
-                    tk_type: TokenType::IDENT,
+                    r#type: TokenType::IDENT,
                     literal: String::from("myVar"),
                 },
                 value: String::from("myVar"),
             },
             value: Expression::Identifier(Identifier {
                 token: Token {
-                    tk_type: TokenType::IDENT,
+                    r#type: TokenType::IDENT,
                     literal: String::from("anotherVar"),
                 },
                 value: String::from("anotherVar"),
@@ -235,8 +235,8 @@ impl Parser {
     pub fn new(l: Lexer) -> Parser {
         let mut p = Parser {
             l: l,
-            cur_token: new_token(TokenType::ILLEGAL, 0),
-            peek_token: new_token(TokenType::ILLEGAL, 0),
+            cur_token: new_token(TokenType::EOF, 0),
+            peek_token: new_token(TokenType::EOF, 0),
             prefix_parse_fns: HashMap::new(),
             infix_parse_fns: HashMap::new(),
         };
@@ -250,6 +250,15 @@ impl Parser {
         self.infix_parse_fns.insert(token_type, func);
     } 
 }
+```
+
+为了支持HashMap，需要为TokenType加上Hash和Eq trait：
+```rust,noplaypen
+// src/token/token.rs
+
+#[derive(PartialEq, Debug, Clone, Hash, Eq)]
+pub enum TokenType {
+// [...]    
 ```
 
 先考虑Monkey语言中最简单的表达式：标识符。表达式语句中的标识符是这样的：
@@ -272,7 +281,8 @@ if (foobar) {
 #[test]
 fn test_identifier_expression() {
     let input = "foobar;";
-    let l = Lexer::new(input);
+
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -300,11 +310,10 @@ fn test_identifier_expression() {
                         token.literal
                     );
                 } else {
-                    assert!(false, "exp not Identifier. got={:?}", expression);
+                    panic!("exp not Identifier. got={:?}", expression);
                 }
             } else {
-                assert!(
-                    false,
+                panic!(
                     "program.statements[0] is not ExpressionStatement. got={:?}",
                     &statements[0]
                 );
@@ -326,7 +335,7 @@ thread 'parser::tests::test_identifier_expression' panicked at 'program has not 
 // src/parse.rs
 
     fn parse_statement(&mut self) -> Option<Statement> {
-        match self.cur_token.tk_type {
+        match self.cur_token.r#type {
 // [...]
             _ => Ok(self.parse_expression_statement()?),
         }
@@ -349,11 +358,15 @@ thread 'parser::tests::test_identifier_expression' panicked at 'program has not 
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression, String> {
-        if let Some(prefix) = self.prefix_parse_fns.get(&self.cur_token.tk_type) {
+        if let Some(prefix) = self.prefix_parse_fns.get(&self.cur_token.r#type) {
             let left_exp = prefix(self)?;
             return Ok(left_exp);
-        } 
-        Err(String::from("error"))
+        }
+        Err(self.no_prefix_parse_fn_error(&self.cur_token.r#type))
+    }
+
+    fn no_prefix_parse_fn_error(&self, t: &TokenType) -> String {
+        format!("no prefix parse function for {:?} found", t)
     }
 ```
 这里需要考虑运算符的优先级了，定义如下：
@@ -378,8 +391,8 @@ impl Parser {
     pub fn new(l: Lexer) -> Parser {
         let mut p = Parser {
             l: l,
-            cur_token: new_token(TokenType::ILLEGAL, 0),
-            peek_token: new_token(TokenType::ILLEGAL, 0),
+            cur_token: new_token(TokenType::EOF, 0),
+            peek_token: new_token(TokenType::EOF, 0),
             prefix_parse_fns: HashMap::new(),
             infix_parse_fns: HashMap::new(),
         };
@@ -393,14 +406,6 @@ impl Parser {
             value: self.cur_token.literal.clone(),
         }))
     }
-```
-需要为TokenType增加Eq和Hash trait：
-```rust,noplaypen
-// src/token/token.rs
-
-#[derive(PartialEq, Debug, Clone, Hash, Eq)]
-pub enum TokenType {
-// [...]
 ```
 
 测试通过！
@@ -426,7 +431,7 @@ add(5, 10);
 fn test_integer_literal_expression() {
     let input = "5;";
 
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -453,8 +458,7 @@ fn test_integer_literal_expression() {
                     panic!("exp not IntegerLiteral. got={:?}", expression);
                 }
             } else {
-                assert!(
-                    false,
+                panic!(
                     "program.statements[0] is not ExpressionStatement. got={:?}",
                     &statements[0]
                 );
@@ -518,7 +522,8 @@ impl NodeTrait for Expression {
 ```
 测试结果失败！
 ```
-thread 'parser::tests::test_integer_literal_expression' panicked at 'program has not enough statements. got=0', src/parser/parser_test.rs:367:13
+thread 'parser::parser_test::test_integer_literal_expression' panicked at 'parser error: no prefix function for INT
+no prefix function for SEMICOLON', src/parser/parser_test.rs:39:5
 ```
 
 在parse_expression方法中增加对整数字面量的支持：
@@ -563,31 +568,16 @@ enum ExpectedType {
     Sval(String),
     Bval(bool),
 }
-impl From<i64> for ExpectedType {
-    fn from(v: i64) -> Self {
-        ExpectedType::Ival(v)
-    }
-}
-impl From<&str> for ExpectedType {
-    fn from(v: &str) -> Self {
-        ExpectedType::Sval(String::from(v))
-    }
-}
-impl From<bool> for ExpectedType {
-    fn from(v: bool) -> Self {
-        ExpectedType::Bval(v)
-    }
-}
 
 #[test]
 fn test_parsing_prefix_expression() {
     let tests = vec![
-        ("!5;", "!", ExpectedType::from(5)),
-        ("-15;", "-", ExpectedType::from(15)),
+        ("!5;", "!", ExpectedType::Ival(5)),
+        ("-15;", "-", ExpectedType::Ival(15)),
     ];
 
     for tt in tests.iter() {
-        let l = Lexer::new(tt.0);
+        let l = Lexer::new(String::from(tt.0));
         let mut p = Parser::new(l);
         match p.parse_program() {
             Ok(Program { statements }) => {
@@ -625,8 +615,7 @@ fn test_parsing_prefix_expression() {
                         panic!("stmt is not PrefixExpression. got={:?}", expression);
                     }
                 } else {
-                    assert!(
-                        false,
+                    panic!(
                         "program.statements[0] is not ExpressionStatement. got={:?}",
                         &statements[0]
                     );
@@ -694,37 +683,9 @@ impl NodeTrait for Expression {
 
 测试错误：
 ```
-thread 'parser::tests::test_parsing_prefix_expression' panicked at 'stmt is not PrefixExpression. got=IntegerLiteral(IntegerLiteral { token: Token { tk_type: INT, literal: "5" }, value: 5 })', src/parser/parser_test.rs:434:25
+thread 'parser::parser_test::test_parsing_prefix_expression' panicked at 'parser error: no prefix function for BANG', src/parser/parser_test.rs:39:5
 ```
-增加如下方法：
-```rust,noplaypen
-// src/parser/parser.rs
 
-    fn no_prefix_parse_fn_error(&self, t: &TokenType) -> String {
-        format!("no prefix parse function for {:?} found", t)
-    }
-```
-虽然我们并没有采用原著中的函数指针的方式，但简单起见，这里沿用了原著中的错误提示。
-
-修改parse_expression方法，使用上面的方法：
-```rust,noplaypen
-// src/parser/parser.rs
-
-    fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression, String> {
-        if let Some(prefix) = self.prefix_parse_fns.get(&self.cur_token.tk_type) {
-            let left_exp = prefix(self)?;
-            Ok(left_exp)
-        } else {
-            Err(self.no_prefix_parse_fn_error(&self.cur_token.tk_type))
-        }
-    }
-```
-再次执行测试，错误信息变成：
-```
-thread 'parser::tests::test_parsing_prefix_expression' panicked at 'parser has 1 errors
-parser error: "no prefix parse function for BANG found"
-', src/parser/parser_test.rs:281:9
-```
 提示很明显，需要为“!”和“-”增加处理代码：
 ```rust,noplaypen
 // src/parser/parser.rs
@@ -780,28 +741,28 @@ impl Parser {
 #[test]
 fn test_parsing_infix_expressions() {
     let tests = vec![
-        ("5 + 5;", ExpectedType::from(5), "+", ExpectedType::from(5)),
-        ("5 - 5;", ExpectedType::from(5), "-", ExpectedType::from(5)),
-        ("5 * 5;", ExpectedType::from(5), "*", ExpectedType::from(5)),
-        ("5 / 5;", ExpectedType::from(5), "/", ExpectedType::from(5)),
-        ("5 > 5;", ExpectedType::from(5), ">", ExpectedType::from(5)),
-        ("5 < 5;", ExpectedType::from(5), "<", ExpectedType::from(5)),
+        ("5 + 5;", ExpectedType::Ival(5), "+", ExpectedType::Ival(5)),
+        ("5 - 5;", ExpectedType::Ival(5), "-", ExpectedType::Ival(5)),
+        ("5 * 5;", ExpectedType::Ival(5), "*", ExpectedType::Ival(5)),
+        ("5 / 5;", ExpectedType::Ival(5), "/", ExpectedType::Ival(5)),
+        ("5 > 5;", ExpectedType::Ival(5), ">", ExpectedType::Ival(5)),
+        ("5 < 5;", ExpectedType::Ival(5), "<", ExpectedType::Ival(5)),
         (
             "5 == 5;",
-            ExpectedType::from(5),
+            ExpectedType::Ival(5),
             "==",
-            ExpectedType::from(5),
+            ExpectedType::Ival(5),
         ),
         (
             "5 != 5;",
-            ExpectedType::from(5),
+            ExpectedType::Ival(5),
             "!=",
-            ExpectedType::from(5),
+            ExpectedType::Ival(5),
         ),
     ];
 
     for tt in tests.iter() {
-        let l = Lexer::new(tt.0);
+        let l = Lexer::new(String::from(tt.0));
         let mut p = Parser::new(l);
         match p.parse_program() {
             Ok(Program { statements }) => {
@@ -844,8 +805,7 @@ fn test_parsing_infix_expressions() {
                         panic!("exp is not InfixExpression. got={:?}", expression);
                     }
                 } else {
-                    assert!(
-                        false,
+                    panic!(
                         "program.statements[0] is not ExpressionStatement. got={:?}",
                         &statements[0]
                     );
@@ -908,10 +868,10 @@ parser error: "no prefix parse function for PLUS found"
 // src/parser/parser.rs
 
     fn peek_precedence(&self) -> Precedence {
-        get_precedence(&self.peek_token.tk_type)
+        get_precedence(&self.peek_token.r#type)
     }
     fn cur_precedence(&self) -> Precedence {
-        get_precedence(&self.cur_token.tk_type)
+        get_precedence(&self.cur_token.r#type)
     }
 }
 
@@ -990,11 +950,11 @@ impl Parser {
 // src/parser/parser.rs
 
     fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression, String> {
-        if let Some(prefix) = self.prefix_parse_fns.get(&self.cur_token.tk_type) {
+        if let Some(prefix) = self.prefix_parse_fns.get(&self.cur_token.r#type) {
             let mut left_exp = prefix(self)?;
             while !self.peek_token_is(&TokenType::SEMICOLON) && precedence < self.peek_precedence() {
                 let infix_fn: InfixParseFn;
-                if let Some(infix) = self.infix_parse_fns.get(&self.peek_token.tk_type) {
+                if let Some(infix) = self.infix_parse_fns.get(&self.peek_token.r#type) {
                     infix_fn = *infix;
                 } else {
                     return Ok(left_exp);
@@ -1004,7 +964,7 @@ impl Parser {
             }
             Ok(left_exp)
         } else {
-            Err(self.no_prefix_parse_fn_error(&self.cur_token.tk_type))
+            Err(self.no_prefix_parse_fn_error(&self.cur_token.r#type))
         }
     }
 ```
@@ -1052,7 +1012,7 @@ fn test_operator_precedence_parsing() {
     ];
 
     for tt in tests.iter() {
-        let l = Lexer::new(tt.0);
+        let l = Lexer::new(String::from(tt.0));
         let mut p = Parser::new(l);
         match p.parse_program() {
             Ok(program) => {

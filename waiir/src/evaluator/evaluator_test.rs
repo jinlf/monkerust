@@ -1,4 +1,4 @@
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 use crate::ast::*;
 use crate::evaluator::*;
@@ -38,7 +38,7 @@ fn test_eval_integer_expression() {
 fn test_eval(input: &str) -> Object {
     let env = Rc::new(RefCell::new(new_environment()));
 
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(program) => evaluate(program, Rc::clone(&env)),

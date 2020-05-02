@@ -4,15 +4,21 @@
 ```rust,noplaypen
 fn eval(node: Node) -> Result<Object, String>
 ```
-它输入Node节点，输出Object节点，由于Rust语言不支持空值，考虑到求值的各种情况，这里用Option包装了Object。
 
 ## 整数字面量
 
 测试用例：
+
+```rust,noplaypen
+// src/evaluator/mod.rs
+
+#[cfg(test)]
+mod evaluator_test;
+```
+
 ```rust,noplaypen
 // src/evaluator/evaluator_test.rs
 
-use crate::ast::*;
 use crate::lexer::*;
 use crate::object::*;
 use crate::parser::*;
@@ -28,16 +34,16 @@ fn test_eval_integer_expression() {
 }
 
 fn test_eval(input: &str) -> Object {
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
-        Ok(program) => eval(Node::Program(program), Rc::clone(&env)),
+        Ok(program) => evaluate(program),
         Err(errors) => panic!("{:?}", errors),
     }
 }
 
-fn test_integer_object(obj: Option<Object>, expected: i64) {
-    if let Some(Object::Integer(Integer { value })) = obj {
+fn test_integer_object(obj: Object, expected: i64) {
+    if let Object::Integer(Integer { value }) = obj {
         assert!(
             value == expected,
             "object has wrong value. got={}, want={}",
@@ -45,21 +51,19 @@ fn test_integer_object(obj: Option<Object>, expected: i64) {
             expected
         );
     } else {
-        assert!(false, "object is not Integer. got={:?}", obj);
+        panic!("object is not Integer. got={:?}", obj);
     }
 }
 ```
-
-为了测试还需要在 lib.rs 中增加：
-
+在main.rs中加入：
 ```rust,noplaypen
-// src/lib.rs
+// src/main.rs
 
-#[cfg(test)]
-mod evaluator_test;
+mod evaluator;
+mod object;
 ```
 
-测试失败，因为eval函数没有定义，并且Object对象还不支持打印输出，先解决 Object的输出问题：
+测试失败，因为evaluate函数没有定义，并且Object对象还不支持打印输出，先解决 Object的输出问题：
 
 ```rust,noplaypen
 // src/object/object.rs
@@ -80,18 +84,31 @@ pub struct Boolean {
 }
 
 #[derive(Debug)]
-pub struct Null {}
+pub struct Null {} 
 ```
 
-定义eval函数
+定义evaluate函数
+```rust,noplaypen
+// src/evaluator/mod.rs
+
+mod evaluator;
+pub use evaluator::*;
+```
 
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-use super::ast::*;
-use super::object::*;
+use crate::ast::*;
+use crate::object::*;
 
-pub fn eval(node: Node) -> Option<Object> {
+pub fn evaluate(program: Program) -> Object {
+    match eval(Node::Program(program)) {
+        Ok(v) => v,
+        Err(_) => Object::Null(Null {}),
+    }
+}
+
+fn eval(node: Node) -> Result<Object, String> {
     match node {
         Node::Program(Program { statements }) => eval_statements(statements),
         Node::Statement(Statement::ExpressionStatement(ExpressionStatement {
@@ -99,34 +116,26 @@ pub fn eval(node: Node) -> Option<Object> {
             expression,
         })) => eval(Node::Expression(expression)),
         Node::Expression(Expression::IntegerLiteral(IntegerLiteral { token: _, value })) => {
-            Some(Object::Integer(Integer { value: value }))
+            Ok(Object::Integer(Integer { value: value }))
         }
-        _ => None,
+        _ => Err(String::from("Unknown")),
     }
 }
 
-fn eval_statements(stmts: Vec<Statement>) -> Option<Object> {
-    let mut result: Option<Object> = None;
-    for statement in stmts.iter() {
-        result = eval(Node::Statement(statement.clone()));
+fn eval_statements(stmts: Vec<Statement>) -> Result<Object, String> {
+    let mut result: Result<Object, String> = Ok(Object::Null(Null {}));
+    for statement in stmts.into_iter() {
+        result = eval(Node::Statement(statement));
     }
     result
 }
 ```
-这里由于需要在eval_statements中对statement执行clone方法，需要把ast.rs中的Statement, Expression相关枚举和结构体定义统一加上Clone属性，保证整个 AST系统都能clone。
-
-在lib.rs中加入
-```rust,noplaypen
-// src/lib.rs
-
-pub mod evaluator;
-```
 
 在evaluator_test.rs中加入
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
-use super::evaluator::*;
+use crate::evaluator::*;
 ```
 
 测试通过！
@@ -138,8 +147,8 @@ use super::evaluator::*;
 ```rust,noplaypen
 // src/repl/repl.rs
 
-use super::evaluator::*;
-use super::object::*;
+use crate::evaluator::*;
+use crate::object::*;
 // [...]
 
 pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
@@ -147,14 +156,9 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
 
     loop {
 // [...]
-        if p.errors.len() != 0 {
-            print_parser_errors(output, &p.errors);
-            continue;
-        }
-        if program.is_some() {
-            if let Some(evaluated) = eval(Node::Program(program.unwrap())) {
-                writeln!(output, "{}", evaluated.inspect()).unwrap();
-            }
+        match p.parse_program() {
+            Ok(program) => writeln!(output, "{}", evaluate(program).inspect()).unwrap(),
+            Err(errors) => print_parser_errors(output, &errors),
         }
     }
 }
@@ -178,7 +182,7 @@ Feel free to type in commands
 
 定义如下：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 #[test]
 fn test_eval_boolean_expression() {
@@ -190,8 +194,8 @@ fn test_eval_boolean_expression() {
     }
 }
 
-fn test_boolean_object(obj: Option<Object>, expected: bool) {
-    if let Some(Object::Boolean(Boolean { value })) = obj {
+fn test_boolean_object(obj: Object, expected: bool) {
+    if let Object::Boolean(Boolean { value }) = obj {
         assert!(
             value == expected,
             "object has wrong value. got={}, want={}",
@@ -199,7 +203,7 @@ fn test_boolean_object(obj: Option<Object>, expected: bool) {
             expected
         );
     } else {
-        assert!(false, "object is not BooleanLiteral. got={:?}", obj);
+        panic!("object is not BooleanLiteral. got={:?}", obj);
     }
 }
 ```
@@ -207,27 +211,27 @@ fn test_boolean_object(obj: Option<Object>, expected: bool) {
 测试结果如下：
 
 ```
-thread 'evaluator::tests::test_eval_boolean_expression' panicked at 'object is not BooleanLiteral. got=None', src/evaluator_test.rs:83:13
+thread 'evaluator::evaluator_test::test_eval_boolean_expression' panicked at 'object is not BooleanLiteral. got=Null(Null)', src/evaluator/evaluator_test.rs:59:9
 ```
 
 加上求值代码：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-pub fn eval(node: Node) -> Option<Object> {
+fn eval(node: Node) -> Result<Object, String> {
     match node {
 // [...]
         Node::Expression(Expression::BooleanLiteral(BooleanLiteral { token: _, value })) => {
-            Some(Object::Boolean(Boolean { value: value }))
+            Ok(Object::Boolean(Boolean { value: value }))
         }
-        _ => None,
+        _ => Err(String::from("Unknown")),
     }
 }
 ```
 
 因为布尔值只有两个可能的值，我们可以引用它们而不是每次都创建新值：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
 pub const TRUE: Boolean = Boolean { value: true };
 pub const FALSE: Boolean = Boolean { value: false };
@@ -240,11 +244,11 @@ pub fn native_bool_to_boolean_object(input: bool) -> Boolean {
     }
 }
 
-pub fn eval(node: Node) -> Option<Object> {
+fn eval(node: Node) -> Result<Object, String> {
     match node {
 // [...]
         Node::Expression(Expression::BooleanLiteral(BooleanLiteral { token: _, value })) => {
-            Some(Object::Boolean(native_bool_to_boolean_object(value)))
+            Ok(Object::Boolean(native_bool_to_boolean_object(value)))
         }
 // [...]
 }
@@ -255,9 +259,29 @@ pub fn eval(node: Node) -> Option<Object> {
 跟布尔值类似，不需要每次都创建一个新的空值。
 
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
 pub const NULL: Null = Null {};
+```
+
+现有的Null引用都换成NULL，包括，
+```rust,noplaypen
+// src/evaluator/evaluator.rs
+
+pub fn evaluate(program: Program) -> Object {
+    match eval(Node::Program(program)) {
+        Ok(v) => v,
+        Err(_) => Object::Null(NULL),
+    }
+}
+
+fn eval_statements(stmts: Vec<Statement>) -> Result<Object, String> {
+    let mut result: Result<Object, String> = Ok(Object::Null(NULL));
+    for statement in stmts.into_iter() {
+        result = eval(Node::Statement(statement));
+    }
+    result
+}
 ```
 
 现在，对象系统中包含了整数、布尔值和空值，可以求值操作符表达式了。
@@ -268,7 +292,7 @@ Monkey语言有两个前缀操作符：“!”和“-”。
 
 这里从“!”开始：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 #[test]
 fn test_bang_operator() {
@@ -290,9 +314,9 @@ fn test_bang_operator() {
 true和false取反很好理解，Monkey语言中“!5”这种表达式结果会返回false，因为语言规定5是真值。
 
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-pub fn eval(node: Node) -> Option<Object> {
+fn eval(node: Node) -> Result<Object, String> {
     match node {
 // [...]
         Node::Expression(Expression::PrefixExpression(PrefixExpression {
@@ -300,30 +324,25 @@ pub fn eval(node: Node) -> Option<Object> {
             operator,
             right,
         })) => {
-            let right_obj = eval(Node::Expression(*right));
+            let right_obj = eval(Node::Expression(*right))?;
             eval_prefix_expression(&operator, right_obj)
         }
 // [...]
 }
 
-fn eval_prefix_expression(operator: &str, right: Option<Object>) -> Option<Object> {
+fn eval_prefix_expression(operator: &str, right: Object) -> Result<Object, String> {
     match operator {
         "!" => eval_bang_operator_expression(right),
-        _ => Some(Object::Null(NULL)),
+        _ => Ok(Object::Null(NULL)),
     }
 }
-```
-如果操作符无效，直接返回NULL值，这种做法比较简单，省去了错误判断。
 
-```rust,noplaypen
-// src/evaluator.rs
-
-fn eval_bang_operator_expression(right: Option<Object>) -> Option<Object> {
+fn eval_bang_operator_expression(right: Object) -> Result<Object, String> {
     match right {
-        Some(Object::Boolean(TRUE)) => Some(Object::Boolean(FALSE)),
-        Some(Object::Boolean(FALSE)) => Some(Object::Boolean(TRUE)),
-        Some(Object::Null(NULL)) => Some(Object::Boolean(TRUE)),
-        _ => Some(Object::Boolean(FALSE)),
+        Object::Boolean(TRUE) => Ok(Object::Boolean(FALSE)),
+        Object::Boolean(FALSE) => Ok(Object::Boolean(TRUE)),
+        Object::Null(NULL) => Ok(Object::Boolean(TRUE)),
+        _ => Ok(Object::Boolean(FALSE)),
     }
 }
 ```
@@ -334,7 +353,7 @@ fn eval_bang_operator_expression(right: Option<Object>) -> Option<Object> {
 
 下面再加“-”操作符：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 fn test_eval_integer_expression() {
     let tests = [("5", 5), ("10", 10), ("-5", -5), ("-10", -10)];
@@ -345,19 +364,19 @@ fn test_eval_integer_expression() {
 
 需要在eval_prefix_expression中增加一个分支：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-fn eval_prefix_expression(operator: &str, right: Option<Object>) -> Option<Object> {
+fn eval_prefix_expression(operator: &str, right: Object) -> Result<Object, String> {
 // [...]
         "-" => eval_minus_prefix_operator_expression(right),
 // [...]
 }
 
-fn eval_minus_prefix_operator_expression(right: Option<Object>) -> Option<Object> {
-    if let Some(Object::Integer(Integer { value })) = right {
-        Some(Object::Integer(Integer { value: -value }))
+fn eval_minus_prefix_operator_expression(right: Object) -> Result<Object, String> {
+    if let Object::Integer(Integer { value }) = right {
+        Ok(Object::Integer(Integer { value: -value }))
     } else {
-        Some(Object::Null(NULL))
+        Ok(Object::Null(NULL))
     }
 }
 ```
@@ -403,7 +422,7 @@ Monkey语言支持8种中缀操作符：
 
 先实现第一组数值操作符，测试用例如下：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 fn test_eval_integer_expression() {
     let tests = [
@@ -427,9 +446,9 @@ fn test_eval_integer_expression() {
 
 首先需要在eval中增加一个分支：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-pub fn eval(node: Node) -> Option<Object> {
+fn eval(node: Node) -> Result<Object, String> {
 // [...]
         Node::Expression(Expression::InfixExpression(InfixExpression {
             token: _,
@@ -437,8 +456,8 @@ pub fn eval(node: Node) -> Option<Object> {
             operator,
             right,
         })) => {
-            let left_obj = eval(Node::Expression(*left));
-            let right_obj = eval(Node::Expression(*right));
+            let left_obj = eval(Node::Expression(*left))?;
+            let right_obj = eval(Node::Expression(*right))?;
             eval_infix_expression(&operator, left_obj, right_obj)
         }
 // [...]
@@ -448,38 +467,38 @@ pub fn eval(node: Node) -> Option<Object> {
 
 下面代码表示，当左右子表达式都是整数时根据运算符对其值进行加减乘除操作，否则返回空值。
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
 fn eval_infix_expression(
     operator: &str,
-    left: Option<Object>,
-    right: Option<Object>,
-) -> Option<Object> {
-    if let Some(Object::Integer(Integer { value })) = left {
+    left: Object,
+    right: Object,
+) -> Result<Object, String> {
+    if let Object::Integer(Integer { value }) = left {
         let left_val = value;
-        if let Some(Object::Integer(Integer { value })) = right {
+        if let Object::Integer(Integer { value }) = right {
             let right_val = value;
             return eval_integer_infix_expression(operator, left_val, right_val);
         }
     }
-    None
+    Ok(Object::Null(NULL))
 }
 
-fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Option<Object> {
+fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Result<Object, String> {
     match operator {
-        "+" => Some(Object::Integer(Integer {
+        "+" => Ok(Object::Integer(Integer {
             value: left + right,
         })),
-        "-" => Some(Object::Integer(Integer {
+        "-" => Ok(Object::Integer(Integer {
             value: left - right,
         })),
-        "*" => Some(Object::Integer(Integer {
+        "*" => Ok(Object::Integer(Integer {
             value: left * right,
         })),
-        "/" => Some(Object::Integer(Integer {
+        "/" => Ok(Object::Integer(Integer {
             value: left / right,
         })),
-        _ => Some(Object::Null(NULL)),
+        _ => Ok(Object::Null(NULL)),
     }
 }
 ```
@@ -487,8 +506,7 @@ fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Optio
 
 下面考虑比较操作符：
 ```rust,noplaypen
-// src/evaluator_test.rs
-
+// src/evaluator/evaluator_test.rs
 
 fn test_eval_boolean_expression() {
     let tests = [
@@ -508,20 +526,20 @@ fn test_eval_boolean_expression() {
 对整数左右子表达式进行比较。
 
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Option<Object> {
+fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Result<Object, String> {
     match operator {
 // [...]
-        "<" => Some(Object::Boolean(native_bool_to_boolean_object(left < right))),
-        ">" => Some(Object::Boolean(native_bool_to_boolean_object(left > right))),
-        "==" => Some(Object::Boolean(native_bool_to_boolean_object(
+        "<" => Ok(Object::Boolean(native_bool_to_boolean_object(left < right))),
+        ">" => Ok(Object::Boolean(native_bool_to_boolean_object(left > right))),
+        "==" => Ok(Object::Boolean(native_bool_to_boolean_object(
             left == right,
         ))),
-        "!=" => Some(Object::Boolean(native_bool_to_boolean_object(
+        "!=" => Ok(Object::Boolean(native_bool_to_boolean_object(
             left != right,
         ))),
-        _ => Some(Object::Null(NULL)),
+        _ => Ok(Object::Null(NULL)),
     }
 }
 ```
@@ -529,7 +547,7 @@ fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Optio
 
 下面添加对布尔值的“==”和“!=”操作，先添加测试用例：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 fn test_eval_boolean_expression() {
 // [...]
@@ -549,38 +567,29 @@ fn test_eval_boolean_expression() {
 测试结果如下：
 
 ```
-thread 'evaluator_test::test_eval_boolean_expression' panicked at 'object is not BooleanLiteral. got=None', src/evaluator_test.rs:94:
+thread 'evaluator::evaluator_test::test_eval_boolean_expression' panicked at 'object is not BooleanLiteral. got=Null(Null)', src/evaluator/evaluator_test.rs:95:9
 ```
 
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-fn eval_infix_expression(
-    operator: &str,
-    left: Option<Object>,
-    right: Option<Object>,
-) -> Option<Object> {
-    if let Some(Object::Integer(Integer { value })) = left {
+fn eval_infix_expression(operator: &str, left: Object, right: Object) -> Result<Object, String> {
+    if let Object::Integer(Integer { value }) = left {
         let left_val = value;
-        if let Some(Object::Integer(Integer { value })) = right {
+        if let Object::Integer(Integer { value }) = right {
             let right_val = value;
             return eval_integer_infix_expression(operator, left_val, right_val);
         }
     }
-    if let Some(left_obj) = left {
-        if let Some(right_obj) = right {
-            return match operator {
-                "==" => Some(Object::Boolean(native_bool_to_boolean_object(
-                    left_obj == right_obj,
-                ))),
-                "!=" => Some(Object::Boolean(native_bool_to_boolean_object(
-                    left_obj != right_obj,
-                ))),
-                _ => Some(Object::Null(NULL)),
-            };
-        }
+    match operator {
+        "==" => Ok(Object::Boolean(native_bool_to_boolean_object(
+            left == right,
+        ))),
+        "!=" => Ok(Object::Boolean(native_bool_to_boolean_object(
+            left != right,
+        ))),
+        _ => Ok(Object::Null(NULL)),
     }
-    Some(Object::Null(NULL))
 }
 ```
 

@@ -46,8 +46,6 @@ impl NodeTrait for Expression {
     }
 }
 ```
-注意Rust语言的trait与其它语言的接口不完全是同一个概念，在向下类型转换（downcast）时也不是很方便，这里就没有采用原著中的接口继承和强制类型转换方式来实现。
-
 Rust语言具有强大的enum和match匹配能力，本文用enum来定义Node、Statement和Expression，以便用match语句进行类型匹配。
 
 上述代码中的NodeTrait规定了所有Node的共同特征，具有string方法，该方法返回当前Node节点转成的字符串值。Monkey语言AST中节点Node可以是Statement，也可以是Expression。下面再加上一种：Program节点。
@@ -185,8 +183,8 @@ impl Parser {
     pub fn new(l: Lexer) -> Parser {
         let mut p = Parser {
             l: l,
-            cur_token: new_token(TokenType::ILLEGAL, 0),
-            peek_token: new_token(TokenType::ILLEGAL, 0),
+            cur_token: new_token(TokenType::EOF, 0),
+            peek_token: new_token(TokenType::EOF, 0),
         };
         p.next_token();
         p.next_token();
@@ -194,12 +192,13 @@ impl Parser {
     }
 
     pub fn next_token(&mut self) {
-        self.cur_token = self.peek_token.clone();
-        self.peek_token = self.l.next_token();
+        self.cur_token = std::mem::replace(&mut self.peek_token, self.l.next_token());
     }
 
     pub fn parse_program(&mut self) -> Result<Program, Vec<String>> {
-        Err(vec![String::from("None")])
+        Ok(Program {
+            statements: Vec::new(),
+        })
     }
 }
 ```
@@ -207,20 +206,6 @@ impl Parser {
 
 在创建解析器时调用了两次next_token方法，是为了初始化当前Token和下一个Token。这里您不用担心input是否够用的问题，词法分析器在input结尾处会一直返回EOF，而不会报错。
 
-由于这里需要调用Token的clone方法，修改Token和TokenType的属性如下：
-```rust,noplaypen
-// src/token/token.rs
-
-#[derive(Debug, Clone)]
-pub struct Token {
-    pub tk_type: TokenType,
-    pub literal: String,
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub enum TokenType {   
-// [...] 
-```
 在继续进一步工作前，先用伪代码解释一下解析器的工作原理：
 ```js
 function parseProgram() { 
@@ -321,7 +306,7 @@ let x = 5;
 let y = 10;
 let foobar = 838383;
 ";
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -330,7 +315,6 @@ let foobar = 838383;
                 "program.statements does not contain 3 statements. got={}",
                 statements.len()
             );
-
             let tests = ["x", "y", "foobar"];
             for (i, tt) in tests.iter().enumerate() {
                 test_let_statement(&statements[i], tt);
@@ -354,7 +338,6 @@ fn test_let_statement(s: &Statement, expected_name: &str) {
         "s.token.literal not 'let'. got={}",
         s.string()
     );
-
     if let Statement::LetStatement(LetStatement {
         token: _,
         name,
@@ -366,7 +349,6 @@ fn test_let_statement(s: &Statement, expected_name: &str) {
             expected_name,
             name.value
         );
-
         assert!(
             name.token.literal == expected_name,
             "s.name not '{}'. got={}",
@@ -418,7 +400,7 @@ mod parser;
 ```
 测试失败的信息如下：
 ```
-thread 'parser::tests::test_let_statements' panicked at 'parser error: None', src/parser/parser_test.rs:59:13
+thread 'parser::parser_test::test_let_statements' panicked at 'program.statements does not contain 3 statements. got=0', src/parser/parser_test.rs:18:13
 ```
 必然的，因为parse_program还没实现呢。
 
@@ -429,10 +411,14 @@ thread 'parser::tests::test_let_statements' panicked at 'parser error: None', sr
     pub fn parse_program(&mut self) -> Result<Program, Vec<String>> {
         let mut statements: Vec<Statement> = Vec::new();
         let mut errors = Vec::new();
-        while self.cur_token.tk_type != TokenType::EOF {
+        while self.cur_token.r#type != TokenType::EOF {
             match self.parse_statement() {
                 Ok(stmt) => statements.push(stmt),
-                Err(err) => errors.push(err),
+                Err(err) => {
+                    if err != "" {
+                        errors.push(err)
+                    }
+                }
             }
             self.next_token();
         }
@@ -446,7 +432,7 @@ thread 'parser::tests::test_let_statements' panicked at 'parser error: None', sr
     }
 
     fn parse_statement(&mut self) -> Result<Statement, String> {
-        match self.cur_token.tk_type {
+        match self.cur_token.r#type {
             TokenType::LET => self.parse_let_statement(),
             _ => Err(String::new()),
         }
@@ -482,10 +468,10 @@ thread 'parser::tests::test_let_statements' panicked at 'parser error: None', sr
     }
 
     fn cur_token_is(&self, t: &TokenType) -> bool {
-        &self.cur_token.tk_type == t
+        &self.cur_token.r#type == t
     }
     fn peek_token_is(&self, t: &TokenType) -> bool {
-        &self.peek_token.tk_type == t
+        &self.peek_token.r#type == t
     }
     fn expect_peek(&mut self, t: &TokenType) -> Result<(), String> {
         if self.peek_token_is(t) {
@@ -514,6 +500,22 @@ impl NodeTrait for Expression {
     }
 }
 ```
+
+由于这里需要调用Token的clone方法，修改Token和TokenType的属性如下：
+```rust,noplaypen
+// src/token/token.rs
+
+#[derive(Debug, Clone)]
+pub struct Token {
+    pub r#type: TokenType,
+    pub literal: String,
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum TokenType {   
+// [...] 
+```
+
 测试通过！
 
 大家可以比较一下用Rust实现的Program、Statement和LetStatement的解析过程，跟伪代码逻辑是一致的，只是暂时缺少解析其它类型语句的分支，我们会在后续的开发过程中逐渐补充。
@@ -525,7 +527,7 @@ impl NodeTrait for Expression {
     fn peek_error(&mut self, t: &TokenType) -> String {
         format!(
             "expected next token to be {:?}, got {:?} instead",
-            t, self.peek_token.tk_type
+            t, self.peek_token.r#type
         )
     }
 }
@@ -558,12 +560,9 @@ let 838383;
 ```
 测试得到的结果如下：
 ```
-thread 'parser::tests::test_let_statements' panicked at 'parser has 3 errors
-parser error: "expected next token to be ASSIGN, got INT instead"
-
-parser error: "expected next token to be IDENT, got ASSIGN instead"
-
-parser error: "expected next token to be IDENT, got INT instead"
+thread 'parser::parser_test::test_let_statements' panicked at 'parser error: expected next token to be ASSIGN, got INT instead
+expected next token to be IDENT, got ASSIGN instead
+expected next token to be IDENT, got INT instead', src/parser/parser_test.rs:38:5
 ```
 我们刚刚加的错误处理起效了。
 

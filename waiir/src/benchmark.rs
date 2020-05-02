@@ -31,7 +31,7 @@ let fibonacci = fn(x) {
 fibonacci(30);
     ";
 
-  let l = Lexer::new(input);
+  let l = Lexer::new(String::from(input));
   let mut p = Parser::new(l);
 
   match p.parse_program() {

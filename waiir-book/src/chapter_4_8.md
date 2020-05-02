@@ -5,7 +5,7 @@
 错误的处理方式跟Return语句的处理方式类似。遇到错误终止求值，返回错误对象。
 
 错误对象的定义如下：
-```rust,noplaypen
+```rust
 // src/object/object.rs
 
 #[derive(Debug, PartialEq, Eq)]
@@ -13,8 +13,8 @@ pub struct ErrorObj {
     pub message: String,
 }
 impl ObjectTrait for ErrorObj {
-    fn get_type(&self) -> String {
-        String::from("ERROR")
+    fn get_type(&self) -> &str {
+        "ERROR"
     }
     fn inspect(&self) -> String {
         format!("ERROR: {}", self.message)
@@ -44,9 +44,10 @@ impl ObjectTrait for Object {
 
 这里实现的错误对象仅仅封装了错误消息。您可以试着加上文件名和行号这类信息。
 
+
 测试用例：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 #[test]
 fn test_error_handling() {
@@ -74,7 +75,7 @@ return 1;
 
     for tt in tests.iter() {
         let evaluated = test_eval(tt.0);
-        if let Some(Object::ErrorObj(ErrorObj { message })) = evaluated {
+        if let Object::ErrorObj(ErrorObj { message }) = evaluated {
             assert!(
                 message == tt.1,
                 "wrong error message. expected={}, got={}",
@@ -82,209 +83,120 @@ return 1;
                 message
             );
         } else {
-            assert!(false, "no error object returned. got={:?}", evaluated);
+            panic!("no error object returned. got={:?}", evaluated);
         }
     }
 }
 ```
 测试失败结果如下：
 ```
-thread 'evaluator::tests::test_error_handling' panicked at 'no error object returned. got=Some(Null(Null))', src/evaluator_test.rs:409:17
-```
-编写一个创建错误对象的辅助函数：
-```rust,noplaypen
-// src/evaluator.rs
-
-pub fn new_error(msg: String) -> Option<Object> {
-    Some(Object::ErrorObj(ErrorObj { message: msg }))
-}
+thread 'evaluator::tests::test_error_handling' panicked at 'no error object returned. got=Null(Null)', src/evaluator/evaluator_test.rs:409:17
 ```
 先处理前缀表达式中使用了不支持的操作符错误：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-pub fn get_type(obj: &Option<Object>) -> String {
-    if obj.is_some() {
-        obj.as_ref().unwrap().get_type()
-    } else {
-        String::from("None")
-    }
-}
-
-fn eval_prefix_expression(operator: &str, right: Option<Object>) -> Option<Object> {
+fn eval_prefix_expression(operator: &str, right: Object) -> Result<Object, String> {
     match operator {
 // [...]
-        _ => new_error(format!(
+        _ => Err(format!(
             "unknown operator: {}{}",
             operator,
-            get_type(&right)
+            right.get_type(),
         )),
     }
 }
 
-fn eval_minus_prefix_operator_expression(right: Option<Object>) -> Option<Object> {
-    if let Some(Object::Integer(Integer { value })) = right {
-        Some(Object::Integer(Integer { value: -value }))
+fn eval_minus_prefix_operator_expression(right: Object) -> Result<Object, String> {
+    if let Object::Integer(Integer { value }) = right {
+        Ok(Object::Integer(Integer { value: -value }))
     } else {
-        new_error(format!("unknown operator: -{}", get_type(&right)))
+        Err(format!("unknown operator: -{}", right.get_type()))
     }
 }
 ```
-这里编写了一个get_type辅助函数，用来取得Objec或None的类型字符串。
 
 中缀表达式除了非法操作符错误，还有左右子表达式类型不一致的错误：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
 fn eval_infix_expression(
     operator: &str,
-    left: Option<Object>,
-    right: Option<Object>,
-) -> Option<Object> {
-    if get_type(&left) != get_type(&right) {
-        return new_error(format!(
+    left: Object,
+    right: Object,
+) -> Result<Object, String> {
+    if left.get_type() != right.get_type() {
+        return Err(format!(
             "type mismatch: {} {} {}",
-            get_type(&left),
+            left.get_type(),
             operator,
-            get_type(&right)
+            right.get_type(),
         ));
     }
 // [...]
-    if let Some(left_obj) = left {
-        if let Some(right_obj) = right {
-            return match operator {
-// [...]
-                _ => new_error(format!(
-                    "unknown operator: {} {} {}",
-                    left_obj.get_type(),
-                    operator,
-                    right_obj.get_type(),
-                )),
-            };
-        }
-    }
-    Some(Object::Null(NULL))
-}
-
-fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Option<Object> {
     match operator {
 // [...]
-        _ => new_error(format!("unknown operator: INTEGER {} INTEGER", operator)),
+        _ => Err(format!(
+            "unknown operator: {} {} {}",
+            left.get_type(),
+            operator,
+            right.get_type(),
+        )),
+    }
+}
+
+fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Result<Object, String> {
+    match operator {
+// [...]
+        _ => Err(format!("unknown operator: INTEGER {} INTEGER", operator)),
     }
 }
 ```
 
 测试仍然失败：
 ```
-thread 'evaluator::tests::test_error_handling' panicked at 'no error object returned. got=Some(Integer(Integer { value: 5 }))', src/evaluator_test.rs:438:17
+thread 'evaluator::evaluator_test::test_error_handling' panicked at 'no error object returned. got=Integer(Integer { value: 5 })', src/evaluator/evaluator_test.rs:210:13
 ```
 
 需要在Program和块语句中处理求值出错的情况：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-fn eval_program(node: Node) -> Option<Object> {
-    let mut result: Option<Object> = None;
+fn eval_program(node: Node) -> Result<Object, String> {
+    let mut result: Object = Object::Null(NULL);
     if let Node::Program(Program { statements }) = node {
-        for statement in statements.iter() {
-            result = eval(Node::Statement(statement.clone()));
-            if let Some(Object::ReturnValue(ReturnValue { value })) = result {
-                return Some(*value);
-            } else if let Some(Object::ErrorObj(_)) = result {
-                return result;
+        for statement in statements.into_iter() {
+            result = eval(Node::Statement(statement))?;
+            if let Object::ReturnValue(ReturnValue { value }) = result {
+                return Ok(*value);
             }
         }
     }
-    result
+    Ok(result)
 }
 
-fn eval_block_statement(block: BlockStatement) -> Option<Object> {
-    let mut result: Option<Object> = None;
-    for statement in block.statements.iter() {
-        result = eval(Node::Statement(statement.clone()));
-
-        if let Some(Object::ReturnValue(_)) = result {
-            return result;
-        } else if let Some(Object::ErrorObj(_)) = result {
-            return result;
+fn eval_block_statement(block: BlockStatement) -> Result<Object, String> {
+    let mut result: Object = Object::Null(NULL);
+    for statement in block.statements.into_iter() {
+        result = eval(Node::Statement(statement))?;
+        if let Object::ReturnValue(_) = result {
+            return Ok(result);
         }
     }
-    result
+    Ok(result)
 }
 ```
 
-遍历AST求值过程中，任何一个eval相关函数都可能遇到求值错误，需要停止求值并返回：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-fn is_error(obj: &Option<Object>) -> bool {
-    if let Some(Object::ErrorObj(_)) = obj {
-        true
-    } else {
-        false
+pub fn evaluate(program: Program, env: Rc<RefCell<Environment>>) -> Object {
+    match eval(Node::Program(program), Rc::clone(&env)) {
+        Ok(v) => v,
+        Err(err) => Object::ErrorObj(ErrorObj { message: err }),
     }
-}
-
-pub fn eval(node: Node) -> Option<Object> {
-    match node {
-// [...]
-        Node::Expression(Expression::PrefixExpression(PrefixExpression {
-            token: _,
-            operator,
-            right,
-        })) => {
-            let right_obj = eval(Node::Expression(*right));
-            if is_error(&right_obj) {
-                return right_obj;
-            }
-            eval_prefix_expression(&operator, right_obj)
-        }
-        Node::Expression(Expression::InfixExpression(InfixExpression {
-            token: _,
-            left,
-            operator,
-            right,
-        })) => {
-            let left_obj = eval(Node::Expression(*left));
-            if is_error(&left_obj) {
-                return left_obj;
-            }
-            let right_obj = eval(Node::Expression(*right));
-            if is_error(&right_obj) {
-                return right_obj;
-            }
-            eval_infix_expression(&operator, left_obj, right_obj)
-        }
-// [...]
-        Node::Statement(Statement::ReturnStatement(ReturnStatement {
-            token: _,
-            return_value,
-        })) => {
-            let val = eval(Node::Expression(return_value));
-            if is_error(&val) {
-                return val;
-            }
-            if val.is_some() {
-                Some(Object::ReturnValue(ReturnValue {
-                    value: Box::new(val.unwrap()),
-                }))
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
-}
-
-fn eval_if_expression(ie: IfExpression) -> Option<Object> {
-    let condition = eval(Node::Expression(*ie.condition));
-    if is_error(&condition) {
-        return condition;
-    }
-// [...]
 }
 ```
-这里实现的is_error辅助函数，用来判断求值结果是否出错。
 
 测试通过！
 

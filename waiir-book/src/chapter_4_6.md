@@ -19,38 +19,29 @@ if (false) { 10 }
 
 测试用例如下：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 #[test]
 fn test_if_else_expression() {
-    let tests: [(&str, Option<Object>); 7] = [
-        (
-            "if (true) { 10 }",
-            Some(Object::Integer(Integer { value: 10 })),
-        ),
-        ("if (false) { 10 }", None),
-        (
-            "if (1) { 10 }",
-            Some(Object::Integer(Integer { value: 10 })),
-        ),
-        (
-            "if (1 < 2) { 10 }",
-            Some(Object::Integer(Integer { value: 10 })),
-        ),
-        ("if (1 > 2) { 10 }", None),
+    let tests = vec![
+        ("if (true) { 10 }", Object::Integer(Integer { value: 10 })),
+        ("if (false) { 10 }", Object::Null(NULL)),
+        ("if (1) { 10 }", Object::Integer(Integer { value: 10 })),
+        ("if (1 < 2) { 10 }", Object::Integer(Integer { value: 10 })),
+        ("if (1 > 2) { 10 }", Object::Null(NULL)),
         (
             "if (1 > 2) { 10 } else { 20 }",
-            Some(Object::Integer(Integer { value: 20 })),
+            Object::Integer(Integer { value: 20 }),
         ),
         (
             "if (1 < 2) { 10 } else { 20 }",
-            Some(Object::Integer(Integer { value: 10 })),
+            Object::Integer(Integer { value: 10 }),
         ),
     ];
 
     for tt in tests.iter() {
         let evaluated = test_eval(tt.0);
-        if let Some(Object::Integer(Integer { value })) = tt.1 {
+        if let Object::Integer(Integer { value }) = tt.1 {
             test_integer_object(evaluated, value);
         } else {
             test_null_object(evaluated);
@@ -58,9 +49,9 @@ fn test_if_else_expression() {
     }
 }
 
-fn test_null_object(obj: Option<Object>) {
+fn test_null_object(obj: Object) {
     assert!(
-        obj == Some(Object::Null(NULL)),
+        obj == Object::Null(NULL),
         "object is not NULL, got={:?}",
         obj
     );
@@ -70,14 +61,14 @@ fn test_null_object(obj: Option<Object>) {
 测试结果
 
 ```
-thread 'evaluator::tests::test_if_else_expression' panicked at 'object is not Integer. got=None', src/evaluator_test.rs:188:13
+thread 'evaluator::evaluator_test::test_if_else_expression' panicked at 'object is not Integer. got=Null(Null)', src/evaluator/evaluator_test.rs:52:9
 ```
 
 增加支持If表达式的分支：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-pub fn eval(node: Node) -> Option<Object> {
+fn eval(node: Node) -> Result<Object, String> {
     match node {
 // [...]
         Node::Statement(Statement::BlockStatement(BlockStatement {
@@ -85,12 +76,12 @@ pub fn eval(node: Node) -> Option<Object> {
             statements,
         })) => eval_statements(statements),
         Node::Expression(Expression::IfExpression(if_expr)) => eval_if_expression(if_expr),
-        _ => None,
+        _ => Err(String::from("Unknown")),
     }
 }
 
-fn eval_if_expression(ie: IfExpression) -> Option<Object> {
-    let condition = eval(Node::Expression(*ie.condition));
+fn eval_if_expression(ie: IfExpression) -> Result<Object, String> {
+    let condition = eval(Node::Expression(*ie.condition))?;
     if is_truthy(&condition) {
         return eval(Node::Statement(Statement::BlockStatement(ie.consequence)));
     } else if ie.alternative.is_some() {
@@ -98,15 +89,15 @@ fn eval_if_expression(ie: IfExpression) -> Option<Object> {
             ie.alternative.unwrap(),
         )));
     } else {
-        Some(Object::Null(NULL))
+        Ok(Object::Null(NULL))
     }
 }
 
-fn is_truthy(obj: &Option<Object>) -> bool {
+fn is_truthy(obj: &Object) -> bool {
     match obj {
-        Some(Object::Null(NULL)) => false,
-        Some(Object::Boolean(TRUE)) => true,
-        Some(Object::Boolean(FALSE)) => false,
+        Object::Null(NULL) => false,
+        Object::Boolean(TRUE) => true,
+        Object::Boolean(FALSE) => false,
         _ => true,
     }
 }

@@ -85,7 +85,7 @@ impl Parser {
     pub fn parse_program(&mut self) -> Result<Program, Vec<String>> {
         let mut statements: Vec<Statement> = Vec::new();
         let mut errors = Vec::new();
-        while self.cur_token.tk_type != TokenType::EOF {
+        while self.cur_token.r#type != TokenType::EOF {
             match self.parse_statement() {
                 Ok(stmt) => statements.push(stmt),
                 Err(err) => errors.push(err),
@@ -102,7 +102,7 @@ impl Parser {
     }
 
     fn parse_statement(&mut self) -> Result<Statement, String> {
-        match self.cur_token.tk_type {
+        match self.cur_token.r#type {
             TokenType::LET => self.parse_let_statement(),
             TokenType::RETURN => self.parse_return_statement(),
             _ => self.parse_expression_statement(),
@@ -112,20 +112,20 @@ impl Parser {
     fn parse_let_statement(&mut self) -> Result<Statement, String> {
         let token = self.cur_token.clone();
 
-        self.expect_peek(TokenType::IDENT)?;
+        self.expect_peek(&TokenType::IDENT)?;
 
         let name = Identifier {
             token: self.cur_token.clone(),
             value: self.cur_token.literal.clone(),
         };
 
-        self.expect_peek(TokenType::ASSIGN)?;
+        self.expect_peek(&TokenType::ASSIGN)?;
 
         self.next_token();
 
         let value = self.parse_expression(Precedence::LOWEST)?;
 
-        if self.peek_token_is(TokenType::SEMICOLON) {
+        if self.peek_token_is(&TokenType::SEMICOLON) {
             self.next_token();
         }
 
@@ -136,14 +136,14 @@ impl Parser {
         }))
     }
 
-    fn cur_token_is(&self, t: TokenType) -> bool {
-        self.cur_token.tk_type == t
+    fn cur_token_is(&self, t: &TokenType) -> bool {
+        &self.cur_token.r#type == t
     }
-    fn peek_token_is(&self, t: TokenType) -> bool {
-        self.peek_token.tk_type == t
+    fn peek_token_is(&self, t: &TokenType) -> bool {
+        &self.peek_token.r#type == t
     }
-    fn expect_peek(&mut self, t: TokenType) -> Result<(), String> {
-        if self.peek_token_is(t.clone()) {
+    fn expect_peek(&mut self, t: &TokenType) -> Result<(), String> {
+        if self.peek_token_is(t) {
             self.next_token();
             Ok(())
         } else {
@@ -151,10 +151,10 @@ impl Parser {
         }
     }
 
-    fn peek_error(&mut self, t: TokenType) -> String {
+    fn peek_error(&mut self, t: &TokenType) -> String {
         format!(
             "expected next token to be {:?}, got {:?} instead",
-            t, self.peek_token.tk_type
+            t, self.peek_token.r#type
         )
     }
 
@@ -164,7 +164,7 @@ impl Parser {
 
         let return_value = self.parse_expression(Precedence::LOWEST)?;
 
-        if self.peek_token_is(TokenType::SEMICOLON) {
+        if self.peek_token_is(&TokenType::SEMICOLON) {
             self.next_token();
         }
 
@@ -184,7 +184,7 @@ impl Parser {
     fn parse_expression_statement(&mut self) -> Result<Statement, String> {
         let token = self.cur_token.clone();
         let expression = self.parse_expression(Precedence::LOWEST)?;
-        if self.peek_token_is(TokenType::SEMICOLON) {
+        if self.peek_token_is(&TokenType::SEMICOLON) {
             self.next_token();
         }
         Ok(Statement::ExpressionStatement(ExpressionStatement {
@@ -194,11 +194,12 @@ impl Parser {
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression, String> {
-        if let Some(prefix) = self.prefix_parse_fns.get(&self.cur_token.tk_type) {
+        if let Some(prefix) = self.prefix_parse_fns.get(&self.cur_token.r#type) {
             let mut left_exp = prefix(self)?;
-            while !self.peek_token_is(TokenType::SEMICOLON) && precedence < self.peek_precedence() {
+            while !self.peek_token_is(&TokenType::SEMICOLON) && precedence < self.peek_precedence()
+            {
                 let infix_fn: InfixParseFn;
-                if let Some(infix) = self.infix_parse_fns.get(&self.peek_token.tk_type) {
+                if let Some(infix) = self.infix_parse_fns.get(&self.peek_token.r#type) {
                     infix_fn = *infix;
                 } else {
                     return Ok(left_exp);
@@ -208,7 +209,7 @@ impl Parser {
             }
             Ok(left_exp)
         } else {
-            Err(self.no_prefix_parse_fn_error(&self.cur_token.tk_type))
+            Err(self.no_prefix_parse_fn_error(&self.cur_token.r#type))
         }
     }
 
@@ -252,10 +253,10 @@ impl Parser {
     }
 
     fn peek_precedence(&self) -> Precedence {
-        get_precedence(&self.peek_token.tk_type)
+        get_precedence(&self.peek_token.r#type)
     }
     fn cur_precedence(&self) -> Precedence {
-        get_precedence(&self.cur_token.tk_type)
+        get_precedence(&self.cur_token.r#type)
     }
 
     fn parse_infix_expression(&mut self, left: Expression) -> Result<Expression, String> {
@@ -275,33 +276,33 @@ impl Parser {
     fn parse_boolean_literal(&self) -> Result<Expression, String> {
         Ok(Expression::BooleanLiteral(BooleanLiteral {
             token: self.cur_token.clone(),
-            value: self.cur_token_is(TokenType::TRUE),
+            value: self.cur_token_is(&TokenType::TRUE),
         }))
     }
 
     fn parse_grouped_expression(&mut self) -> Result<Expression, String> {
         self.next_token();
         let exp = self.parse_expression(Precedence::LOWEST)?;
-        self.expect_peek(TokenType::RPAREN)?;
+        self.expect_peek(&TokenType::RPAREN)?;
         Ok(exp)
     }
 
     fn parse_if_expression(&mut self) -> Result<Expression, String> {
         let token = self.cur_token.clone();
-        self.expect_peek(TokenType::LPAREN)?;
+        self.expect_peek(&TokenType::LPAREN)?;
         self.next_token();
         let condition = self.parse_expression(Precedence::LOWEST)?;
-        self.expect_peek(TokenType::RPAREN)?;
-        self.expect_peek(TokenType::LBRACE)?;
+        self.expect_peek(&TokenType::RPAREN)?;
+        self.expect_peek(&TokenType::LBRACE)?;
 
         let consequence = self.parse_block_statement()?;
 
         let mut alternative: Option<BlockStatement> = None;
 
-        if self.peek_token_is(TokenType::ELSE) {
+        if self.peek_token_is(&TokenType::ELSE) {
             self.next_token();
 
-            self.expect_peek(TokenType::LBRACE)?;
+            self.expect_peek(&TokenType::LBRACE)?;
             alternative = Some(self.parse_block_statement()?);
         }
 
@@ -318,8 +319,8 @@ impl Parser {
         let mut statements: Vec<Statement> = Vec::new();
         self.next_token();
 
-        while !self.cur_token_is(TokenType::RBRACE) {
-            if self.cur_token_is(TokenType::EOF) {
+        while !self.cur_token_is(&TokenType::RBRACE) {
+            if self.cur_token_is(&TokenType::EOF) {
                 return Err(String::from("EOF"));
             }
             let stmt = self.parse_statement()?;
@@ -334,11 +335,11 @@ impl Parser {
 
     fn parse_function_literal(&mut self) -> Result<Expression, String> {
         let token = self.cur_token.clone();
-        self.expect_peek(TokenType::LPAREN)?;
+        self.expect_peek(&TokenType::LPAREN)?;
 
         let parameters = self.parse_function_parameters()?;
 
-        self.expect_peek(TokenType::LBRACE)?;
+        self.expect_peek(&TokenType::LBRACE)?;
 
         let body = self.parse_block_statement()?;
 
@@ -350,7 +351,7 @@ impl Parser {
     }
 
     fn parse_function_parameters(&mut self) -> Result<Vec<Identifier>, String> {
-        if self.peek_token_is(TokenType::RPAREN) {
+        if self.peek_token_is(&TokenType::RPAREN) {
             self.next_token();
             return Ok(Vec::new());
         }
@@ -363,7 +364,7 @@ impl Parser {
             value: self.cur_token.literal.clone(),
         });
 
-        while self.peek_token_is(TokenType::COMMA) {
+        while self.peek_token_is(&TokenType::COMMA) {
             self.next_token();
             self.next_token();
 
@@ -373,7 +374,7 @@ impl Parser {
             })
         }
 
-        self.expect_peek(TokenType::RPAREN)?;
+        self.expect_peek(&TokenType::RPAREN)?;
         Ok(identfiers)
     }
 
@@ -390,7 +391,7 @@ impl Parser {
 
     // fn parse_call_arguments(&mut self) -> Result<Vec<Expression>, String> {
     //     let mut args: Vec<Expression> = Vec::new();
-    //     if self.peek_token_is(TokenType::RPAREN) {
+    //     if self.peek_token_is(&TokenType::RPAREN) {
     //         self.next_token();
     //         return Ok(args);
     //     }
@@ -399,14 +400,14 @@ impl Parser {
     //     let arg = self.parse_expression(Precedence::LOWEST)?;
     //     args.push(arg);
 
-    //     while self.peek_token_is(TokenType::COMMA) {
+    //     while self.peek_token_is(&TokenType::COMMA) {
     //         self.next_token();
     //         self.next_token();
     //         let arg = self.parse_expression(Precedence::LOWEST)?;
     //         args.push(arg);
     //     }
 
-    //     self.expect_peek(TokenType::RPAREN)?;
+    //     self.expect_peek(&TokenType::RPAREN)?;
 
     //     Ok(args)
     // }
@@ -431,7 +432,7 @@ impl Parser {
     fn parse_expression_list(&mut self, end: TokenType) -> Result<Vec<Expression>, String> {
         let mut list: Vec<Expression> = Vec::new();
 
-        if self.peek_token_is(end.clone()) {
+        if self.peek_token_is(&end) {
             self.next_token();
             return Ok(list);
         }
@@ -440,14 +441,14 @@ impl Parser {
         let mut expr = self.parse_expression(Precedence::LOWEST)?;
         list.push(expr);
 
-        while self.peek_token_is(TokenType::COMMA) {
+        while self.peek_token_is(&TokenType::COMMA) {
             self.next_token();
             self.next_token();
             expr = self.parse_expression(Precedence::LOWEST)?;
             list.push(expr);
         }
 
-        self.expect_peek(end)?;
+        self.expect_peek(&end)?;
         Ok(list)
     }
 
@@ -457,7 +458,7 @@ impl Parser {
         self.next_token();
         let index = self.parse_expression(Precedence::LOWEST)?;
 
-        self.expect_peek(TokenType::RBRACKET)?;
+        self.expect_peek(&TokenType::RBRACKET)?;
 
         Ok(Expression::IndexExpression(IndexExpression {
             token: token,
@@ -469,22 +470,22 @@ impl Parser {
     fn parse_hash_literal(&mut self) -> Result<Expression, String> {
         let token = self.cur_token.clone();
         let mut pairs: HashMap<Expression, Expression> = HashMap::new();
-        while !self.peek_token_is(TokenType::RBRACE) {
+        while !self.peek_token_is(&TokenType::RBRACE) {
             self.next_token();
             let key = self.parse_expression(Precedence::LOWEST)?;
-            self.expect_peek(TokenType::COLON)?;
+            self.expect_peek(&TokenType::COLON)?;
 
             self.next_token();
             let value = self.parse_expression(Precedence::LOWEST)?;
 
             pairs.insert(key, value);
 
-            if !self.peek_token_is(TokenType::RBRACE) {
-                self.expect_peek(TokenType::COMMA)?;
+            if !self.peek_token_is(&TokenType::RBRACE) {
+                self.expect_peek(&TokenType::COMMA)?;
             }
         }
 
-        self.expect_peek(TokenType::RBRACE)?;
+        self.expect_peek(&TokenType::RBRACE)?;
 
         Ok(Expression::HashLiteral(HashLiteral {
             token: token,

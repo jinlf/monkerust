@@ -6,7 +6,7 @@
 
 加入内置函数puts：
 ```rust,noplaypen
-// src/builtins.rs
+// src/evaluator/builtins.rs
 
 pub fn get_builtin(name: &str) -> Option<Object> {
     match name {
@@ -14,9 +14,9 @@ pub fn get_builtin(name: &str) -> Option<Object> {
         "puts" => {
             let func: BuiltinFunction = |args| {
                 for arg in args.iter() {
-                    println!("{}", arg.as_ref().unwrap().inspect());
+                    println!("{}", arg.inspect());
                 }
-                return Some(Object::Null(NULL));
+                return Ok(Object::Null(NULL));
             };
             Some(Object::Builtin(Builtin { func: func }))
         }

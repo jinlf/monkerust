@@ -24,15 +24,15 @@ pub use token::*;
 // src/token/token.rs
 
 pub struct Token {
-    pub tk_type: TokenType,
+    pub r#type: TokenType,
     pub literal: String,
 }
 
 pub enum TokenType {
-    ILLEGAL,   // unknown character
-    EOF,       // end of file
-    IDENT,     // identifier
-    INT,       // integer
+    ILLEGAL,   // 未知字符
+    EOF,       // 文件结束符
+    IDENT,     // 标识符
+    INT,       // 整数
     ASSIGN,    // =
     PLUS,      // +
     COMMA,     // ,
@@ -41,11 +41,13 @@ pub enum TokenType {
     RPAREN,    // )
     LBRACE,    // {
     RBRACE,    // }
-    FUNCTION,  // function
+    FUNCTION,  // 函数
     LET,       // let
 }
 ```
 本文中在每段代码的顶部给出了所在文件的路径，请根据情况打开或创建该文件。
+
+上面代码中的r#type是一个转义过的标识符，因为type是Rust的关键字，标识符跟关键字一致就可以用这种方式。
 
 这里有两个Token类型比较特殊：
 - ILLEGAL：表示未知的Token，分析到ILLEGAL时表示遇到了错误；

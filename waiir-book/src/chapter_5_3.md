@@ -9,7 +9,7 @@
 ```rust,noplaypen
 // src/object/object.rs
 
-pub type BuiltinFunction = fn(&Vec<Option<Object>>) -> Option<Object>;
+pub type BuiltinFunction = fn(&Vec<Object>) -> std::result::Result<Object, String>;
 ```
 
 我们需要把这种内置函数封装到我们的对象系统中，定义如下：
@@ -20,8 +20,8 @@ pub struct Builtin {
     pub func: BuiltinFunction,
 }
 impl ObjectTrait for Builtin {
-    fn get_type(&self) -> String {
-        String::from("BUILTIN")
+    fn get_type(&self) -> &str {
+        "BUILTIN"
     }
     fn inspect(&self) -> String {
         String::from("builtin function")
@@ -78,11 +78,11 @@ impl ObjectTrait for Object {
 
 先写测试用例：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 #[test]
 fn test_builtin_functions() {
-    let tests: [(&str, Object); 5] = [
+    let tests = vec![
         (r#"len("")"#, Object::Integer(Integer { value: 0 })),
         (r#"len("four")"#, Object::Integer(Integer { value: 4 })),
         (
@@ -109,7 +109,7 @@ fn test_builtin_functions() {
             test_integer_object(evaluated, *value);
         } else if let Object::ErrorObj(ErrorObj { message }) = &tt.1 {
             let expected_message = message;
-            if let Some(Object::ErrorObj(ErrorObj { message })) = evaluated {
+            if let Object::ErrorObj(ErrorObj { message }) = evaluated {
                 assert!(
                     message == *expected_message,
                     "wrong error message. expected={:?}, got={:?}",
@@ -117,7 +117,7 @@ fn test_builtin_functions() {
                     message
                 );
             } else {
-                assert!(false, "object is not Error. got={:?}", evaluated);
+                panic!("object is not Error. got={:?}", evaluated);
             }
         }
     }
@@ -125,20 +125,27 @@ fn test_builtin_functions() {
 ```
 测试失败输出如下：
 ```
-thread 'evaluator::tests::test_builtin_functions' panicked at 'object is not Integer. got=Some(ErrorObj(ErrorObj { message: "identifier not found: len" }))', src/evaluator_test.rs:432:13
+thread 'evaluator::evaluator_test::test_builtin_functions' panicked at 'object is not Integer. got=ErrorObj(ErrorObj { message: "identifier not found: len" })', src/evaluator/evaluator_test.rs:58:9
 ```
 
 为了方便管理，我们单独使用一个文件来编写内置函数的实现：
 ```rust,noplaypen
-// src/buildins.rs
+// src/evaluator/mod.rs
 
-use super::evaluator::*;
-use super::object::*;
+mod builtins;
+pub use builtins::*;
+```
+
+```rust,noplaypen
+// src/evaluator/builtins.rs
+
+use crate::evaluator::*;
+use crate::object::*;
 
 pub fn get_builtin(name: &str) -> Option<Object> {
     match name {
         "len" => {
-            let func: BuiltinFunction = |_| return Some(Object::Null(NULL));
+            let func: BuiltinFunction = |_| return Ok(Object::Null(NULL));
             Some(Object::Builtin(Builtin { func: func }))
         }
         _ => None,
@@ -147,26 +154,19 @@ pub fn get_builtin(name: &str) -> Option<Object> {
 ```
 目前实现的是一个返回空值的len函数。这里用到了Rust的闭包语法。
 
-将builtins模块加入解释器中：
-```rust,noplaypen
-// src/lib.rs
-
-pub mod builtins;
-```
-
 增加在求值过程中遇到内置函数情况的处理，这里返回内置函数对象：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
 use super::builtins::*;
 
-fn eval_identifier(node: Identifier, env: Rc<RefCell<Environment>>) -> Option<Object> {
-    if let Some(val) = env.borrow().get(node.value.clone()) {
-        val
+fn eval_identifier(node: Identifier, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
+    if let Some(val) = env.borrow().get(&node.value) {
+        Ok(val)
     } else if let Some(builtin) = get_builtin(&node.value) {
-        Some(builtin)
+        Ok(builtin)
     } else {
-        new_error(format!("identifier not found: {}", node.value))
+        Err(format!("identifier not found: {}", node.value))
     }
 }
 ```
@@ -181,51 +181,51 @@ ERROR: not a function: "BUILTIN"
 
 在对函数调用求值时，执行内置函数：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-fn apply_function(func: Option<Object>, args: Vec<Option<Object>>) -> Option<Object> {
-    if let Some(Object::Function(function)) = func {
+fn apply_function(func: Object, args: Vec<Object>) -> Result<Object, String> {
+    if let Object::Function(function) = func {
         let extended_env = Rc::new(RefCell::new(extend_function_env(function.clone(), args)));
         let evaluated = eval(
             Node::Statement(Statement::BlockStatement(function.body)),
             Rc::clone(&extended_env),
-        );
-        unwrap_return_value(evaluated)
-    } else if let Some(Object::Builtin(Builtin { func })) = func {
+        )?;
+        Ok(unwrap_return_value(evaluated))
+    } else if let Object::Builtin(Builtin { func }) = func {
         func(&args)
     } else {
-        new_error(format!("not a function: {:?}", get_type(&func)))
+        Err(format!("not a function: {:?}", func.get_type()))
     }
 }
 ```
 测试必然失败，现在的len函数返回空值：
 ```
-thread 'evaluator::tests::test_builtin_functions' panicked at 'object is not Integer. got=Some(Null(Null))', src/evaluator_test.rs:446:13
+thread 'evaluator::evaluator_test::test_builtin_functions' panicked at 'object is not Integer. got=Null(Null)', src/evaluator/evaluator_test.rs:58:9
 ```
 
 编写len函数，计算字符串的长度，返回整数对象：
 ```rust,noplaypen
-// src/builtins.rs
+// src/evaluator/builtins.rs
 
 pub fn get_builtin(name: &str) -> Option<Object> {
     match name {
         "len" => {
             let func: BuiltinFunction = |args| {
                 if args.len() != 1 {
-                    return new_error(format!(
+                    return Err(format!(
                         "wrong number of arguments. got={}, want=1",
                         args.len()
                     ));
                 }
                 return match &args[0] {
-                    Some(Object::StringObj(StringObj { value })) => {
-                        Some(Object::Integer(Integer {
+                    Object::StringObj(StringObj { value }) => {
+                        Ok(Object::Integer(Integer {
                             value: value.len() as i64,
                         }))
                     }
-                    _ => new_error(format!(
+                    _ => Err(format!(
                         "argument to `len` not supported, got {}",
-                        get_type(&args[0])
+                        args[0].get_type()
                     )),
                 };
             };

@@ -121,16 +121,16 @@ if (5 < 10) {
         (TokenType::EOF, ""),
     ];
 
-    let mut l = Lexer::new(input);
+    let mut l = Lexer::new(String::from(input));
     for (i, tt) in tests.iter().enumerate() {
         let tok = l.next_token();
 
         assert!(
-            tok.tk_type == tt.0,
+            tok.r#type == tt.0,
             "test[{}] - tokentype wrong. expected={:?}, got={:?}",
             i,
             tt.0,
-            tok.tk_type
+            tok.r#type
         );
         assert!(
             tok.literal == tt.1,

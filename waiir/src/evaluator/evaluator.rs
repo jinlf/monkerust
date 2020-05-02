@@ -1,4 +1,4 @@
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
 use super::builtins::*;
 use crate::ast::*;
@@ -259,7 +259,6 @@ fn eval_block_statement(
     let mut result: Object = Object::Null(NULL);
     for statement in block.statements.into_iter() {
         result = eval(Node::Statement(statement), Rc::clone(&env))?;
-
         if let Object::ReturnValue(_) = result {
             return Ok(result);
         }

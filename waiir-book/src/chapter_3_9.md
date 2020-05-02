@@ -22,7 +22,7 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
         if scanner.read_line(&mut line).is_err() {
             return;
         }
-        let l = Lexer::new(&line);
+        let l = Lexer::new(line);
         let mut p = Parser::new(l);
         match p.parse_program() {
             Ok(program) => writeln!(output, "{}", program.string()).unwrap(),

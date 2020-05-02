@@ -63,8 +63,8 @@ thread 'lexer::tests::test_next_token' panicked at 'test[81] - tokentype wrong. 
 // [...]
             b'"' => {
                 tok = Token {
-                    tk_type: TokenType::STRING,
-                    literal: self.read_string(),
+                    r#type: TokenType::STRING,
+                    literal: String::from(self.read_string()),
                 }
             }
 // [...]
@@ -72,7 +72,7 @@ thread 'lexer::tests::test_next_token' panicked at 'test[81] - tokentype wrong. 
 // [...]
     }
 
-    fn read_string(&mut self) -> String {
+    fn read_string(&mut self) -> &str {
         let position = self.position + 1;
         loop {
             self.read_char();
@@ -80,7 +80,7 @@ thread 'lexer::tests::test_next_token' panicked at 'test[81] - tokentype wrong. 
                 break;
             }
         }
-        String::from(&self.input[position..self.position])
+        &self.input[position..self.position]
     }
 ```
 这里不支持转义字符，您可以自行添加。
@@ -102,9 +102,6 @@ pub struct StringLiteral {
     pub value: String,
 }
 impl NodeTrait for StringLiteral {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         format!("{}", self.value)
     }
@@ -115,12 +112,6 @@ pub enum Expression {
     StringLiteral(StringLiteral),
 }
 impl NodeTrait for Expression {
-    fn token_literal(&self) -> String {
-        match self {
-// [...]
-            Expression::StringLiteral(string_literal) => string_literal.token_literal(),
-        }
-    }
     fn string(&self) -> String {
         match self {
 // [...]
@@ -137,32 +128,31 @@ impl NodeTrait for Expression {
 #[test]
 fn test_string_literal_expression() {
     let input = r#""hello world";"#;
-    let l = Lexer::new(input);
-    let mut p = Parser::new(l);
-    let program = p.parse_program();
-    check_parser_errors(&mut p);
 
-    if let Some(Program { statements }) = program {
-        if let Statement::ExpressionStatement(ExpressionStatement {
-            token: _,
-            expression,
-        }) = &statements[0]
-        {
-            if let Expression::StringLiteral(StringLiteral { token: _, value }) = expression {
-                assert!(
-                    value == "hello world",
-                    "literal.value not {}. got={}",
-                    "hello world",
-                    value
-                );
+    let l = Lexer::new(String::from(input));
+    let mut p = Parser::new(l);
+    match p.parse_program() {
+        Ok(Program { statements }) => {
+            if let Statement::ExpressionStatement(ExpressionStatement {
+                token: _,
+                expression,
+            }) = &statements[0]
+            {
+                if let Expression::StringLiteral(StringLiteral { token: _, value }) = expression {
+                    assert!(
+                        value == "hello world",
+                        "literal.value not {}. got={}",
+                        "hello world",
+                        value
+                    );
+                } else {
+                    panic!("exp not StringLiteral. got={:?}", expression);
+                }
             } else {
-                assert!(false, "exp not StringLiteral. got={:?}", expression);
+                panic!("parse error");
             }
-        } else {
-            assert!(false, "parse error");
         }
-    } else {
-        assert!(false, "parse error");
+        Err(errors) => panic_with_errors(errors),
     }
 }
 ```
@@ -170,29 +160,27 @@ fn test_string_literal_expression() {
 测试失败结果如下：
 
 ```
-thread 'parser::tests::test_string_literal_expression' panicked at 'parser has 2 errors
-parser error: "no prefix parse function for STRING found"
-parser error: "no prefix parse function for SEMICOLON found"
-', src/parser/parser_test.rs:549:9
+thread 'parser::parser_test::test_string_literal_expression' panicked at 'parser error: no prefix parse function for STRING found
+no prefix parse function for SEMICOLON found', src/parser/parser_test.rs:39:5
 ```
 
 为字符串Token增加前缀解析函数：
 ```rust,noplaypen
 // src/parser/parser.rs
 
-    fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
-        let mut left_exp: Option<Expression>;
-        let tk_type = self.cur_token.tk_type.clone();
-        match tk_type {
+impl Parser {
+    pub fn new(l: Lexer) -> Parser {
 // [...]
-            TokenType::STRING => left_exp = self.parse_string_literal(),
-// [...]
-        }
-// [...]
+        p.register_prefix(TokenType::FUNCTION, |parser| {
+            parser.parse_function_literal()
+        });
+        p.register_prefix(TokenType::STRING, |parser| parser.parse_string_literal());
+// [...]        
     }
 
-    fn parse_string_literal(&self) -> Option<Expression> {
-        Some(Expression::StringLiteral(StringLiteral {
+
+    fn parse_string_literal(&self) -> Result<Expression, String> {
+        Ok(Expression::StringLiteral(StringLiteral {
             token: self.cur_token.clone(),
             value: self.cur_token.literal.clone(),
         }))
@@ -214,8 +202,8 @@ pub struct StringObj {
     pub value: String,
 }
 impl ObjectTrait for StringObj {
-    fn get_type(&self) -> String {
-        String::from("STRING")
+    fn get_type(&self) -> &str {
+        "STRING"
     }
     fn inspect(&self) -> String {
         self.value.clone()
@@ -245,20 +233,20 @@ impl ObjectTrait for Object {
 
 增加测试用例：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 #[test]
 fn test_string_literal() {
     let input = r#""Hello World!""#;
     let evaluated = test_eval(input);
-    if let Some(Object::StringObj(StringObj { value })) = evaluated {
+    if let Object::StringObj(StringObj { value }) = evaluated {
         assert!(
             value == "Hello World!",
             "String has wrong value. got={:?}",
             value
         );
     } else {
-        assert!(false, "object is not String. got={:?}", evaluated);
+        panic!("object is not String. got={:?}", evaluated);
     }
 }
 ```
@@ -266,20 +254,20 @@ fn test_string_literal() {
 测试失败结果如下：
 
 ```
-thread 'evaluator::tests::test_string_literal' panicked at 'object is not String. got=None', src/evaluator_test.rs:658:13
+thread 'evaluator::evaluator_test::test_string_literal' panicked at 'object is not String. got=ErrorObj(ErrorObj { message: "Unknown" })', src/evaluator/evaluator_test.rs:309:9
 ```
 
 扩展求值器非常容易：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
+pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
     match node {
 // [...]
         Node::Expression(Expression::StringLiteral(StringLiteral { token: _, value })) => {
-            Some(Object::StringObj(StringObj { value: value }))
+            Ok(Object::StringObj(StringObj { value: value }))
         }
-        _ => None,
+        _ => Err(String::from("Unknown")),
     }
 }
 ```
@@ -313,27 +301,28 @@ This is amazing!
 
 先写测试用例：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 #[test]
 fn test_string_concatenation() {
     let input = r#""Hello" + " " + "World!""#;
+
     let evaluated = test_eval(input);
-    if let Some(Object::StringObj(StringObj { value })) = evaluated {
+    if let Object::StringObj(StringObj { value }) = evaluated {
         assert!(
             value == "Hello World!",
             "String has wrong value. got={:?}",
             value
         );
     } else {
-        assert!(false, "object is not String. got={:?}", evaluated);
+        panic!("object is not String. got={:?}", evaluated);
     }
 }
 ```
 
 再增加一个出错情况的测试用例：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
 fn test_error_handling() {
         let tests = [
@@ -346,57 +335,40 @@ fn test_error_handling() {
 测试失败结果如下：
 
 ```
-thread 'evaluator::tests::test_string_concatenation' panicked at 'object is not String. got=Some(ErrorObj(ErrorObj { message: "unknown operator: STRING + STRING" }))', src/evaluator_test.rs:677:13
+thread 'evaluator::evaluator_test::test_string_concatenation' panicked at 'object is not String. got=ErrorObj(ErrorObj { message: "unknown operator: STRING + STRING" })', src/evaluator/evaluator_test.rs:326:9
 ```
 
 在中缀表达式解析时增加针对字符串的处理方法。
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-fn eval_infix_expression(
-    operator: &str,
-    left: Option<Object>,
-    right: Option<Object>,
-) -> Option<Object> {
-    if get_type(&left) != get_type(&right) {
-        return new_error(format!(
+fn eval_infix_expression(operator: &str, left: Object, right: Object) -> Result<Object, String> {
+    if left.get_type() != right.get_type() {
+        return Err(format!(
             "type mismatch: {} {} {}",
-            get_type(&left),
+            left.get_type(),
             operator,
-            get_type(&right)
+            right.get_type(),
         ));
     }
-    if let Some(Object::StringObj(_)) = left {
-        if let Some(Object::StringObj(_)) = right {
-            return eval_string_infix_expression(operator, &left, &right);
+    if let Object::StringObj(StringObj { value }) = &left {
+        let left_val = value;
+        if let Object::StringObj(StringObj { value }) = &right {
+            let right_val = value;
+            return eval_string_infix_expression(operator, left_val, right_val);
         }
     }
 // [...]
 }
 
-fn eval_string_infix_expression(
-    operator: &str,
-    left: &Option<Object>,
-    right: &Option<Object>,
-) -> Option<Object> {
+fn eval_string_infix_expression(operator: &str, left: &str, right: &str) -> Result<Object, String> {
     if operator != "+" {
-        return new_error(format!(
-            "unknown operator: {} {} {}",
-            get_type(&left),
-            operator,
-            get_type(&right)
-        ));
+        return Err(format!("unknown operator: STRING {} STRING", operator));
     }
-    if let Some(Object::StringObj(StringObj { value })) = left {
-        let left_val = value;
-        if let Some(Object::StringObj(StringObj { value })) = right {
-            let right_val = value;
-            return Some(Object::StringObj(StringObj {
-                value: format!("{}{}", left_val, right_val),
-            }));
-        }
-    }
-    None
+
+    Ok(Object::StringObj(StringObj {
+        value: format!("{}{}", left, right),
+    }))
 }
 ```
 

@@ -55,7 +55,8 @@ return 5;
 return 10;
 return 993322;
 ";
-    let l = Lexer::new(input);
+
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -91,10 +92,10 @@ thread 'parser::tests::test_return_statement' panicked at 'program.statements do
 // src/parser/parser.rs
 
     fn parse_statement(&mut self) -> Result<Statement, String> {
-        match self.cur_token.tk_type {
+        match self.cur_token.r#type {
             TokenType::LET => self.parse_let_statement(),
             TokenType::RETURN => self.parse_return_statement(),
-            _ => self.parse_expression_statement(),
+            _ => Err(String::new()),
         }
     }
 

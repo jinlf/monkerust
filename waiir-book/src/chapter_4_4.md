@@ -26,6 +26,14 @@ a + a;
 由于不考虑性能，我们实现Monkey解释器时选择了最简单的实现方式：定义Rust枚举Object，将每种求值得到的结构体作为Object的一种枚举成员类型。
 
 定义如下：
+
+```rust,noplaypen
+// src/object/mod.rs
+
+mod object;
+pub use object::*;
+```
+
 ```rust,noplaypen
 // src/object/object.rs
 
@@ -42,15 +50,6 @@ impl ObjectTrait for Object {
         String::new() //TODO, be replaced
     }
 }
-```
-
-再在 src/object/mod.rs 中增加
-
-```rust,noplaypen
-// src/object/mod.rs
-
-mod object;
-pub use object::*;
 ```
 
 让我们从最简单的整数、布尔值和空值开始。

@@ -1,4 +1,4 @@
-// src/object_test.rs
+// src/object/object_test.rs
 
 use super::object::*;
 

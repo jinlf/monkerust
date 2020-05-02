@@ -111,9 +111,6 @@ impl NodeTrait for Expression {
 impl Parser {
     pub fn new(l: Lexer) -> Parser {
 // [...]
-        p.register_prefix(TokenType::IDENT, |parser| parser.parse_identifier());
-        p.register_prefix(TokenType::INT, |parser| parser.parse_integer_literal());
-        p.register_prefix(TokenType::BANG, |parser| parser.parse_prefix_expression());
         p.register_prefix(TokenType::MINUS, |parser| parser.parse_prefix_expression());
         p.register_prefix(TokenType::TRUE, |parser| parser.parse_boolean_literal());
         p.register_prefix(TokenType::FALSE, |parser| parser.parse_boolean_literal());
@@ -173,7 +170,7 @@ fn test_boolean_literal(exp: &Expression, expected_value: bool) {
             token.literal
         );
     } else {
-        assert!(false, "exp not BooleanLiteral. got={:?}", exp);
+        panic!("exp not BooleanLiteral. got={:?}", exp);
     }
 }
 ```
@@ -216,10 +213,10 @@ fn test_parsing_infix_expressions() {
 
 fn test_parsing_prefix_expression() {
     let tests = vec![
-        ("!5;", "!", ExpectedType::from(5)),
-        ("-15;", "-", ExpectedType::from(15)),
-        ("!true", "!", ExpectedType::from(true)),
-        ("!false", "!", ExpectedType::from(false)),
+        ("!5;", "!", ExpectedType::Ival(5)),
+        ("-15;", "-", ExpectedType::Ival(15)),
+        ("!true", "!", ExpectedType::Ival(true)),
+        ("!false", "!", ExpectedType::Ival(false)),
     ];
 
     for tt in tests.iter() {
@@ -404,7 +401,8 @@ impl NodeTrait for Statement {
 #[test]
 fn test_if_expression() {
     let input = "if (x < y) { x }";
-    let l = Lexer::new(input);
+
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -453,22 +451,19 @@ fn test_if_expression() {
                             alternative,
                         );
                     } else {
-                        assert!(
-                            false,
+                        panic!(
                             "statements[0] is not ExpressionStatement. got={:?}",
                             &consequence.statements[0]
                         );
                     }
                 } else {
-                    assert!(
-                        false,
+                    panic!(
                         "stmt.expression is not IfExpression. got={:?}",
                         expression
                     );
                 }
             } else {
-                assert!(
-                    false,
+                panic!(
                     "program.statements[0] is not ExpressionStatement. got={:?}",
                     &statements[0]
                 );
@@ -490,7 +485,7 @@ if (x < y) { x } else { y }
 fn test_if_else_expression() {
     let input = "if (x < y) { x } else { y }";
 
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -546,8 +541,7 @@ fn test_if_else_expression() {
                             {
                                 test_identifier(expression, "y");
                             } else {
-                                assert!(
-                                    false,
+                                panic!(
                                     "statements[0] is not ExpressionStatement. got={:?}",
                                     &a.statements[0]
                                 );
@@ -556,22 +550,19 @@ fn test_if_else_expression() {
                             panic!("exp alternative.statements was None");
                         }
                     } else {
-                        assert!(
-                            false,
+                        panic!(
                             "statements[0] is not ExpressionStatement. got={:?}",
                             &consequence.statements[0]
                         );
                     }
                 } else {
-                    assert!(
-                        false,
+                    panic!(
                         "stmt.expression is not IfExpression. got={:?}",
                         expression
                     );
                 }
             } else {
-                assert!(
-                    false,
+                panic!(
                     "program.statements[0] is not ExpressionStatement. got={:?}",
                     &statements[0]
                 );
@@ -746,7 +737,8 @@ impl NodeTrait for Expression {
 #[test]
 fn test_function_literal_parsing() {
     let input = "fn(x, y) { x + y; }";
-    let l = Lexer::new(input);
+
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -801,22 +793,19 @@ fn test_function_literal_parsing() {
                             &ExpectedType::from("y"),
                         );
                     } else {
-                        assert!(
-                            false,
+                        panic!(
                             "function body stmt is not ExpressionStatement. got={:?}",
                             &body.statements[0]
                         );
                     }
                 } else {
-                    assert!(
-                        false,
+                    panic!(
                         "stmt.expression is not FunctionLiteral. got={:?}",
                         expression
                     );
                 }
             } else {
-                assert!(
-                    false,
+                panic!(
                     "program.statements[0] is not ExpressionStatement. got={:?}",
                     &statements[0]
                 );
@@ -918,7 +907,7 @@ fn test_function_parameter_parsing() {
     ];
 
     for tt in tests.iter() {
-        let l = Lexer::new(tt.0);
+        let l = Lexer::new(String::from(tt.0));
         let mut p = Parser::new(l);
         match p.parse_program() {
             Ok(Program { statements }) => {
@@ -1029,7 +1018,7 @@ impl NodeTrait for Expression {
 fn test_call_expression_parsing() {
     let input = "add(1, 2 * 3, 4 + 5);";
 
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
     match p.parse_program() {
         Ok(Program { statements }) => {
@@ -1059,29 +1048,27 @@ fn test_call_expression_parsing() {
                         arguments.len()
                     );
 
-                    test_literal_expression(&arguments[0], &ExpectedType::from(1));
+                    test_literal_expression(&arguments[0], &ExpectedType::Ival(1));
                     test_infix_expression(
                         &arguments[1],
-                        &ExpectedType::from(2),
+                        &ExpectedType::Ival(2),
                         "*",
-                        &ExpectedType::from(3),
+                        &ExpectedType::Ival(3),
                     );
                     test_infix_expression(
                         &arguments[2],
-                        &ExpectedType::from(4),
+                        &ExpectedType::Ival(4),
                         "+",
-                        &ExpectedType::from(5),
+                        &ExpectedType::Ival(5),
                     );
                 } else {
-                    assert!(
-                        false,
+                    panic!(
                         "stmt.expression is not CallExpression. got={:?}",
                         expression
                     );
                 }
             } else {
-                assert!(
-                    false,
+                panic!(
                     "stmt is not ExpressionStatement. got={:?}",
                     &statements[0]
                 );
@@ -1162,7 +1149,7 @@ impl Parser {
         let mut expr = self.parse_expression(Precedence::LOWEST)?;
         list.push(expr);
 
-        while self.peek_token_is(TokenType::COMMA) {
+        while self.peek_token_is(&TokenType::COMMA) {
             self.next_token();
             self.next_token();
             expr = self.parse_expression(Precedence::LOWEST)?;

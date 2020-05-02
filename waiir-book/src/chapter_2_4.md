@@ -57,7 +57,7 @@ pub enum TokenType {
 ```
 测试失败的信息如下：
 ```
-thread 'lexer::tests::test_next_token' panicked at 'test[44] - tokentype wrong. expected=BANG, got=ILLEGAL', src/lexer/lexer_test.rs:190:13
+thread 'lexer::lexer_test::test_next_token' panicked at 'test[36] - tokentype wrong. expected=BANG, got=ILLEGAL', src/lexer/lexer_test.rs:74:9
 ```
 为了支持这些新增加的TokenType，需要扩展我们的词法分析器：
 ```rust,noplaypen
@@ -237,7 +237,7 @@ pub enum TokenType {
 ```
 测试失败的信息如下：
 ```
-thread 'lexer::tests::test_next_token' panicked at 'test[74] - tokentype wrong. expected=EQ, got=ASSIGN', src/lexer/lexer_test.rs:238:13
+thread 'lexer::lexer_test::test_next_token' panicked at 'test[66] - tokentype wrong. expected=EQ, got=ASSIGN', src/lexer/lexer_test.rs:108:9
 ```
 
 修改next_token方法，如下：
@@ -251,7 +251,7 @@ thread 'lexer::tests::test_next_token' panicked at 'test[74] - tokentype wrong. 
                 if self.peek_char() == b'=' {
                     self.read_char();
                     tok = Token {
-                        tk_type: TokenType::EQ,
+                        r#type: TokenType::EQ,
                         literal: String::from("=="),
                     }
                 } else {
@@ -263,7 +263,7 @@ thread 'lexer::tests::test_next_token' panicked at 'test[74] - tokentype wrong. 
                 if self.peek_char() == b'=' {
                     self.read_char();
                     tok = Token {
-                        tk_type: TokenType::NOTEQ,
+                        r#type: TokenType::NOTEQ,
                         literal: String::from("!="),
                     }
                 } else {

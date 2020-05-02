@@ -9,9 +9,9 @@ pub struct Lexer {
     ch: u8,               // 当前字符
 }
 impl Lexer {
-    pub fn new(input: &str) -> Lexer {
+    pub fn new(input: String) -> Lexer {
         let mut l = Lexer {
-            input: String::from(input),
+            input: input,
             position: 0,
             read_position: 0,
             ch: 0,
@@ -39,7 +39,7 @@ impl Lexer {
             b':' => tok = new_token(TokenType::COLON, self.ch),
             b'"' => {
                 tok = Token {
-                    tk_type: TokenType::STRING,
+                    r#type: TokenType::STRING,
                     literal: String::from(self.read_string()),
                 }
             }
@@ -47,7 +47,7 @@ impl Lexer {
                 if self.peek_char() == b'=' {
                     self.read_char();
                     tok = Token {
-                        tk_type: TokenType::EQ,
+                        r#type: TokenType::EQ,
                         literal: String::from("=="),
                     }
                 } else {
@@ -66,7 +66,7 @@ impl Lexer {
                 if self.peek_char() == b'=' {
                     self.read_char();
                     tok = Token {
-                        tk_type: TokenType::NOTEQ,
+                        r#type: TokenType::NOTEQ,
                         literal: String::from("!="),
                     }
                 } else {
@@ -81,7 +81,7 @@ impl Lexer {
             b']' => tok = new_token(TokenType::RBRACKET, self.ch),
             0 => {
                 tok = Token {
-                    tk_type: TokenType::EOF,
+                    r#type: TokenType::EOF,
                     literal: String::new(),
                 }
             }
@@ -89,13 +89,13 @@ impl Lexer {
                 if is_letter(self.ch) {
                     let literal = self.read_identifier();
                     tok = Token {
-                        tk_type: lookup_ident(&literal),
+                        r#type: lookup_ident(&literal),
                         literal: String::from(literal),
                     };
                     return tok;
                 } else if self.ch.is_ascii_digit() {
                     tok = Token {
-                        tk_type: TokenType::INT,
+                        r#type: TokenType::INT,
                         literal: String::from(self.read_number()),
                     };
                     return tok;
@@ -156,7 +156,7 @@ pub fn new_token(token_type: TokenType, ch: u8) -> Token {
     let mut literal = String::new();
     literal.push(ch as char);
     Token {
-        tk_type: token_type,
+        r#type: token_type,
         literal: literal,
     }
 }

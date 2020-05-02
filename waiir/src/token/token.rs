@@ -2,7 +2,7 @@
 
 #[derive(Debug, Clone)]
 pub struct Token {
-    pub tk_type: TokenType,
+    pub r#type: TokenType,
     pub literal: String,
 }
 

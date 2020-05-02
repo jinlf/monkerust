@@ -8,7 +8,7 @@ let x = 5 + 5;
 
 测试用例如下：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 #[test]
 fn test_let_statements() {
@@ -27,7 +27,7 @@ fn test_let_statements() {
 
 还需要测试标识符没有值的情况；
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 fn test_error_handling() {
     let tests = [
@@ -38,9 +38,9 @@ fn test_error_handling() {
 
 下面我们求值let语句：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-pub fn eval(node: Node) -> Option<Object> {
+fn eval(node: Node) -> Result<Object, String> {
     match node {
 // [...]
         Node::Statement(Statement::LetStatement(LetStatement {
@@ -48,24 +48,28 @@ pub fn eval(node: Node) -> Option<Object> {
             name,
             value,
         })) => {
-            let val = eval(Node::Expression(value));
-            if is_error(&val) {
-                return val;
-            }
+            let val = eval(Node::Expression(value))?;
 
             // 然后呢？
         }
-        _ => None,
+        _ => Err(String::from("Unknown")),
     }
 }
 ```
 我们需要一个标识符名称到值的映射来保存已经求值出来的信息，这种映射称作环境（Environment），可以用一个哈希表（HashMap）来实现。
 
 ```rust,noplaypen
+// src/environment/mod.rs
+
+mod environment;
+pub use environment::*;
+```
+
+```rust,noplaypen
 // src/environment.rs
 
-use super::ast::*;
-use super::object::*;
+use crate::ast::*;
+use crate::object::*;
 use std::collections::*;
 
 pub fn new_environment() -> Environment {
@@ -75,47 +79,47 @@ pub fn new_environment() -> Environment {
 }
 
 pub struct Environment {
-    pub store: HashMap<String, Option<Object>>,
+    pub store: HashMap<String, Object>,
 }
 impl Environment {
-    pub fn get(&self, name: String) -> Option<Option<Object>> {
-        if let Some(v) = self.store.get(&name) {
-            if let Some(vv) = v {
-                return Some(Some(vv.clone()));
-            }
+    pub fn get(&self, name: &str) -> Option<Object> {
+        if let Some(v) = self.store.get(name) {
+            return Some(v.clone());
         }
         None
     }
-    pub fn set(&mut self, name: String, val: Option<Object>) -> Option<Object> {
-        if let Some(v) = val {
-            self.store.insert(name, Some(v.clone()));
-            Some(v)
-        } else {
-            self.store.insert(name, None);
-            None
-        }
+    pub fn set(&mut self, name: String, val: Object) -> Object {
+        self.store.insert(name, val.clone());
+        val
     }
 }
 
 ```
 由于这里用到了Object的clone方法，需要将Object类型及其子类型都添加Clone属性。
 
-在lib.rs中添加：
+修改main.rs：
 ```rust,noplaypen
-// src/lib.rs
+// src/main.rs
 
-pub mod environment;
+mod environment;
 ```
 
 扩展eval函数，增加Environment类型参数，这里使用引用计数来实现：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-use super::environment::*;
+use crate::environment::*;
 use std::cell::*;
 use std::rc::*;
 
-pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
+pub fn evaluate(program: Program, env: Rc<RefCell<Environment>>) -> Object {
+    match eval(Node::Program(program), Rc::clone(&env)) {
+        Ok(v) => v,
+        Err(err) => Object::Null(Null {}),
+    }
+}
+
+fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
 // [...]
 }
 ```
@@ -125,7 +129,7 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
 ```rust,noplaypen
 // src/repl/repl.rs
 
-use super::environment::*;
+use crate::environment::*;
 use std::cell::*;
 use std::rc::*;
 
@@ -134,11 +138,12 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
     let env = Rc::new(RefCell::new(new_environment()));
 
     loop {
-// [...]        
-        if program.is_some() {
-            if let Some(evaluated) = eval(Node::Program(program.unwrap()), Rc::clone(&env)) {
-                writeln!(output, "{}", evaluated.inspect()).unwrap();
+// [...]    
+        match p.parse_program() {
+            Ok(program) => {
+                writeln!(output, "{}", evaluate(program, Rc::clone(&env)).inspect()).unwrap(),
             }
+            Err(errors) => print_parser_errors(output, &errors),
         }
     }
 }
@@ -151,26 +156,29 @@ $ cargo build
 
 之前的测试用例中也需要增加创建和使用env的代码：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
-use super::environment::*;
+use crate::environment::*;
 use std::cell::*;
 use std::rc::*;
 
-fn test_eval(input: &str) -> Option<Object> {
+fn test_eval(input: &str) -> Object {
     let env = Rc::new(RefCell::new(new_environment()));
-    let l = Lexer::new(input);
+
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
-    let program = p.parse_program();
-    eval(Node::Program(program.unwrap()), Rc::clone(&env))
+    match p.parse_program() {
+        Ok(program) => evaluate(program, Rc::clone(&env)),
+        Err(errors) => panic!("{:?}", errors),
+    }
 }
 ```
 
 修改求值let语句的代码如下：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
+fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Object {
     match node {
 // [...]
         Node::Statement(Statement::LetStatement(LetStatement {
@@ -178,35 +186,31 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
             name,
             value,
         })) => {
-            let val = eval(Node::Expression(value), Rc::clone(&env));
-            if is_error(&val) {
-                return val;
-            }
-
-            env.borrow_mut().set(name.value, val)
+            let val = eval(Node::Expression(value), Rc::clone(&env))?;
+            Ok(env.borrow_mut().set(name.value, val))
         }
-        _ => None,
+        _ => Err(String::from("Unknown")),
     }
 }
 ```
 这里使用borrow_mut方法从引用计数中借用可变对象，然后将标识符和值的映射保存在环境中。
 
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
+fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Object {
     match node {
 // [...]
         Node::Expression(Expression::Identifier(ident)) => eval_identifier(ident, Rc::clone(&env)),
-        _ => None,
+        _ => Err(String::from("Unknown")),
     }
 }
 
-fn eval_identifier(node: Identifier, env: Rc<RefCell<Environment>>) -> Option<Object> {
-    if let Some(val) = env.borrow().get(node.value.clone()) {
-        val
+fn eval_identifier(node: Identifier, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
+    if let Some(val) = env.borrow().get(&node.value) {
+        Ok(val)
     } else {
-        new_error(format!("identifier not found: {}", node.value))
+        Ok(new_error(format!("identifier not found: {}", node.value)))
     }
 }
 ```

@@ -35,8 +35,8 @@
 ```rust,noplaypen
 // src/object/object.rs
 
-use super::ast::*;
-use super::environment::*;
+use crate::ast::*;
+use crate::environment::*;
 use std::cell::*;
 use std::rc::*;
 
@@ -47,8 +47,8 @@ pub struct Function {
     pub env: Rc<RefCell<Environment>>,
 }
 impl ObjectTrait for Function {
-    fn get_type(&self) -> String {
-        String::from("FUNCTION")
+    fn get_type(&self) -> &str {
+        "FUNCTION"
     }
     fn inspect(&self) -> String {
         format!(
@@ -77,7 +77,7 @@ pub enum Object {
     Function(Function),
 }
 impl ObjectTrait for Object {
-    fn get_type(&self) -> String {
+    fn get_type(&self) -> &str {
         match self {
 // [...]
             Object::Function(f) => f.get_type(),
@@ -99,7 +99,9 @@ impl ObjectTrait for Object {
 ```
 取得的是函数对象的内存地址。
 
-这里还需要为Environment加上Debug属性：
+这里需要为Object系统中的每个struct加上Clone trait。
+
+这里还需要为Environment加上Debug和Clone属性：
 ```rust,noplaypen
 // src/environment.rs
 
@@ -110,17 +112,20 @@ pub struct Environment {
 
 测试用例如下：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
+
+use crate::ast::*;
 
 #[test]
 fn test_function_object() {
     let input = "fn(x) { x + 2; };";
+
     let evaluated = test_eval(input);
-    if let Some(Object::Function(Function {
+    if let Object::Function(Function {
         parameters,
         body,
         env: _,
-    })) = evaluated
+    }) = evaluated
     {
         assert!(
             parameters.len() == 1,
@@ -142,35 +147,35 @@ fn test_function_object() {
             body.string()
         );
     } else {
-        assert!(false, "object is not Function. got={:?}", evaluated);
+        panic!("object is not Function. got={:?}", evaluated);
     }
 }
 ```
 
 在eval中支持函数字面量：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
+pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
     match node {
 // [...]
         Node::Expression(Expression::FunctionLiteral(FunctionLiteral {
             token: _,
             parameters,
             body,
-        })) => Some(Object::Function(Function {
+        })) => Ok(Object::Function(Function {
             parameters: parameters,
             body: body,
             env: Rc::clone(&env),
         })),
-        _ => None,
+        _ => Err(String::from("Unknown")),
     }
 }
 ```
 
 函数调用的测试用例：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 #[test]
 fn test_function_application() {
@@ -191,9 +196,9 @@ fn test_function_application() {
 
 在eval中增加函数调用的支持：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
+pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
     match node {
 // [...]
         Node::Expression(Expression::CallExpression(CallExpression {
@@ -201,28 +206,37 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
             function,
             arguments,
         })) => {
-            let function_obj = eval(Node::Expression(*function), Rc::clone(&env));
-            if is_error(&function_obj) {
-                return function_obj;
-            }
+            let function_obj = eval(Node::Expression(*function), Rc::clone(&env))?;
             let args = eval_expressions(arguments, Rc::clone(&env));
             if args.len() == 1 && is_error(&args[0]) {
-                return args[0].clone();
+                return Ok(args[0].clone());
             }
             // 然后呢？
         }
-        _ => None,
+        _ => Err(String::from("Unknown")),
     }
 }
 
-fn eval_expressions(exps: Vec<Expression>, env: Rc<RefCell<Environment>>) -> Vec<Option<Object>> {
-    let mut result: Vec<Option<Object>> = Vec::new();
+fn is_error(obj: &Object) -> bool {
+    if let Object::ErrorObj(_) = obj {
+        true
+    } else {
+        false
+    }
+}
+
+fn eval_expressions(exps: Vec<Expression>, env: Rc<RefCell<Environment>>) -> Vec<Object> {
+    let mut result: Vec<Object> = Vec::new();
     for e in exps.iter() {
-        let evaluated = eval(Node::Expression(e.clone()), Rc::clone(&env));
-        if is_error(&evaluated) {
-            return vec![evaluated];
+        match eval(Node::Expression(e.clone()), Rc::clone(&env)) {
+            Ok(evaluated) => {
+                if is_error(&evaluated) {
+                    return vec![evaluated];
+                }
+                result.push(evaluated);
+            }
+            Err(err) => panic!("error"),
         }
-        result.push(evaluated);
     }
     result
 }
@@ -253,37 +267,30 @@ pub fn new_environment() -> Environment {
 
 #[derive(Debug)]
 pub struct Environment {
-    pub store: HashMap<String, Option<Object>>,
+    pub store: HashMap<String, Object>,
     pub outer: Option<Rc<RefCell<Environment>>>,
 }
 impl Environment {
-    pub fn get(&self, name: String) -> Option<Option<Object>> {
-        if let Some(v) = self.store.get(&name) {
-            if let Some(vv) = v {
-                return Some(Some(vv.clone()));
-            }
+    pub fn get(&self, name: &str) -> Option<Object> {
+        if let Some(v) = self.store.get(name) {
+            return Some(v.clone());
         } else if let Some(o) = &self.outer {
             return o.borrow().get(name);
         }
         None
     }
-    pub fn set(&mut self, name: String, val: Option<Object>) -> Option<Object> {
-        if let Some(v) = val {
-            self.store.insert(name, Some(v.clone()));
-            Some(v)
-        } else {
-            self.store.insert(name, None);
-            None
-        }
+    pub fn set(&mut self, name: String, val: Object) -> Object {
+        self.store.insert(name, val.clone());
+        val
     }
 }
 ```
 
 求值函数调用时修改如下：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
+pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
     match node {
 // [...]
         Node::Expression(Expression::CallExpression(CallExpression {
@@ -291,22 +298,19 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
             function,
             arguments,
         })) => {
-            let function_obj = eval(Node::Expression(*function), Rc::clone(&env));
-            if is_error(&function_obj) {
-                return function_obj;
-            }
+            let function_obj = eval(Node::Expression(*function), Rc::clone(&env))?;
             let args = eval_expressions(arguments, Rc::clone(&env));
             if args.len() == 1 && is_error(&args[0]) {
-                return args[0].clone();
+                return Ok(args[0].clone());
             }
             apply_function(function_obj, args)
         }
-        _ => None,
+        _ => Err(String::from("Unknown")),
     }
 }
 
-fn apply_function(func: Option<Object>, args: Vec<Option<Object>>) -> Option<Object> {
-    if let Some(Object::Function(function)) = func {
+fn apply_function(func: Object, args: Vec<Object>) -> Object {
+    if let Object::Function(function) = func {
         let extended_env = Rc::new(RefCell::new(extend_function_env(function.clone(), args)));
         let evaluated = eval(
             Node::Statement(Statement::BlockStatement(function.body)),
@@ -314,7 +318,7 @@ fn apply_function(func: Option<Object>, args: Vec<Option<Object>>) -> Option<Obj
         );
         unwrap_return_value(evaluated)
     } else {
-        new_error(format!("not a function: {:?}", get_type(&func)))
+        Err(format!("not a function: {:?}", get_type(&func)))
     }
 }
 
@@ -326,9 +330,9 @@ fn extend_function_env(func: Function, args: Vec<Option<Object>>) -> Environment
     env
 }
 
-fn unwrap_return_value(obj: Option<Object>) -> Option<Object> {
-    if let Some(Object::ReturnValue(ReturnValue { value })) = obj {
-        return Some(*value);
+fn unwrap_return_value(obj: Object) -> Object {
+    if let Object::ReturnValue(ReturnValue { value }) = obj {
+        return *value;
     }
     obj
 }
@@ -362,7 +366,7 @@ true
 
 自此Monkey也能够支持闭包了，测试代码如下：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 #[test]
 fn test_closures() {

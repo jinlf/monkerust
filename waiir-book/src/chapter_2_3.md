@@ -18,7 +18,6 @@ use crate::token::*;
 #[test]
 fn test_next_token() {
     let input = "=+(){},;";
-
     let tests = [
         (TokenType::ASSIGN, "="),
         (TokenType::PLUS, "+"),
@@ -30,16 +29,16 @@ fn test_next_token() {
         (TokenType::SEMICOLON, ";"),
         (TokenType::EOF, ""),
     ];
-    let mut l = Lexer::new(input);
+
+    let mut l = Lexer::new(String::from(input));
     for (i, tt) in tests.iter().enumerate() {
         let tok = l.next_token();
-
         assert!(
-            tok.tk_type == tt.0,
+            tok.r#type == tt.0,
             "test[{}] - tokentype wrong. expected={:?}, got={:?}",
             i,
             tt.0,
-            tok.tk_type
+            tok.r#type
         );
         assert!(
             tok.literal == tt.1,
@@ -51,7 +50,7 @@ fn test_next_token() {
     }
 }
 ```
-上述代码中的#[test]属性表示下面的函数是个测试函数，在自动化测试时会执行。代码的功能是将一个字符串作为输入，让词法分析器分析并使用断言验证输出的结果与预期结果是否一致。
+上述代码中的#[test]属性表示下面的函数是个测试函数，在自动化测试时会执行。#[cfg(test)]表示下面的模块是一个测试模块。代码的功能是将一个字符串作为输入，让词法分析器分析并使用断言验证输出的结果与预期结果是否一致。
 
 为了支持Rust的自动化测试，首先需要在src/main.rs文件头部添加：
 ```rust,noplaypen
@@ -87,13 +86,15 @@ pub struct Lexer {
     ch: u8,               // 当前字符
 }
 impl Lexer {
-    pub fn new(input: &str) -> Lexer {
-        Lexer {
-            input: String::from(input),
+    pub fn new(input: String) -> Lexer {
+        let mut l = Lexer {
+            input: input,
             position: 0,
             read_position: 0,
             ch: 0,
-        }
+        };
+        l.read_char();
+        l
     }
 }
 ```
@@ -118,21 +119,6 @@ read_char方法的目的是读取下一个字符，并前进一个字符。如�
 
 简单起见，本文实现的解释器只支持ASCII。您可以自己尝试支持Unicode。
 
-在new方法中调用read_char方法，可以改成：
-```rust,noplaypen
-// src/lexer/lexer.rs
-
-    pub fn new(input: &str) -> Lexer {
-        let mut l = Lexer {
-            input: String::from(input),
-            position: 0,
-            read_position: 0,
-            ch: 0,
-        };
-        l.read_char();
-        l
-    }
-```
 这样，创建词法分析器的同时，读入第一个字符，初始化了ch、position和read_position。
 
 下面来实现词法分析器的next_token方法：
@@ -156,7 +142,7 @@ use crate::token::*;
             b'}' => tok = new_token(TokenType::RBRACE, self.ch),
             0 => {
                 tok = Token {
-                    tk_type: TokenType::EOF,
+                    r#type: TokenType::EOF,
                     literal: String::new(),
                 }
             }
@@ -170,7 +156,7 @@ pub fn new_token(token_type: TokenType, ch: u8) -> Token {
     let mut literal = String::new();
     literal.push(ch as char);
     Token {
-        tk_type: token_type,
+        r#type: token_type,
         literal: literal,
     }
 }
@@ -189,16 +175,16 @@ cargo test
 ```
 还是出错：
 ```
-error[E0369]: binary operation `==` cannot be applied to type `token::TokenType`
-  --> src/lexer/lexer.rs:89:29
+error[E0369]: binary operation `==` cannot be applied to type `token::token::TokenType`
+  --> src/lexer/lexer_test.rs:24:24
    |
-89 |                 tok.tk_type == tt.0,
-   |                 ----------- ^^ ---- token::TokenType
-   |                 |
-   |                 token::TokenType
+24 |             tok.r#type == tt.0,
+   |             ---------- ^^ ---- token::token::TokenType
+   |             |
+   |             token::token::TokenType
    |
-   = note: an implementation of `std::cmp::PartialEq` might be missing for `token::TokenType`
-```
+   = note: an implementation of `std::cmp::PartialEq` might be missing for `token::token::TokenType`
+```   
 这是因为TokenType没有实现运算符"=="不能直接比较。解决的方法是在TokenType定义上加上PartialEq属性，另外为了打印输出TokenType，还需要加上Debug属性，如下：
 ```rust,noplaypen
 // src/token/token.rs
@@ -210,22 +196,9 @@ pub enum TokenType {
 执行cargo test，成功：
 ```
 running 1 test
-test lexer::tests::test_next_token ... ok
+test lexer::lexer_test::test_next_token ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-
-     Running target/debug/deps/waiir-ba361a48b3e37325
-
-running 1 test
-test lexer::tests::test_next_token ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-
-   Doc-tests waiir
-
-running 0 tests
-
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 ```
 测试通过表明现在词法分析器已经能够支持测试用例中的各种Token了。
 
@@ -244,7 +217,6 @@ let add = fn(x, y) {
 
 let result = add(five, ten);
 ";
-
     let tests = [
         (TokenType::LET, "let"),
         (TokenType::IDENT, "five"),
@@ -294,13 +266,12 @@ let result = add(five, ten);
 
     pub fn next_token(&mut self) -> Token {
         let tok: Token;
-
         match self.ch {
 // [...]            
             _ => {
                 if is_letter(self.ch) {
                     tok = Token {
-                        tk_type: TokenType::IDENT,
+                        r#type: TokenType::IDENT,
                         literal: String::from(self.read_identifier()),
                     };
                     return tok;
@@ -349,14 +320,13 @@ pub fn lookup_ident(ident: &str) -> TokenType {
 
     pub fn next_token(&mut self) -> Token {
         let tok: Token;
-
         match self.ch {
 // [...]            
             _ => {
                 if is_letter(self.ch) {
                     let literal = self.read_identifier();
                     tok = Token {
-                        tk_type: lookup_ident(&literal),
+                        r#type: lookup_ident(&literal),
                         literal: String::from(literal),
                     };
                     return tok;
@@ -371,8 +341,8 @@ pub fn lookup_ident(ident: &str) -> TokenType {
 
 执行cargo test，仍然报错，如下：
 ```
----- lexer::tests::test_next_token stdout ----
-thread 'lexer::tests::test_next_token' panicked at 'test[8] - tokentype wrong. expected=LET, got=ILLEGAL', src/lexer/lexer_test.rs:141:13
+---- lexer::lexer_test::test_next_token stdout ----
+thread 'lexer::lexer_test::test_next_token' panicked at 'test[0] - tokentype wrong. expected=LET, got=ILLEGAL', src/lexer/lexer_test.rs:60:9
 ```
 原因是我们的词法分析器没有跳过空格、回车等特殊分隔字符，需要处理一下：
 ```rust,noplaypen
@@ -405,20 +375,20 @@ thread 'lexer::tests::test_next_token' panicked at 'test[8] - tokentype wrong. e
         let tok: Token;
 
         self.skip_whitespace();
-
+        
         match self.ch {
 // [...]            
             _ => {
                 if is_letter(self.ch) {
                     let literal = self.read_identifier();
                     tok = Token {
-                        tk_type: lookup_ident(&literal),
+                        r#type: lookup_ident(&literal),
                         literal: String::from(literal),
                     };
                     return tok;
                 } else if self.ch.is_ascii_digit() {
                     tok = Token {
-                        tk_type: TokenType::INT,
+                        r#type: TokenType::INT,
                         literal: String::from(self.read_number()),
                     };
                     return tok;

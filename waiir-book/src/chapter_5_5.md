@@ -73,9 +73,7 @@ fn test_next_token() {
 
     pub fn next_token(&mut self) -> Token {
         let tok: Token;
-
         self.skip_whitespace();
-
         match self.ch {
             b':' => tok = new_token(TokenType::COLON, self.ch),
 // [...]
@@ -102,9 +100,6 @@ pub struct HashLiteral {
     pub pairs: HashMap<Expression, Expression>,
 }
 impl NodeTrait for HashLiteral {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
-    }
     fn string(&self) -> String {
         format!(
             "{{{}}}",
@@ -127,12 +122,6 @@ pub enum Expression {
     HashLiteral(HashLiteral),
 }
 impl NodeTrait for Expression {
-    fn token_literal(&self) -> String {
-        match self {
-// [...]
-            Expression::HashLiteral(hash_literal) => hash_literal.token_literal(),
-        }
-    }
     fn string(&self) -> String {
         match self {
 // [...]
@@ -150,43 +139,42 @@ use std::collections::*;
 #[test]
 fn test_parsing_hash_literals_string_keys() {
     let input = r#"{"one": 1, "two": 2, "three": 3}"#;
-    let l = Lexer::new(input);
-    let mut p = Parser::new(l);
-    let program = p.parse_program();
-    check_parser_errors(&mut p);
 
-    if let Some(Program { statements }) = program {
-        if let Statement::ExpressionStatement(ExpressionStatement {
-            token: _,
-            expression,
-        }) = &statements[0]
-        {
-            if let Expression::HashLiteral(HashLiteral { token: _, pairs }) = expression {
-                assert!(
-                    pairs.len() == 3,
-                    "hash.pairs has wrong length. got={}",
-                    pairs.len()
-                );
-                let mut expected: HashMap<String, i64> = HashMap::new();
-                expected.insert(String::from("one"), 1);
-                expected.insert(String::from("two"), 2);
-                expected.insert(String::from("three"), 3);
-                for (key, value) in pairs.iter() {
-                    if let Expression::StringLiteral(literal) = key {
-                        let expected_value = expected.get(&literal.string());
-                        test_integer_literal(value, *expected_value.unwrap());
-                    } else {
-                        assert!(false, "key is not StringLiteral. got={:?}", key);
+    let l = Lexer::new(String::from(input));
+    let mut p = Parser::new(l);
+    match p.parse_program() {
+        Ok(Program { statements }) => {
+            if let Statement::ExpressionStatement(ExpressionStatement {
+                token: _,
+                expression,
+            }) = &statements[0]
+            {
+                if let Expression::HashLiteral(HashLiteral { token: _, pairs }) = expression {
+                    assert!(
+                        pairs.len() == 3,
+                        "hash.pairs has wrong length. got={}",
+                        pairs.len()
+                    );
+                    let mut expected: HashMap<String, i64> = HashMap::new();
+                    expected.insert(String::from("one"), 1);
+                    expected.insert(String::from("two"), 2);
+                    expected.insert(String::from("three"), 3);
+                    for (key, value) in pairs.iter() {
+                        if let Expression::StringLiteral(literal) = key {
+                            let expected_value = expected.get(&literal.string());
+                            test_integer_literal(value, *expected_value.unwrap());
+                        } else {
+                            panic!("key is not StringLiteral. got={:?}", key);
+                        }
                     }
+                } else {
+                    panic!("exp is not HashLiteral. got={:?}", expression);
                 }
             } else {
-                assert!(false, "exp is not HashLiteral. got={:?}", expression);
+                panic!("parse error");
             }
-        } else {
-            assert!(false, "parse error");
         }
-    } else {
-        assert!(false, "parse error");
+        Err(errors) => panic_with_errors(errors),
     }
 }
 ```
@@ -197,30 +185,29 @@ fn test_parsing_hash_literals_string_keys() {
 #[test]
 fn test_parsing_empty_hash_literal() {
     let input = "{}";
-    let l = Lexer::new(input);
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
-    let program = p.parse_program();
-    check_parser_errors(&mut p);
-    if let Some(Program { statements }) = program {
-        if let Statement::ExpressionStatement(ExpressionStatement {
-            token: _,
-            expression,
-        }) = &statements[0]
-        {
-            if let Expression::HashLiteral(HashLiteral { token: _, pairs }) = expression {
-                assert!(
-                    pairs.len() == 0,
-                    "hash.pairs has wrong length. got={}",
-                    pairs.len()
-                );
+    match p.parse_program() {
+        Ok(Program { statements }) => {
+            if let Statement::ExpressionStatement(ExpressionStatement {
+                token: _,
+                expression,
+            }) = &statements[0]
+            {
+                if let Expression::HashLiteral(HashLiteral { token: _, pairs }) = expression {
+                    assert!(
+                        pairs.len() == 0,
+                        "hash.pairs has wrong length. got={}",
+                        pairs.len()
+                    );
+                } else {
+                    panic!("exp is not HashLiteral. got={:?}", expression);
+                }
             } else {
-                assert!(false, "exp is not HashLiteral. got={:?}", expression);
+                panic!("parse error");
             }
-        } else {
-            assert!(false, "parse error");
         }
-    } else {
-        assert!(false, "parse error");
+        Err(errors) => panic_with_errors(errors),
     }
 }
 ```
@@ -231,101 +218,92 @@ fn test_parsing_empty_hash_literal() {
 #[test]
 fn test_parsing_hash_literal_with_expressions() {
     let input = r#"{"one": 0 + 1, "two": 10 - 8, "three": 15 / 5}"#;
-    let l = Lexer::new(input);
+
+    let l = Lexer::new(String::from(input));
     let mut p = Parser::new(l);
-    let program = p.parse_program();
-    check_parser_errors(&mut p);
-    if let Some(Program { statements }) = program {
-        if let Statement::ExpressionStatement(ExpressionStatement {
-            token: _,
-            expression,
-        }) = &statements[0]
-        {
-            if let Expression::HashLiteral(HashLiteral { token: _, pairs }) = expression {
-                assert!(
-                    pairs.len() == 3,
-                    "hash.pairs has wrong length. got={}",
-                    pairs.len()
-                );
+    match p.parse_program() {
+        Ok(Program { statements }) => {
+            if let Statement::ExpressionStatement(ExpressionStatement {
+                token: _,
+                expression,
+            }) = &statements[0]
+            {
+                if let Expression::HashLiteral(HashLiteral { token: _, pairs }) = expression {
+                    assert!(
+                        pairs.len() == 3,
+                        "hash.pairs has wrong length. got={}",
+                        pairs.len()
+                    );
 
-                let mut tests: HashMap<String, fn(&Expression)> = HashMap::new();
-                tests.insert(String::from("one"), |e| {
-                    test_infix_expression(
-                        e,
-                        &*Box::new(0 as i64),
-                        String::from("+"),
-                        &*Box::new(1 as i64),
-                    )
-                });
-                tests.insert(String::from("two"), |e| {
-                    test_infix_expression(
-                        e,
-                        &*Box::new(10 as i64),
-                        String::from("-"),
-                        &*Box::new(8 as i64),
-                    )
-                });
-                tests.insert(String::from("three"), |e| {
-                    test_infix_expression(
-                        e,
-                        &*Box::new(15 as i64),
-                        String::from("/"),
-                        &*Box::new(5 as i64),
-                    )
-                });
+                    let mut tests: HashMap<String, fn(&Expression)> = HashMap::new();
+                    tests.insert(String::from("one"), |e| {
+                        test_infix_expression(
+                            e,
+                            &ExpectedType::Ival(0),
+                            "+",
+                            &ExpectedType::Ival(1),
+                        )
+                    });
+                    tests.insert(String::from("two"), |e| {
+                        test_infix_expression(
+                            e,
+                            &ExpectedType::Ival(10),
+                            "-",
+                            &ExpectedType::Ival(8),
+                        )
+                    });
+                    tests.insert(String::from("three"), |e| {
+                        test_infix_expression(
+                            e,
+                            &ExpectedType::Ival(15),
+                            "/",
+                            &ExpectedType::Ival(5),
+                        )
+                    });
 
-                for (key, value) in pairs {
-                    if let Expression::StringLiteral(literal) = key {
-                        if let Some(test_func) = tests.get(&literal.string()) {
-                            test_func(value);
+                    for (key, value) in pairs {
+                        if let Expression::StringLiteral(literal) = key {
+                            if let Some(test_func) = tests.get(&literal.string()) {
+                                test_func(value);
+                            } else {
+                                panic!("No test function for key {:?} found", literal.string());
+                            }
                         } else {
-                            assert!(
-                                false,
-                                "No test function for key {:?} found",
-                                literal.string()
-                            );
+                            panic!("key is not StringLiteral. got={:?}", key);
                         }
-                    } else {
-                        assert!(false, "key is not StringLiteral. got={:?}", key);
                     }
+                } else {
+                    panic!("exp is not HashLiteral. got={:?}", expression);
                 }
             } else {
-                assert!(false, "exp is not HashLiteral. got={:?}", expression);
+                panic!("parse error");
             }
-        } else {
-            assert!(false, "parse error");
         }
-    } else {
-        assert!(false, "parse error");
+        Err(errors) => panic_with_errors(errors),
     }
 }
 ```
 测试失败结果如下：
 ```
-thread 'parser::tests::test_parsing_empty_hash_literal' panicked at 'parser has 2 errors
-parser error: "no prefix parse function for LBRACE found"
-parser error: "no prefix parse function for RBRACE found"
-', src/parser/parser_test.rs:629:9
+thread 'parser::parser_test::test_parsing_empty_hash_literal' panicked at 'parser error: no prefix parse function for LBRACE found
+no prefix parse function for RBRACE found', src/parser/parser_test.rs:40:5
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace.
 
-thread 'parser::tests::test_parsing_hash_literal_with_expressions' panicked at 'parser has 7 errors
-parser error: "no prefix parse function for LBRACE found"
-parser error: "no prefix parse function for COLON found"
-parser error: "no prefix parse function for COMMA found"
-parser error: "no prefix parse function for COLON found"
-parser error: "no prefix parse function for COMMA found"
-parser error: "no prefix parse function for COLON found"
-parser error: "no prefix parse function for RBRACE found"
-', src/parser/parser_test.rs:629:9
+thread 'parser::parser_test::test_parsing_hash_literals_string_keys' panicked at 'parser error: no prefix parse function for LBRACE found
+no prefix parse function for COLON found
+no prefix parse function for COMMA found
+no prefix parse function for COLON found
+no prefix parse function for COMMA found
+no prefix parse function for COLON found
+no prefix parse function for RBRACE found', src/parser/parser_test.rs:40:5
 
-thread 'parser::tests::test_parsing_hash_literals_string_keys' panicked at 'parser has 7 errors
-parser error: "no prefix parse function for LBRACE found"
-parser error: "no prefix parse function for COLON found"
-parser error: "no prefix parse function for COMMA found"
-parser error: "no prefix parse function for COLON found"
-parser error: "no prefix parse function for COMMA found"
-parser error: "no prefix parse function for COLON found"
-parser error: "no prefix parse function for RBRACE found"
-', src/parser/parser_test.rs:629:9
+thread 'parser::parser_test::test_parsing_hash_literal_with_expressions' panicked at 'parser error: no prefix parse function for LBRACE found
+no prefix parse function for COLON found
+no prefix parse function for COMMA found
+no prefix parse function for COLON found
+no prefix parse function for COMMA found
+no prefix parse function for COLON found
+no prefix parse function for RBRACE found', src/parser/parser_test.rs:40:5
 ```
 
 为大括号增加一个前缀解析函数：
@@ -334,49 +312,32 @@ parser error: "no prefix parse function for RBRACE found"
 
 use std::collections::*;
 
-    fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
-        let mut left_exp: Option<Expression>;
-        let tk_type = self.cur_token.tk_type.clone();
-        match tk_type {
+impl Parser {
+    pub fn new(l: Lexer) -> Parser {
 // [...]
-            TokenType::LBRACE => left_exp = self.parse_hash_literal(),
-// [...]
-        }
+        p.register_prefix(TokenType::LBRACKET, |parser| parser.parse_array_literal());
+        p.register_prefix(TokenType::LBRACE, |parser| parser.parse_hash_literal());
 // [...]
     }
 
-    fn parse_hash_literal(&mut self) -> Option<Expression> {
+    fn parse_hash_literal(&mut self) -> Result<Expression, String> {
         let token = self.cur_token.clone();
         let mut pairs: HashMap<Expression, Expression> = HashMap::new();
-        while !self.peek_token_is(TokenType::RBRACE) {
+        while !self.peek_token_is(&TokenType::RBRACE) {
             self.next_token();
-            let key = self.parse_expression(Precedence::LOWEST);
-            if key.is_none() {
-                return None;
-            }
-
-            if !self.expect_peek(TokenType::COLON) {
-                return None;
-            }
-
+            let key = self.parse_expression(Precedence::LOWEST)?;
+            self.expect_peek(&TokenType::COLON)?;
             self.next_token();
-            let value = self.parse_expression(Precedence::LOWEST);
-            if value.is_none() {
-                return None;
-            }
+            let value = self.parse_expression(Precedence::LOWEST)?;
+            pairs.insert(key, value);
 
-            pairs.insert(key.unwrap(), value.unwrap());
-
-            if !self.peek_token_is(TokenType::RBRACE) && !self.expect_peek(TokenType::COMMA) {
-                return None;
+            if !self.peek_token_is(&TokenType::RBRACE) {
+                self.expect_peek(&TokenType::COMMA)?;
             }
         }
 
-        if !self.expect_peek(TokenType::RBRACE) {
-            return None;
-        }
-
-        Some(Expression::HashLiteral(HashLiteral {
+        self.expect_peek(&TokenType::RBRACE)?;
+        Ok(Expression::HashLiteral(HashLiteral {
             token: token,
             pairs: pairs,
         }))
@@ -415,9 +376,16 @@ impl StdHash for Expression {
 
 先增加测试用例：
 ```rust,noplaypen
-// src/object_test.rs
+// src/object/mod.rs
 
-use super::object::*;
+#[cfg(test)]
+mod object_test;
+```
+
+```rust,noplaypen
+// src/object/object_test.rs
+
+use crate::object::*;
 
 #[test]
 fn test_string_hash_key() {
@@ -449,13 +417,6 @@ fn test_string_hash_key() {
 }
 ```
 
-lib.rs中加入
-```rust,noplaypen
-// src/lib.rs
-
-#[cfg(test)]
-mod object_test;
-```
 这里我们将能够作为哈希键的Object类型放到一起，定义一个HashKey枚举，定义如下：
 ```rust,noplaypen
 // src/object/object.rs
@@ -529,8 +490,8 @@ impl PartialEq for Hash {
     }
 }
 impl ObjectTrait for Hash {
-    fn get_type(&self) -> String {
-        String::from("HASH")
+    fn get_type(&self) -> &str {
+        "HASH"
     }
     fn inspect(&self) -> String {
         format!(
@@ -571,7 +532,7 @@ impl ObjectTrait for Object {
 
 测试用例：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 use std::collections::*;
 
@@ -586,8 +547,9 @@ fn test_hash_literals() {
         true: 5,
         false: 6
     }"#;
+
     let evaluated = test_eval(input);
-    if let Some(Object::Hash(Hash { pairs })) = evaluated {
+    if let Object::Hash(Hash { pairs }) = evaluated {
         let mut expected: HashMap<HashKey, i64> = HashMap::new();
         expected.insert(
             StringObj {
@@ -621,19 +583,15 @@ fn test_hash_literals() {
         );
         for (expected_key, expected_value) in expected.iter() {
             if let Some(pair) = pairs.get(expected_key) {
-                test_integer_object(Some(pair.clone()), *expected_value);
+                test_integer_object(pair.clone(), *expected_value);
             } else {
-                assert!(false, "no pair for given key in pairs");
+                panic!("no pair for given key in pairs");
             }
         }
     } else {
-        assert!(false, "eval didn't return Hash. got={:?}", evaluated);
+        panic!("eval didn't return Hash. got={:?}", evaluated);
     }
 }
-```
-测试输出
-```
-thread 'evaluator_test::test_hash_literals' panicked at 'eval didn't return Hash. got=None', src/evaluator_test.rs:483:9
 ```
 
 前面提到过，不是所有的Object都能作为HashKey的，需要设计一种方式转换Object对象，某些能用来做HashKey的对象才可以用来求值，这里我设计了两个Rust trait：Hashable和AsHashable，用来转换Object为Hashable。
@@ -679,50 +637,38 @@ impl Hashable for StringObj {
 
 求值器中修改如下：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
+pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
     match node {
 // [...]
         Node::Expression(Expression::HashLiteral(hash_literal)) => {
             eval_hash_literal(hash_literal, Rc::clone(&env))
         }
+// [...]        
     }
 }
 ```
 其中eval_hash_literal为：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
 use std::collections::*;
 
-fn eval_hash_literal(node: HashLiteral, env: Rc<RefCell<Environment>>) -> Option<Object> {
+fn eval_hash_literal(node: HashLiteral, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
     let mut pairs: HashMap<HashKey, Object> = HashMap::new();
 
     for (key_node, value_node) in node.pairs.iter() {
-        let key = eval(Node::Expression(key_node.clone()), Rc::clone(&env));
-        if is_error(&key) {
-            return key;
-        }
-        if key.is_none() {
-            return None;
-        }
-
-        if let Some(hash_key) = key.as_ref().unwrap().as_hashable() {
-            let value = eval(Node::Expression(value_node.clone()), Rc::clone(&env));
-            if is_error(&value) {
-                return value;
-            }
-            if value.is_none() {
-                return None;
-            }
+        let key = eval(Node::Expression(key_node.clone()), Rc::clone(&env))?;
+        if let Some(hash_key) = key.as_hashable() {
+            let value = eval(Node::Expression(value_node.clone()), Rc::clone(&env))?;
             let hashed = hash_key.hash_key();
-            pairs.insert(hashed, value.unwrap());
+            pairs.insert(hashed, value);
         } else {
-            assert!(false, "unusable as hash key: {}", get_type(&key));
+            panic!("unusable as hash key: {}", key.get_type());
         }
     }
-    Some(Object::Hash(Hash { pairs: pairs }))
+    Ok(Object::Hash(Hash { pairs: pairs }))
 }
 ```
 测试通过！
@@ -751,35 +697,29 @@ ERROR: index operator not supported: HASH
 
 增加测试用例：
 ```rust,noplaypen
-// src/evaluator_test.rs
+// src/evaluator/evaluator_test.rs
 
 #[test]
 fn test_hash_index_expressions() {
-    let tests: [(&str, Option<Object>); 7] = [
+    let tests = vec![
         (
             r#"{"foo": 5}["foo"]"#,
-            Some(Object::Integer(Integer { value: 5 })),
+            Object::Integer(Integer { value: 5 }),
         ),
-        (r#"{"foo": 5}["bar"]"#, Some(Object::Null(NULL))),
+        (r#"{"foo": 5}["bar"]"#, Object::Null(NULL)),
         (
             r#"let key = "foo"; {"foo": 5}[key]"#,
-            Some(Object::Integer(Integer { value: 5 })),
+            Object::Integer(Integer { value: 5 }),
         ),
-        (r#"{}["foo"]"#, Some(Object::Null(NULL))),
-        ("{5: 5} [5]", Some(Object::Integer(Integer { value: 5 }))),
-        (
-            "{true: 5}[true]",
-            Some(Object::Integer(Integer { value: 5 })),
-        ),
-        (
-            "{false: 5}[false]",
-            Some(Object::Integer(Integer { value: 5 })),
-        ),
+        (r#"{}["foo"]"#, Object::Null(NULL)),
+        ("{5: 5} [5]", Object::Integer(Integer { value: 5 })),
+        ("{true: 5}[true]", Object::Integer(Integer { value: 5 })),
+        ("{false: 5}[false]", Object::Integer(Integer { value: 5 })),
     ];
 
     for tt in tests.iter() {
         let evaluated = test_eval(tt.0);
-        if let Some(Object::Integer(integer)) = &tt.1 {
+        if let Object::Integer(integer) = &tt.1 {
             test_integer_object(evaluated, integer.value);
         } else {
             test_null_object(evaluated);
@@ -798,38 +738,38 @@ fn test_error_handling() {
 ```
 测试失败结果如下：
 ```
-thread 'evaluator::tests::test_hash_index_expressions' panicked at 'object is not Integer. got=Some(ErrorObj(ErrorObj { message: "index operator not supported: HASH" }))', src/evaluator_test.rs:661:13
-thread 'evaluator::tests::test_error_handling' panicked at 'wrong error message. expected=unusable as hash key: FUNCTION, got=index operator not supported: HASH', src/evaluator_test.rs:827:17
+thread 'evaluator::tests::test_hash_index_expressions' panicked at 'object is not Integer. got=ErrorObj(ErrorObj { message: "index operator not supported: HASH" })', src/evaluator/evaluator_test.rs:661:13
+thread 'evaluator::tests::test_error_handling' panicked at 'wrong error message. expected=unusable as hash key: FUNCTION, got=index operator not supported: HASH', src/evaluator/evaluator_test.rs:827:17
 ```
 
 扩展索引表达式求值函数：
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-fn eval_index_expression(left: Object, index: Object) -> Option<Object> {
-    if let Object::Array(_) = left {
-        if let Object::Integer(_) = index {
-            return eval_array_index_expression(left, index);
+fn eval_index_expression(left: Object, index: Object) -> Result<Object, String> {
+    if let Object::Array(Array { elements }) = &left {
+        if let Object::Integer(Integer { value }) = index {
+            return eval_array_index_expression(elements, value);
         }
-    } else if let Object::Hash(hash_obj) = left {
+    } else if let Object::Hash(hash_obj) = &left {
         return eval_hash_index_expression(hash_obj, index);
     }
-    new_error(format!("index operator not supported: {}", left.get_type()))
+    Err(format!("index operator not supported: {}", left.get_type()))
 }
 ```
 增加了哈希索引表达式求值方法。具体定义如下：
 
 ```rust,noplaypen
-// src/evaluator.rs
+// src/evaluator/evaluator.rs
 
-fn eval_hash_index_expression(hash: Hash, index: Object) -> Option<Object> {
+fn eval_hash_index_expression(hash: &Hash, index: Object) -> Result<Object, String> {
     if let Some(key) = index.as_hashable() {
         if let Some(pair) = hash.pairs.get(&key.hash_key()) {
-            return Some(pair.clone());
+            return Ok(pair.clone());
         }
-        return Some(Object::Null(NULL));
+        Ok(Object::Null(NULL))
     } else {
-        return new_error(format!("unusable as hash key: {}", index.get_type()));
+        Err(format!("unusable as hash key: {}", index.get_type()))
     }
 }
 ```
