@@ -76,7 +76,7 @@ fn eval(node: Node) -> Result<Object, String> {
             statements,
         })) => eval_statements(statements),
         Node::Expression(Expression::IfExpression(if_expr)) => eval_if_expression(if_expr),
-        _ => Err(String::from("Unknown")),
+// [...]
     }
 }
 

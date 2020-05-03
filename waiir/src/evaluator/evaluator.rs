@@ -69,7 +69,7 @@ fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
             value,
         })) => {
             let val = eval(Node::Expression(value), Rc::clone(&env))?;
-            Ok(env.borrow_mut().set(name.value, val).clone())
+            Ok(env.borrow_mut().set(name.value, val))
         }
         Node::Expression(Expression::Identifier(ident)) => eval_identifier(ident, Rc::clone(&env)),
         Node::Expression(Expression::FunctionLiteral(FunctionLiteral {
@@ -268,7 +268,7 @@ fn eval_block_statement(
 
 fn eval_identifier(node: Identifier, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
     if let Some(val) = env.borrow().get(&node.value) {
-        Ok(val.clone())
+        Ok(val)
     } else if let Some(builtin) = get_builtin(&node.value) {
         Ok(builtin)
     } else {

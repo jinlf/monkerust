@@ -334,7 +334,7 @@ thread 'parser::tests::test_identifier_expression' panicked at 'program has not 
 ```rust,noplaypen
 // src/parse.rs
 
-    fn parse_statement(&mut self) -> Option<Statement> {
+    fn parse_statement(&mut self) -> Result<Statement, String> {
         match self.cur_token.r#type {
 // [...]
             _ => Ok(self.parse_expression_statement()?),
@@ -568,6 +568,11 @@ enum ExpectedType {
     Sval(String),
     Bval(bool),
 }
+impl From<&str> for ExpectedType {
+    fn from(v: &str) -> Self {
+        ExpectedType::Sval(String::from(v))
+    }
+}
 
 #[test]
 fn test_parsing_prefix_expression() {
@@ -693,7 +698,6 @@ thread 'parser::parser_test::test_parsing_prefix_expression' panicked at 'parser
 impl Parser {
     pub fn new(l: Lexer) -> Parser {
 // [...]
-        p.register_prefix(TokenType::IDENT, |parser| parser.parse_identifier());
         p.register_prefix(TokenType::INT, |parser| parser.parse_integer_literal());
         p.register_prefix(TokenType::BANG, |parser| parser.parse_prefix_expression());
         p.register_prefix(TokenType::MINUS, |parser| parser.parse_prefix_expression());
@@ -913,9 +917,6 @@ fn get_precedence(t: &TokenType) -> Precedence {
 impl Parser {
     pub fn new(l: Lexer) -> Parser {
 // [...]
-        p.register_prefix(TokenType::IDENT, |parser| parser.parse_identifier());
-        p.register_prefix(TokenType::INT, |parser| parser.parse_integer_literal());
-        p.register_prefix(TokenType::BANG, |parser| parser.parse_prefix_expression());
         p.register_prefix(TokenType::MINUS, |parser| parser.parse_prefix_expression());
 
         p.register_infix(TokenType::PLUS, |parser, exp| {
@@ -952,7 +953,8 @@ impl Parser {
     fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression, String> {
         if let Some(prefix) = self.prefix_parse_fns.get(&self.cur_token.r#type) {
             let mut left_exp = prefix(self)?;
-            while !self.peek_token_is(&TokenType::SEMICOLON) && precedence < self.peek_precedence() {
+            while !self.peek_token_is(&TokenType::SEMICOLON) && precedence < self.peek_precedence()
+            {
                 let infix_fn: InfixParseFn;
                 if let Some(infix) = self.infix_parse_fns.get(&self.peek_token.r#type) {
                     infix_fn = *infix;
@@ -968,9 +970,7 @@ impl Parser {
         }
     }
 ```
-注意：。
-
-另外，由于这里有precedence的比较，需要修改Precedence的定义，加上PartialOrd和PartialEq属性，由此产生的优先级排序正好满足我们的需求。
+由于这里有precedence的比较，需要修改Precedence的定义，加上PartialOrd和PartialEq属性，由此产生的优先级排序正好满足我们的需求。
 ```rust,noplaypen
 // src/parser/parser.rs
 

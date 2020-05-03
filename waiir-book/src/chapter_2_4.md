@@ -106,7 +106,7 @@ if (5 < 10) {
 ```
 这里用到了if、else、return、true和false。
 新增加测试用例：
-```rusr,noplaypen
+```rust,noplaypen
 // src/lexer/lexer.rs
 
 // [...]

@@ -78,8 +78,7 @@ impl Parser {
     }
 
     pub fn next_token(&mut self) {
-        self.cur_token = self.peek_token.clone();
-        self.peek_token = self.l.next_token();
+        self.cur_token = std::mem::replace(&mut self.peek_token, self.l.next_token());
     }
 
     pub fn parse_program(&mut self) -> Result<Program, Vec<String>> {
@@ -111,24 +110,17 @@ impl Parser {
 
     fn parse_let_statement(&mut self) -> Result<Statement, String> {
         let token = self.cur_token.clone();
-
         self.expect_peek(&TokenType::IDENT)?;
-
         let name = Identifier {
             token: self.cur_token.clone(),
             value: self.cur_token.literal.clone(),
         };
-
         self.expect_peek(&TokenType::ASSIGN)?;
-
         self.next_token();
-
         let value = self.parse_expression(Precedence::LOWEST)?;
-
         if self.peek_token_is(&TokenType::SEMICOLON) {
             self.next_token();
         }
-
         Ok(Statement::LetStatement(LetStatement {
             token: token,
             name: name,

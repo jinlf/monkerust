@@ -73,7 +73,9 @@ fn test_next_token() {
 
     pub fn next_token(&mut self) -> Token {
         let tok: Token;
+
         self.skip_whitespace();
+        
         match self.ch {
             b':' => tok = new_token(TokenType::COLON, self.ch),
 // [...]
@@ -309,8 +311,6 @@ no prefix parse function for RBRACE found', src/parser/parser_test.rs:40:5
 为大括号增加一个前缀解析函数：
 ```rust,noplaypen
 // src/parser/parser.rs
-
-use std::collections::*;
 
 impl Parser {
     pub fn new(l: Lexer) -> Parser {

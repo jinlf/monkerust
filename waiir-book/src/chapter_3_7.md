@@ -20,9 +20,7 @@
 
 然后判断循环条件：
 ```rust,noplaypen
-        while !self.peek_token_is(&TokenType::SEMICOLON) && precedence < self.peek_precedence() {
-// [...]
-        }
+        while !self.peek_token_is(&TokenType::SEMICOLON) && precedence < self.peek_precedence()
 ```
 
 peek_token（“+”号）的优先级比当前方法参数precedence的优先级（LOWEST）高，条件为真，执行循环体，即按中缀表达式解析。执行之前先通过调用next_token方法向前更新Token，如下图：

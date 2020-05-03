@@ -50,7 +50,7 @@ pub enum TokenType {
 测试失败结果如下：
 
 ```
-thread 'lexer::tests::test_next_token' panicked at 'test[81] - tokentype wrong. expected=STRING, got=ILLEGAL', src/lexer/lexer_test.rs:262:13
+thread 'lexer::lexer_test::test_next_token' panicked at 'test[73] - tokentype wrong. expected=STRING, got=ILLEGAL', src/lexer/lexer_test.rs:114:9
 ```
 
 扩展词法分析器：
@@ -267,7 +267,7 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String>
         Node::Expression(Expression::StringLiteral(StringLiteral { token: _, value })) => {
             Ok(Object::StringObj(StringObj { value: value }))
         }
-        _ => Err(String::from("Unknown")),
+// [...]
     }
 }
 ```

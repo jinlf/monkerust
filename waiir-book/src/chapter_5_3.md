@@ -185,7 +185,7 @@ ERROR: not a function: "BUILTIN"
 
 fn apply_function(func: Object, args: Vec<Object>) -> Result<Object, String> {
     if let Object::Function(function) = func {
-        let extended_env = Rc::new(RefCell::new(extend_function_env(function.clone(), args)));
+        let extended_env = Rc::new(RefCell::new(extend_function_env(&function, args)));
         let evaluated = eval(
             Node::Statement(Statement::BlockStatement(function.body)),
             Rc::clone(&extended_env),
@@ -218,11 +218,9 @@ pub fn get_builtin(name: &str) -> Option<Object> {
                     ));
                 }
                 return match &args[0] {
-                    Object::StringObj(StringObj { value }) => {
-                        Ok(Object::Integer(Integer {
-                            value: value.len() as i64,
-                        }))
-                    }
+                    Object::StringObj(StringObj { value }) => Ok(Object::Integer(Integer {
+                        value: value.len() as i64,
+                    })),
                     _ => Err(format!(
                         "argument to `len` not supported, got {}",
                         args[0].get_type()

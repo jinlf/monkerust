@@ -451,7 +451,7 @@ fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
                 elements: elements_obj.iter().map(|x| x.clone()).collect(),
             }))
         }
-        _ => Err(String::from("Unknown")),
+// [...]
     }
 }
 ```
@@ -537,7 +537,7 @@ fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
             let index_obj = eval(Node::Expression(*index), Rc::clone(&env))?;
             eval_index_expression(left_obj, index_obj)
         }
-        _ => Err(String::from("Unknown")),
+// [...]
     }
 }
 ```

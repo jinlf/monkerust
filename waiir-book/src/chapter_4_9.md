@@ -52,7 +52,7 @@ fn eval(node: Node) -> Result<Object, String> {
 
             // 然后呢？
         }
-        _ => Err(String::from("Unknown")),
+// [...]
     }
 }
 ```
@@ -189,7 +189,7 @@ fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Object {
             let val = eval(Node::Expression(value), Rc::clone(&env))?;
             Ok(env.borrow_mut().set(name.value, val))
         }
-        _ => Err(String::from("Unknown")),
+// [...]
     }
 }
 ```
@@ -202,7 +202,7 @@ fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Object {
     match node {
 // [...]
         Node::Expression(Expression::Identifier(ident)) => eval_identifier(ident, Rc::clone(&env)),
-        _ => Err(String::from("Unknown")),
+// [...]
     }
 }
 
@@ -210,7 +210,7 @@ fn eval_identifier(node: Identifier, env: Rc<RefCell<Environment>>) -> Result<Ob
     if let Some(val) = env.borrow().get(&node.value) {
         Ok(val)
     } else {
-        Ok(new_error(format!("identifier not found: {}", node.value)))
+        Err(format!("identifier not found: {}", node.value))
     }
 }
 ```

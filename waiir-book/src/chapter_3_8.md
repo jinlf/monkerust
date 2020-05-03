@@ -215,8 +215,8 @@ fn test_parsing_prefix_expression() {
     let tests = vec![
         ("!5;", "!", ExpectedType::Ival(5)),
         ("-15;", "-", ExpectedType::Ival(15)),
-        ("!true", "!", ExpectedType::Ival(true)),
-        ("!false", "!", ExpectedType::Ival(false)),
+        ("!true", "!", ExpectedType::Bval(true)),
+        ("!false", "!", ExpectedType::Bval(false)),
     ];
 
     for tt in tests.iter() {
@@ -263,10 +263,9 @@ fn test_operator_precedence_parsing() {
 ```
 测试失败结果：
 ```
-thread 'parser::tests::test_operator_precedence_parsing' panicked at 'parser has 3 errors
-parser error: "no prefix parse function for LPAREN found"
-parser error: "no prefix parse function for RPAREN found"
-parser error: "no prefix parse function for PLUS found"
+thread 'parser::parser_test::test_operator_precedence_parsing' panicked at 'parser error: no prefix parse function for LPAREN found
+no prefix parse function for RPAREN found
+no prefix parse function for PLUS found', src/parser/parser_test.rs:37:5
 ```
 修改parse_expression如下：
 ```rust,noplaypen
@@ -275,7 +274,6 @@ parser error: "no prefix parse function for PLUS found"
 impl Parser {
     pub fn new(l: Lexer) -> Parser {
 // [...]
-        p.register_prefix(TokenType::TRUE, |parser| parser.parse_boolean_literal());
         p.register_prefix(TokenType::FALSE, |parser| parser.parse_boolean_literal());
         p.register_prefix(TokenType::LPAREN, |parser| {
             parser.parse_grouped_expression()
@@ -457,10 +455,7 @@ fn test_if_expression() {
                         );
                     }
                 } else {
-                    panic!(
-                        "stmt.expression is not IfExpression. got={:?}",
-                        expression
-                    );
+                    panic!("stmt.expression is not IfExpression. got={:?}", expression);
                 }
             } else {
                 panic!(
@@ -556,10 +551,7 @@ fn test_if_else_expression() {
                         );
                     }
                 } else {
-                    panic!(
-                        "stmt.expression is not IfExpression. got={:?}",
-                        expression
-                    );
+                    panic!("stmt.expression is not IfExpression. got={:?}", expression);
                 }
             } else {
                 panic!(
@@ -570,25 +562,21 @@ fn test_if_else_expression() {
         }
         Err(errors) => panic_with_errors(errors),
     }
-}                 
+}           
 ```
 
 测试结果如下：
 ```
-thread 'parser::tests::test_if_expression' panicked at 'parser has 3 errors
-parser error: "no prefix parse function for IF found"
-parser error: "no prefix parse function for LBRACE found"
-parser error: "no prefix parse function for RBRACE found"
-', src/parser/parser_test.rs:372:9
+thread 'parser::parser_test::test_if_else_expression' panicked at 'parser error: no prefix parse function for IF found
+no prefix parse function for LBRACE found
+no prefix parse function for RBRACE found
+no prefix parse function for ELSE found
+no prefix parse function for LBRACE found
+no prefix parse function for RBRACE found', src/parser/parser_test.rs:37:5
 ...
-thread 'parser::tests::test_if_else_expression' panicked at 'parser has 6 errors
-parser error: "no prefix parse function for IF found"
-parser error: "no prefix parse function for LBRACE found"
-parser error: "no prefix parse function for RBRACE found"
-parser error: "no prefix parse function for ELSE found"
-parser error: "no prefix parse function for LBRACE found"
-parser error: "no prefix parse function for RBRACE found"
-', src/parser/parser_test.rs:372:9
+thread 'parser::parser_test::test_if_expression' panicked at 'parser error: no prefix parse function for IF found
+no prefix parse function for LBRACE found
+no prefix parse function for RBRACE found', src/parser/parser_test.rs:37:5
 ```
 修改parse_expression如下：
 ```rust,noplaypen
@@ -826,14 +814,12 @@ pub struct Identifier {
 
 测试错误信息如下：
 ```
-thread 'parser::tests::test_function_literal_parsing' panicked at 'parser has 6 errors
-parser error: "no prefix parse function for FUNCTION found"
-parser error: "expected next token to be RPAREN, got COMMA instead"
-parser error: "no prefix parse function for COMMA found"
-parser error: "no prefix parse function for RPAREN found"
-parser error: "no prefix parse function for LBRACE found"
-parser error: "no prefix parse function for RBRACE found"
-', src/parser/parser_test.rs:439:9
+thread 'parser::parser_test::test_function_literal_parsing' panicked at 'parser error: no prefix parse function for FUNCTION found
+expected next token to be RPAREN, got COMMA instead
+no prefix parse function for COMMA found
+no prefix parse function for RPAREN found
+no prefix parse function for LBRACE found
+no prefix parse function for RBRACE found', src/parser/parser_test.rs:37:5
 ```
 
 需要修改parse_expression方法支持函数字面量
@@ -1068,10 +1054,7 @@ fn test_call_expression_parsing() {
                     );
                 }
             } else {
-                panic!(
-                    "stmt is not ExpressionStatement. got={:?}",
-                    &statements[0]
-                );
+                panic!("stmt is not ExpressionStatement. got={:?}", &statements[0]);
             }
         }
         Err(errors) => panic_with_errors(errors),
@@ -1080,13 +1063,11 @@ fn test_call_expression_parsing() {
 ```
 测试结果如下：
 ```
-thread 'parser::tests::test_call_expression_parsing' panicked at 'parser has 5 errors
-parser error: "expected next token to be RPAREN, got COMMA instead"
-parser error: "no prefix parse function for COMMA found"
-parser error: "no prefix parse function for COMMA found"
-parser error: "no prefix parse function for RPAREN found"
-parser error: "no prefix parse function for SEMICOLON found"
-', src/parser/parser_test.rs:497:9
+thread 'parser::parser_test::test_call_expression_parsing' panicked at 'parser error: expected next token to be RPAREN, got COMMA instead
+no prefix parse function for COMMA found
+no prefix parse function for COMMA found
+no prefix parse function for RPAREN found
+no prefix parse function for SEMICOLON found', src/parser/parser_test.rs:37:5
 ```
 在中缀操作符解析时加上左括号的处理：
 ```rust,noplaypen
@@ -1162,13 +1143,11 @@ impl Parser {
 ```
 测试结果仍然出错：
 ```
-thread 'parser::tests::test_call_expression_parsing' panicked at 'parser has 5 errors
-parser error: "expected next token to be RPAREN, got COMMA instead"
-parser error: "no prefix parse function for COMMA found"
-parser error: "no prefix parse function for COMMA found"
-parser error: "no prefix parse function for RPAREN found"
-parser error: "no prefix parse function for SEMICOLON found"
-', src/parser/parser_test.rs:546:9
+thread 'parser::parser_test::test_call_expression_parsing' panicked at 'parser error: expected next token to be RPAREN, got COMMA instead
+no prefix parse function for COMMA found
+no prefix parse function for COMMA found
+no prefix parse function for RPAREN found
+no prefix parse function for SEMICOLON found', src/parser/parser_test.rs:37:5
 ```
 出现此错误的原因是中缀处理时没查到对应的优先级，修改get_precedence函数：
 ```rust,noplaypen

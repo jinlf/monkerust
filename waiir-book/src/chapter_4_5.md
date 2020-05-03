@@ -28,8 +28,7 @@ fn test_eval_integer_expression() {
     let tests = [("5", 5), ("10", 10)];
 
     for tt in tests.iter() {
-        let evaluated = test_eval(tt.0);
-        test_integer_object(evaluated, tt.1);
+        test_integer_object(test_eval(tt.0), tt.1);
     }
 }
 
@@ -123,11 +122,11 @@ fn eval(node: Node) -> Result<Object, String> {
 }
 
 fn eval_statements(stmts: Vec<Statement>) -> Result<Object, String> {
-    let mut result: Result<Object, String> = Ok(Object::Null(Null {}));
+    let mut result: Object = Object::Null(Null {});
     for statement in stmts.into_iter() {
         result = eval(Node::Statement(statement));
     }
-    result
+    Ok(result)
 }
 ```
 
@@ -189,8 +188,7 @@ fn test_eval_boolean_expression() {
     let tests = [("true", true), ("false", false)];
 
     for tt in tests.iter() {
-        let evaluated = test_eval(tt.0);
-        test_boolean_object(evaluated, tt.1);
+        test_boolean_object(test_eval(tt.0), tt.1);
     }
 }
 
@@ -224,7 +222,7 @@ fn eval(node: Node) -> Result<Object, String> {
         Node::Expression(Expression::BooleanLiteral(BooleanLiteral { token: _, value })) => {
             Ok(Object::Boolean(Boolean { value: value }))
         }
-        _ => Err(String::from("Unknown")),
+// [...]
     }
 }
 ```
@@ -306,8 +304,7 @@ fn test_bang_operator() {
     ];
 
     for tt in tests.iter() {
-        let evaluated = test_eval(tt.0);
-        test_boolean_object(evaluated, tt.1);
+        test_boolean_object(test_eval(tt.0), tt.1);
     }
 }
 ```
@@ -469,11 +466,7 @@ fn eval(node: Node) -> Result<Object, String> {
 ```rust,noplaypen
 // src/evaluator/evaluator.rs
 
-fn eval_infix_expression(
-    operator: &str,
-    left: Object,
-    right: Object,
-) -> Result<Object, String> {
+fn eval_infix_expression(operator: &str, left: Object, right: Object) -> Result<Object, String> {
     if let Object::Integer(Integer { value }) = left {
         let left_val = value;
         if let Object::Integer(Integer { value }) = right {

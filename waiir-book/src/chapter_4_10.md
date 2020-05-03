@@ -99,8 +99,6 @@ impl ObjectTrait for Object {
 ```
 取得的是函数对象的内存地址。
 
-这里需要为Object系统中的每个struct加上Clone trait。
-
 这里还需要为Environment加上Debug和Clone属性：
 ```rust,noplaypen
 // src/environment.rs
@@ -168,7 +166,7 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String>
             body: body,
             env: Rc::clone(&env),
         })),
-        _ => Err(String::from("Unknown")),
+// [...]
     }
 }
 ```
@@ -213,7 +211,7 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String>
             }
             // 然后呢？
         }
-        _ => Err(String::from("Unknown")),
+// [...]        
     }
 }
 
@@ -227,15 +225,15 @@ fn is_error(obj: &Object) -> bool {
 
 fn eval_expressions(exps: Vec<Expression>, env: Rc<RefCell<Environment>>) -> Vec<Object> {
     let mut result: Vec<Object> = Vec::new();
-    for e in exps.iter() {
-        match eval(Node::Expression(e.clone()), Rc::clone(&env)) {
+    for e in exps.into_iter() {
+        match eval(Node::Expression(e), Rc::clone(&env)) {
             Ok(evaluated) => {
                 if is_error(&evaluated) {
                     return vec![evaluated];
                 }
                 result.push(evaluated);
             }
-            Err(err) => panic!("error"),
+            Err(_) => panic!("error"),
         }
     }
     result
@@ -305,25 +303,25 @@ pub fn eval(node: Node, env: Rc<RefCell<Environment>>) -> Result<Object, String>
             }
             apply_function(function_obj, args)
         }
-        _ => Err(String::from("Unknown")),
+// [...]
     }
 }
 
-fn apply_function(func: Object, args: Vec<Object>) -> Object {
+fn apply_function(func: Object, args: Vec<Object>) -> Result<Object, String> {
     if let Object::Function(function) = func {
-        let extended_env = Rc::new(RefCell::new(extend_function_env(function.clone(), args)));
+        let extended_env = Rc::new(RefCell::new(extend_function_env(&function, args)));
         let evaluated = eval(
             Node::Statement(Statement::BlockStatement(function.body)),
             Rc::clone(&extended_env),
-        );
-        unwrap_return_value(evaluated)
+        )?;
+        Ok(unwrap_return_value(evaluated))
     } else {
-        Err(format!("not a function: {:?}", get_type(&func)))
+        Err(format!("not a function: {:?}", func.get_type()))
     }
 }
 
-fn extend_function_env(func: Function, args: Vec<Option<Object>>) -> Environment {
-    let mut env = new_enclosed_environment(Some(func.env));
+fn extend_function_env(func: &Function, args: Vec<Object>) -> Environment {
+    let mut env = new_enclosed_environment(Some(Rc::clone(&func.env)));
     for (param_idx, param) in func.parameters.iter().enumerate() {
         env.set(param.value.clone(), args[param_idx].clone());
     }

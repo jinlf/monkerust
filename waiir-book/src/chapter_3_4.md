@@ -545,8 +545,6 @@ pub enum TokenType {
         }
     }
 ```
-注意，这里执行了一次t.clone()，因为根据Rust的安全限制，不能访问已经移走的对象，因此第一次访问t时候我使用的是克隆出来的对象。
-
 为了测试一下解析错误的情况，可以临时修改测试用例：
 ```rust,noplaypen
 // src/parser/parser.rs

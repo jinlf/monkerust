@@ -60,8 +60,7 @@ fn test_return_statements() {
     ];
 
     for tt in tests.iter() {
-        let evaluated = test_eval(tt.0);
-        test_integer_object(evaluated, tt.1);
+        test_integer_object(test_eval(tt.0), tt.1);
     }
 }
 ```
@@ -82,7 +81,7 @@ fn eval(node: Node) -> Result<Object, String> {
                 value: Box::new(val),
             }))
         }
-        _ => Err(String::from("Unknown")),
+// [...]        
     }
 }
 
@@ -120,7 +119,7 @@ fn test_return_statements() {
 ```
 测试结果：
 ```
-thread 'evaluator::tests::test_return_statements' panicked at 'object has wrong value. got=1, want=10', src/evaluator/evaluator_test.rs:224:13
+thread 'evaluator::evaluator_test::test_return_statements' panicked at 'object has wrong value. got=1, want=10', src/evaluator/evaluator_test.rs:44:9
 ```
 失败的原因是，嵌套块语句中包含retrun求值时，应该在最外层终止并返回。前面实现的eval_statements仅适用于Program这种最外层语句的情况。
 

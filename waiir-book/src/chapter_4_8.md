@@ -120,11 +120,7 @@ fn eval_minus_prefix_operator_expression(right: Object) -> Result<Object, String
 ```rust,noplaypen
 // src/evaluator/evaluator.rs
 
-fn eval_infix_expression(
-    operator: &str,
-    left: Object,
-    right: Object,
-) -> Result<Object, String> {
+fn eval_infix_expression(operator: &str, left: Object, right: Object) -> Result<Object, String> {
     if left.get_type() != right.get_type() {
         return Err(format!(
             "type mismatch: {} {} {}",
@@ -156,35 +152,6 @@ fn eval_integer_infix_expression(operator: &str, left: i64, right: i64) -> Resul
 测试仍然失败：
 ```
 thread 'evaluator::evaluator_test::test_error_handling' panicked at 'no error object returned. got=Integer(Integer { value: 5 })', src/evaluator/evaluator_test.rs:210:13
-```
-
-需要在Program和块语句中处理求值出错的情况：
-```rust,noplaypen
-// src/evaluator/evaluator.rs
-
-fn eval_program(node: Node) -> Result<Object, String> {
-    let mut result: Object = Object::Null(NULL);
-    if let Node::Program(Program { statements }) = node {
-        for statement in statements.into_iter() {
-            result = eval(Node::Statement(statement))?;
-            if let Object::ReturnValue(ReturnValue { value }) = result {
-                return Ok(*value);
-            }
-        }
-    }
-    Ok(result)
-}
-
-fn eval_block_statement(block: BlockStatement) -> Result<Object, String> {
-    let mut result: Object = Object::Null(NULL);
-    for statement in block.statements.into_iter() {
-        result = eval(Node::Statement(statement))?;
-        if let Object::ReturnValue(_) = result {
-            return Ok(result);
-        }
-    }
-    Ok(result)
-}
 ```
 
 ```rust,noplaypen
